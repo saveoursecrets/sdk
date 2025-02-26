@@ -25,7 +25,7 @@ impl BackendPreferences {
         } else {
             Paths::data_dir()?
         };
-        let paths = Arc::new(Paths::new_client(data_dir));
+        let paths = Paths::new_client(data_dir);
         Ok(Self::new_fs(paths))
     }
 

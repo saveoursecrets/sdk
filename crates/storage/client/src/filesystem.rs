@@ -133,7 +133,7 @@ impl ClientFileSystemStorage {
             summaries: Vec::new(),
             current: Arc::new(Mutex::new(None)),
             folders: Default::default(),
-            paths: Arc::new(paths.clone()),
+            paths: paths.clone(),
             target,
             identity_log: Arc::new(RwLock::new(identity_log)),
             account_log: Arc::new(RwLock::new(account_log)),
@@ -185,7 +185,6 @@ impl ClientFileSystemStorage {
             Arc::new(RwLock::new(file_log))
         };
 
-        let paths = Arc::new(paths.clone());
         let mut storage = Self {
             account_id: *account_id,
             summaries: Vec::new(),
@@ -506,7 +505,7 @@ impl ClientEventLogStorage for ClientFileSystemStorage {
         _: Internal,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
         let mut event_log = DeviceEventLog::new_device(
-            BackendTarget::FileSystem((&*self.paths).clone()),
+            BackendTarget::FileSystem(self.paths.clone()),
             &self.account_id,
         )
         .await?;
@@ -536,7 +535,7 @@ impl ClientEventLogStorage for ClientFileSystemStorage {
         let log_file = self.paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;
         let mut event_log = FileEventLog::new_file(
-            BackendTarget::FileSystem((&*self.paths).clone()),
+            BackendTarget::FileSystem(self.paths.clone()),
             &self.account_id,
         )
         .await?;

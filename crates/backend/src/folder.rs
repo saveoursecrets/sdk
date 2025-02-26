@@ -123,7 +123,7 @@ impl Folder {
     ///
     /// Changes to the in-memory vault are mirrored to the database.
     pub async fn new_db(
-        paths: Paths,
+        paths: Arc<Paths>,
         client: Client,
         account_id: AccountId,
         folder_id: VaultId,

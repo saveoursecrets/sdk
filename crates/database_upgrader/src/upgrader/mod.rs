@@ -14,7 +14,10 @@ use sos_server_storage::ServerStorage;
 use sos_sync::SyncStatus;
 use sos_vault::list_accounts;
 use sos_vfs::{self as vfs, File};
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use tempfile::NamedTempFile;
 
 mod db_import;
@@ -25,7 +28,7 @@ use db_import::AccountStorage;
 #[derive(Debug)]
 pub struct UpgradeOptions {
     /// Storage paths.
-    pub paths: Paths,
+    pub paths: Arc<Paths>,
     /// Perform a dry run.
     pub dry_run: bool,
     /// Database file to write to.
@@ -145,7 +148,7 @@ async fn import_accounts(
         let db_storage = db_import::import_account(
             fs_storage,
             &mut client,
-            &account_paths,
+            account_paths.clone(),
             &account,
         )
         .await?;
@@ -176,7 +179,7 @@ pub async fn upgrade_accounts(
         return Err(Error::DatabaseExists(db_file.to_owned()));
     }
 
-    let mut result = UpgradeResult::new(options.paths.clone());
+    let mut result = UpgradeResult::new((&*options.paths).clone());
 
     if !options.dry_run && options.backup_directory.is_some() {
         tracing::debug!("upgrade_accounts::create_backups");

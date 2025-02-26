@@ -35,7 +35,7 @@ async fn network_sync_folder_rename() -> Result<()> {
 
     assert_local_remote_vaults_eq(
         folders.clone(),
-        &*server_account_paths,
+        &server_account_paths,
         &mut device.owner,
     )
     .await?;

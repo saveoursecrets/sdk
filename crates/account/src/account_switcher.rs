@@ -2,9 +2,9 @@ use crate::{Account, Error, LocalAccount, Result};
 use sos_core::{AccountId, Paths};
 use sos_login::PublicIdentity;
 use sos_vault::list_accounts;
-use std::path::PathBuf;
 use std::pin::Pin;
 use std::{collections::HashMap, future::Future};
+use std::{path::PathBuf, sync::Arc};
 
 #[cfg(feature = "search")]
 use sos_search::{ArchiveFilter, Document, DocumentView, QueryFilter};
@@ -26,7 +26,7 @@ pub type LocalAccountSwitcher = AccountSwitcher<
 #[derive(Default)]
 pub struct AccountSwitcherOptions {
     /// Paths for data storage.
-    pub paths: Option<Paths>,
+    pub paths: Option<Arc<Paths>>,
     /// Clipboard backend.
     #[cfg(feature = "clipboard")]
     pub clipboard: Option<Clipboard>,
@@ -45,7 +45,7 @@ where
     #[doc(hidden)]
     pub accounts: Vec<A>,
     selected: Option<AccountId>,
-    paths: Option<Paths>,
+    paths: Option<Arc<Paths>>,
     #[cfg(feature = "clipboard")]
     clipboard: Option<xclipboard::Clipboard>,
 }
@@ -78,8 +78,8 @@ where
     }
 
     /// Data directory.
-    pub fn paths(&self) -> Option<&Paths> {
-        self.paths.as_ref()
+    pub fn paths(&self) -> Option<Arc<Paths>> {
+        self.paths.as_ref().map(|p| p.clone())
     }
 
     /// Accounts iterator.
@@ -283,12 +283,12 @@ where
     }
 }
 
-impl<A, R, E> From<Paths> for AccountSwitcher<A, R, E>
+impl<A, R, E> From<Arc<Paths>> for AccountSwitcher<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     E: From<crate::Error> + std::error::Error + std::fmt::Debug,
 {
-    fn from(paths: Paths) -> Self {
+    fn from(paths: Arc<Paths>) -> Self {
         Self::new_with_options(AccountSwitcherOptions {
             paths: Some(paths),
             ..Default::default()

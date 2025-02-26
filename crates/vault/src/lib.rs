@@ -26,7 +26,10 @@ pub(crate) use vault::Auth;
 
 use sos_core::{constants::VAULT_EXT, Paths, PublicIdentity};
 use sos_vfs as vfs;
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 /// List account information for the identity vaults.
 pub async fn list_accounts(
@@ -34,7 +37,7 @@ pub async fn list_accounts(
 ) -> Result<Vec<PublicIdentity>> {
     let mut identities = Vec::new();
     let paths = if let Some(paths) = paths {
-        paths.clone()
+        Arc::new(paths.clone())
     } else {
         Paths::new_client(Paths::data_dir()?)
     };

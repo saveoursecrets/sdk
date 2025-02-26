@@ -24,14 +24,14 @@ fn into_device_verifying_key(
 
 /// Backend for a server.
 pub struct Backend {
-    paths: Paths,
+    paths: Arc<Paths>,
     accounts: Accounts,
     target: BackendTarget,
 }
 
 impl Backend {
     /// Create a new server backend.
-    pub fn new(paths: Paths, target: BackendTarget) -> Self {
+    pub fn new(paths: Arc<Paths>, target: BackendTarget) -> Self {
         Self {
             paths,
             accounts: Arc::new(RwLock::new(Default::default())),

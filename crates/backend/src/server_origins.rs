@@ -13,9 +13,9 @@ impl ServerOrigins {
     /// Create new server origins.
     pub fn new(target: BackendTarget, account_id: &AccountId) -> Self {
         match target {
-            BackendTarget::FileSystem(paths) => Self(Box::new(
-                sos_filesystem::ServerOrigins::new(Arc::new(paths)),
-            )),
+            BackendTarget::FileSystem(paths) => {
+                Self(Box::new(sos_filesystem::ServerOrigins::new(paths)))
+            }
             BackendTarget::Database(_, client) => Self(Box::new(
                 sos_database::ServerOrigins::new(*account_id, client),
             )),

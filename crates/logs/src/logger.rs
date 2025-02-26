@@ -6,6 +6,7 @@ use std::{
     fs::File,
     io::BufRead,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 use time::OffsetDateTime;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
@@ -54,7 +55,7 @@ impl Logger {
     }
 
     /// Create a new logger with the given paths.
-    pub fn new_paths(paths: Paths, name: Option<String>) -> Self {
+    pub fn new_paths(paths: Arc<Paths>, name: Option<String>) -> Self {
         let logs_dir = paths.logs_dir().to_owned();
         Self {
             logs_dir,

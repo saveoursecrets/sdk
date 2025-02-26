@@ -6,7 +6,6 @@ use sos_test_utils::{
     assert::assert_preferences,
     mock::{insert_database_account, memory_database},
 };
-use std::sync::Arc;
 use tempfile::tempdir_in;
 
 #[tokio::test]
@@ -16,7 +15,7 @@ async fn fs_account_preferences() -> Result<()> {
 
     let paths = Paths::new_client(temp.path()).with_account_id(&account_id);
     paths.ensure().await?;
-    let prefs = Preferences::new_fs(Arc::new(paths));
+    let prefs = Preferences::new_fs(paths);
     prefs.new_account(&account_id).await?;
 
     let prefs = prefs.account_preferences(&account_id).await.unwrap();

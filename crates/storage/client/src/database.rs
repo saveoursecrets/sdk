@@ -173,7 +173,7 @@ impl ClientDatabaseStorage {
             summaries: Vec::new(),
             current: Arc::new(Mutex::new(None)),
             folders: Default::default(),
-            paths: Arc::new(paths.clone()),
+            paths: paths.clone(),
             target,
             identity_log: Arc::new(RwLock::new(identity_log)),
             account_log: Arc::new(RwLock::new(account_log)),
@@ -234,7 +234,6 @@ impl ClientDatabaseStorage {
             Arc::new(RwLock::new(file_log))
         };
 
-        let paths = Arc::new(paths.clone());
         let mut storage = Self {
             account_id: *account_id,
             client: client.clone(),
@@ -242,8 +241,8 @@ impl ClientDatabaseStorage {
             summaries: Vec::new(),
             current: Arc::new(Mutex::new(None)),
             folders: Default::default(),
-            target,
             paths: paths.clone(),
+            target,
             identity_log: Arc::new(RwLock::new(identity_log)),
             account_log: Arc::new(RwLock::new(account_log)),
             #[cfg(feature = "search")]
@@ -365,7 +364,7 @@ impl ClientFolderStorage for ClientDatabaseStorage {
         )
         .await?;
         Ok(Folder::new_db(
-            (&*self.paths).clone(),
+            self.paths.clone(),
             self.client.clone(),
             self.account_id,
             folder_id,
@@ -664,10 +663,7 @@ impl ClientEventLogStorage for ClientDatabaseStorage {
         _: Internal,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
         let mut event_log = DeviceEventLog::new_device(
-            BackendTarget::Database(
-                (&*self.paths).clone(),
-                self.client.clone(),
-            ),
+            BackendTarget::Database(self.paths.clone(), self.client.clone()),
             &self.account_id,
         )
         .await?;
@@ -695,10 +691,7 @@ impl ClientEventLogStorage for ClientDatabaseStorage {
     #[cfg(feature = "files")]
     async fn initialize_file_log(&self, _: Internal) -> Result<FileEventLog> {
         let mut file_log = FileEventLog::new_file(
-            BackendTarget::Database(
-                (&*self.paths).clone(),
-                self.client.clone(),
-            ),
+            BackendTarget::Database(self.paths.clone(), self.client.clone()),
             &self.account_id,
         )
         .await?;

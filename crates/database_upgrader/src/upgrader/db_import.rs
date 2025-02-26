@@ -152,7 +152,7 @@ pub(crate) async fn import_globals(
 pub(crate) async fn import_account(
     fs_storage: AccountStorage,
     client: &mut Client,
-    paths: &Paths,
+    paths: Arc<Paths>,
     account: &PublicIdentity,
 ) -> Result<AccountStorage> {
     debug_assert!(!paths.is_global());
@@ -205,7 +205,7 @@ pub(crate) async fn import_account(
 
     // User folders
     let mut folders = Vec::new();
-    let user_folders = list_local_folders(paths).await?;
+    let user_folders = list_local_folders(&*paths).await?;
     for (summary, path) in user_folders {
         let buffer = vfs::read(path).await?;
         let vault: Vault = decode(&buffer).await?;

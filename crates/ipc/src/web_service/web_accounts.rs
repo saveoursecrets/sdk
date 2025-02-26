@@ -131,7 +131,7 @@ where
     pub async fn backend_target(&self) -> Result<BackendTarget> {
         let accounts = self.accounts.read().await;
         let paths = if let Some(paths) = accounts.paths() {
-            paths.clone()
+            paths
         } else {
             Paths::new_client(Paths::data_dir().unwrap())
         };

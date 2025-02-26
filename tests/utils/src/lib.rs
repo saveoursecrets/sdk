@@ -44,7 +44,9 @@ pub fn init_tracing() {
 }
 
 /// Create a backend target for test specs.
-pub async fn make_client_backend(paths: &Paths) -> Result<BackendTarget> {
+pub async fn make_client_backend(
+    paths: &Arc<Paths>,
+) -> Result<BackendTarget> {
     Ok(if std::env::var("SOS_TEST_CLIENT_DB").ok().is_some() {
         let db_file = paths.database_file();
 
@@ -187,7 +189,7 @@ pub struct TestServer {
     /// Test identifier.
     pub test_id: String,
     /// Server paths information.
-    pub paths: Paths,
+    pub paths: Arc<Paths>,
     /// Bind address.
     pub addr: SocketAddr,
     /// Handle when dropped will shutdown the server.
@@ -200,7 +202,7 @@ pub struct TestServer {
 impl TestServer {
     /// Server paths for the given address.
     pub fn paths(&self, account_id: &AccountId) -> Arc<Paths> {
-        Arc::new(self.paths.with_account_id(account_id))
+        self.paths.with_account_id(account_id)
     }
 
     /// Path to the server account data.

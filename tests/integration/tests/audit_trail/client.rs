@@ -11,7 +11,7 @@ use sos_audit::AuditEvent;
 use sos_filesystem::archive::RestoreOptions;
 use sos_migrate::import::ImportTarget;
 use sos_sdk::prelude::*;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 #[tokio::test]
 async fn audit_trail_client() -> Result<()> {
@@ -130,7 +130,7 @@ async fn audit_trail_client() -> Result<()> {
 async fn simulate_session(
     account: &mut LocalAccount,
     default_folder: &Summary,
-    paths: &Paths,
+    paths: &Arc<Paths>,
 ) -> Result<()> {
     // Create a secret
     let (meta, secret) = mock::note("Audit note", "Note value");
@@ -231,8 +231,6 @@ async fn simulate_session(
         selected: vec![default_folder.clone()],
         files_dir: None,
     };
-
-    println!("IMPORTING FROM BACKUP ARCHIVE");
 
     let target = if paths.is_using_db() {
         let client = open_file(paths.database_file()).await?;

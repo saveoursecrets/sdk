@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use sos_vfs as vfs;
 use std::{
     path::{Path, PathBuf},
-    sync::RwLock,
+    sync::{Arc, RwLock},
 };
 
 static DATA_DIR: Lazy<RwLock<Option<PathBuf>>> =
@@ -77,13 +77,13 @@ pub struct Paths {
 
 impl Paths {
     /// Create paths for a client without an account identifier.
-    pub fn new_client(documents_dir: impl AsRef<Path>) -> Self {
-        Self::new_with_prefix(false, documents_dir, None, LOCAL_DIR)
+    pub fn new_client(documents_dir: impl AsRef<Path>) -> Arc<Self> {
+        Arc::new(Self::new_with_prefix(false, documents_dir, None, LOCAL_DIR))
     }
 
     /// Create paths for a server without an account identifier.
-    pub fn new_server(documents_dir: impl AsRef<Path>) -> Self {
-        Self::new_with_prefix(true, documents_dir, None, REMOTE_DIR)
+    pub fn new_server(documents_dir: impl AsRef<Path>) -> Arc<Self> {
+        Arc::new(Self::new_with_prefix(true, documents_dir, None, REMOTE_DIR))
     }
 
     fn new_with_prefix(
@@ -133,13 +133,13 @@ impl Paths {
     }
 
     /// Clone of paths with an account identifier.
-    pub fn with_account_id(&self, account_id: &AccountId) -> Self {
-        Self::new_with_prefix(
+    pub fn with_account_id(&self, account_id: &AccountId) -> Arc<Self> {
+        Arc::new(Self::new_with_prefix(
             self.server,
             &self.documents_dir,
             Some(account_id),
             if self.server { REMOTE_DIR } else { LOCAL_DIR },
-        )
+        ))
     }
 
     /// Ensure the local storage directory exists.

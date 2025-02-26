@@ -225,9 +225,9 @@ pub async fn num_events(
 /// it only maintains data in the event log and
 /// uses a header-only vault just to keep track of
 /// the summary etc.
-pub async fn assert_local_remote_vaults_eq(
+pub async fn assert_local_remote_vaults_eq<T: AsRef<Paths>>(
     expected_summaries: Vec<Summary>,
-    server_paths: &Paths,
+    server_paths: T,
     owner: &mut NetworkAccount,
 ) -> Result<()> {
     let account_id = *owner.account_id();

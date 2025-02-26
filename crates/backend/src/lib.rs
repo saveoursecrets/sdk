@@ -49,32 +49,35 @@ use sos_database::{
     entity::{AccountEntity, AccountRecord, FolderEntity, FolderRecord},
     open_file,
 };
+use std::sync::Arc;
 
 /// Target backend.
 #[derive(Clone)]
 pub enum BackendTarget {
     /// File system backend
-    FileSystem(Paths),
+    FileSystem(Arc<Paths>),
     /// Database backend.
-    Database(Paths, Client),
+    Database(Arc<Paths>, Client),
 }
 
 impl BackendTarget {
     /// Create a backend target from paths.
-    pub async fn from_paths(paths: &Paths) -> Result<BackendTarget> {
-        Ok(if paths.is_using_db() {
-            let client = open_file(paths.database_file()).await?;
-            BackendTarget::Database(paths.clone(), client)
+    pub async fn from_paths<T: AsRef<Paths>>(
+        paths: T,
+    ) -> Result<BackendTarget> {
+        Ok(if paths.as_ref().is_using_db() {
+            let client = open_file(paths.as_ref().database_file()).await?;
+            BackendTarget::Database(Arc::new(paths.as_ref().clone()), client)
         } else {
-            BackendTarget::FileSystem(paths.clone())
+            BackendTarget::FileSystem(Arc::new(paths.as_ref().clone()))
         })
     }
 
     /// Paths for the backend target.
-    pub fn paths(&self) -> &Paths {
+    pub fn paths(&self) -> Arc<Paths> {
         match self {
-            Self::FileSystem(paths) => paths,
-            Self::Database(paths, _) => paths,
+            Self::FileSystem(paths) => paths.clone(),
+            Self::Database(paths, _) => paths.clone(),
         }
     }
 

@@ -20,7 +20,7 @@ impl SystemMessages {
         match target {
             BackendTarget::FileSystem(paths) => {
                 Self(SystemMessagesImpl::<Error>::new(Box::new(
-                    FsSystemMessages::new(Arc::new(paths.clone())),
+                    FsSystemMessages::new(paths.clone()),
                 )))
             }
             BackendTarget::Database(_, client) => {

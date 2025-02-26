@@ -105,7 +105,7 @@ impl ServerFileStorage {
 
         let mut storage = Self {
             account_id: *account_id,
-            paths: Arc::new(paths.clone()),
+            paths: paths.clone(),
             target,
             identity_log,
             account_log: Arc::new(RwLock::new(event_log)),

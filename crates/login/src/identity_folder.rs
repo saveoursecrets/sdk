@@ -63,8 +63,7 @@ impl IdentityFolder {
                 Self::new_fs(name, password, paths, account_id).await
             }
             BackendTarget::Database(paths, client) => {
-                Self::new_db(name, password, &paths, &client, account_id)
-                    .await
+                Self::new_db(name, password, paths, &client, account_id).await
             }
         }
     }
@@ -74,7 +73,7 @@ impl IdentityFolder {
     async fn new_fs(
         name: String,
         password: SecretString,
-        paths: Paths,
+        paths: Arc<Paths>,
         account_id: Option<AccountId>,
     ) -> Result<Self> {
         let account_id = account_id.unwrap_or_else(AccountId::random);
@@ -111,7 +110,7 @@ impl IdentityFolder {
     async fn new_db(
         name: String,
         password: SecretString,
-        paths: &Paths,
+        paths: Arc<Paths>,
         client: &Client,
         account_id: Option<AccountId>,
     ) -> Result<Self> {
@@ -704,7 +703,7 @@ impl IdentityFolder {
             }
             BackendTarget::Database(paths, client) => {
                 let paths = paths.with_account_id(account_id);
-                Self::login_db(account_id, key, &paths, client).await
+                Self::login_db(account_id, key, paths.clone(), client).await
             }
         }
     }
@@ -744,7 +743,7 @@ impl IdentityFolder {
     async fn login_db(
         account_id: &AccountId,
         key: &AccessKey,
-        paths: &Paths,
+        paths: Arc<Paths>,
         client: &Client,
     ) -> Result<Self> {
         let (_, login_folder) =

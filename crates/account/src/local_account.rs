@@ -131,7 +131,7 @@ impl LocalAccount {
         Ok(Self {
             account_id,
             storage,
-            paths: Arc::new(target.paths().clone()),
+            paths: target.paths(),
             target,
         })
     }
@@ -202,7 +202,7 @@ impl LocalAccount {
 
         Ok(Self {
             account_id,
-            paths: Arc::new(target.paths().clone()),
+            paths: target.paths(),
             storage,
             target,
         })

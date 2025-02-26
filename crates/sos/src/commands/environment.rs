@@ -153,7 +153,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let paths = Paths::new_client(Paths::data_dir()?)
                 .with_account_id(&account_id);
             if filter.is_empty() {
-                let value = toml::to_string_pretty(&paths)?;
+                let value = toml::to_string_pretty(&*paths)?;
                 print!("{}", value);
             } else {
                 for item in filter {

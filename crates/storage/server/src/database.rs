@@ -102,7 +102,7 @@ impl ServerDatabaseStorage {
             (paths, client, account_row)
         };
 
-        let paths = Arc::new(paths.clone());
+        let paths = paths.clone();
         let client = client.clone();
 
         let (device_log, devices) =
@@ -354,10 +354,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         diff: &FolderDiff,
     ) -> Result<(FolderEventLog, Vault)> {
         let mut event_log = FolderEventLog::new_folder(
-            BackendTarget::Database(
-                (&*self.paths).clone(),
-                self.client.clone(),
-            ),
+            BackendTarget::Database(self.paths.clone(), self.client.clone()),
             &self.account_id,
             folder_id,
         )
@@ -428,7 +425,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
 
                 let mut event_log = FolderEventLog::new_folder(
                     BackendTarget::Database(
-                        (&*self.paths).clone(),
+                        self.paths.clone(),
                         self.client.clone(),
                     ),
                     &self.account_id,
