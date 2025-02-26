@@ -2,6 +2,7 @@
 use crate::{Account, Error, LocalAccount, Result};
 use serde::{Deserialize, Serialize};
 use sos_backend::AccessPoint;
+use sos_client_storage::ClientFolderStorage;
 use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
@@ -46,9 +47,10 @@ impl LocalAccount {
     ) -> Result<CipherComparison> {
         let kdf = kdf.unwrap_or_default();
         let identity = self.identity_folder_summary().await?;
+
         let folders = self
+            .storage
             .list_folders()
-            .await?
             .into_iter()
             .filter(|s| s.cipher() != cipher || s.kdf() != &kdf)
             .map(|s| s.clone())
@@ -127,19 +129,15 @@ impl LocalAccount {
             id = %id,
             "convert cipher");
 
-        let paths = self.paths();
-        let vault_path = if is_folder {
-            paths.vault_path(id)
+        let vault = if is_folder {
+            self.storage.read_vault(id).await?
         } else {
-            paths.identity_vault()
+            self.storage.read_login_vault().await?
         };
-        // let events_path = paths.event_log_path(id);
-        let buffer = vfs::read(&vault_path).await?;
-        let input_vault: Vault = decode(&buffer).await?;
 
-        let seed = input_vault.seed().cloned();
-        let name = input_vault.name().to_owned();
-        let mut input = AccessPoint::new_vault(input_vault);
+        let seed = vault.seed().cloned();
+        let name = vault.name().to_owned();
+        let mut input = AccessPoint::new_vault(vault);
         input.unlock(key).await?;
         let meta = input.vault_meta().await?;
 
