@@ -1,9 +1,7 @@
-use crate::Error;
+use crate::{BackendTarget, Error};
 use async_trait::async_trait;
-use sos_core::{AccountId, Paths};
-use sos_database::{
-    async_sqlite::Client, SystemMessagesProvider as DbSystemMessages,
-};
+use sos_core::AccountId;
+use sos_database::SystemMessagesProvider as DbSystemMessages;
 use sos_filesystem::SystemMessagesProvider as FsSystemMessages;
 use sos_system_messages::{
     SysMessage, SysMessageCount, SystemMessageManager, SystemMessageMap,
@@ -17,18 +15,20 @@ use urn::Urn;
 pub struct SystemMessages(SystemMessagesImpl<Error>);
 
 impl SystemMessages {
-    /// Create file system system messages.
-    pub fn new_fs(paths: Arc<Paths>) -> Self {
-        Self(SystemMessagesImpl::<Error>::new(Box::new(
-            FsSystemMessages::new(paths),
-        )))
-    }
-
-    /// Create database system messages.
-    pub fn new_db(account_id: AccountId, client: Client) -> Self {
-        Self(SystemMessagesImpl::<Error>::new(Box::new(
-            DbSystemMessages::new(account_id, client),
-        )))
+    /// Create new system messages.
+    pub fn new(target: BackendTarget, account_id: &AccountId) -> Self {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                Self(SystemMessagesImpl::<Error>::new(Box::new(
+                    FsSystemMessages::new(Arc::new(paths.clone())),
+                )))
+            }
+            BackendTarget::Database(_, client) => {
+                Self(SystemMessagesImpl::<Error>::new(Box::new(
+                    DbSystemMessages::new(*account_id, client),
+                )))
+            }
+        }
     }
 }
 
