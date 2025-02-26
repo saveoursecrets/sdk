@@ -118,7 +118,7 @@ async fn account_integrity_missing_file() -> Result<()> {
     assert_eq!(1, failures.len());
     assert!(matches!(
         failures.remove(0),
-        IntegrityFailure::MissingFolder
+        IntegrityFailure::MissingFolder(_)
     ));
 
     account.sign_out().await?;

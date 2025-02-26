@@ -161,7 +161,10 @@ async fn check_file(
     } else {
         notify_listeners(
             tx,
-            FileIntegrityEvent::Failure(file, IntegrityFailure::MissingFile),
+            FileIntegrityEvent::Failure(
+                file,
+                IntegrityFailure::MissingFile(file),
+            ),
         )
         .await;
     }

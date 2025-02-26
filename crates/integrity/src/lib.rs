@@ -27,9 +27,9 @@ use sos_core::{commit::CommitHash, ExternalFile, VaultId};
 #[derive(Debug)]
 pub enum IntegrityFailure {
     /// Vault or event log file or data is missing.
-    MissingFolder,
+    MissingFolder(VaultId),
     /// External file is missing.
-    MissingFile,
+    MissingFile(ExternalFile),
     /// Checksum mismatch for a folder vault or event log.
     CorruptedFolder {
         /// Folder identifier.

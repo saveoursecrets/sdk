@@ -140,26 +140,15 @@ async fn check_folder(
     match &target {
         BackendTarget::FileSystem(paths) => {
             let vault_path = paths.vault_path(&folder_id);
-            if !vfs::try_exists(&vault_path).await? {
-                notify_listeners(
-                    &mut vault_tx,
-                    FolderIntegrityEvent::Failure(
-                        folder_id,
-                        IntegrityFailure::MissingFolder,
-                    ),
-                )
-                .await;
-
-                return Ok(());
-            }
-
             let events_path = paths.event_log_path(&folder_id);
-            if !vfs::try_exists(&events_path).await? {
+            if !vfs::try_exists(&vault_path).await?
+                || !vfs::try_exists(&events_path).await?
+            {
                 notify_listeners(
                     &mut vault_tx,
                     FolderIntegrityEvent::Failure(
                         folder_id,
-                        IntegrityFailure::MissingFolder,
+                        IntegrityFailure::MissingFolder(folder_id),
                     ),
                 )
                 .await;
@@ -181,7 +170,7 @@ async fn check_folder(
                     &mut vault_tx,
                     FolderIntegrityEvent::Failure(
                         folder_id,
-                        IntegrityFailure::MissingFolder,
+                        IntegrityFailure::MissingFolder(folder_id),
                     ),
                 )
                 .await;

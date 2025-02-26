@@ -125,7 +125,10 @@ async fn file_integrity_missing_file() -> Result<()> {
         }
     }
     assert_eq!(1, failures.len());
-    assert!(matches!(failures.remove(0), IntegrityFailure::MissingFile));
+    assert!(matches!(
+        failures.remove(0),
+        IntegrityFailure::MissingFile(_)
+    ));
 
     account.sign_out().await?;
     teardown(TEST_ID).await;
