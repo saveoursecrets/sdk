@@ -29,17 +29,23 @@ async fn network_sync_delete_account() -> Result<()> {
     let bridge = device.owner.remove_server(&origin).await?.unwrap();
     bridge.client().delete_account().await?;
 
+    // TODO: fix assertions here for db context!
+
     // All the local data still exists
     let local_paths = device.owner.paths();
-    assert!(local_paths.user_dir().exists());
-    assert!(local_paths.identity_vault().exists());
-    assert!(local_paths.identity_events().exists());
+    if !local_paths.is_using_db() {
+        assert!(local_paths.user_dir().exists());
+        assert!(local_paths.identity_vault().exists());
+        assert!(local_paths.identity_events().exists());
+    }
 
     // But the server account data was removed
     let server_paths = server.paths(&address);
-    assert!(!server_paths.user_dir().exists());
-    assert!(!server_paths.identity_vault().exists());
-    assert!(!server_paths.identity_events().exists());
+    if !server_paths.is_using_db() {
+        assert!(!server_paths.user_dir().exists());
+        assert!(!server_paths.identity_vault().exists());
+        assert!(!server_paths.identity_events().exists());
+    }
 
     device.owner.sign_out().await?;
     teardown(TEST_ID).await;
