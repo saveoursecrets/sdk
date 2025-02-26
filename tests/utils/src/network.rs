@@ -413,9 +413,7 @@ pub async fn wait_for_file(
     paths: impl AsRef<Paths>,
     file: &ExternalFile,
 ) -> Result<()> {
-    let path = if paths.as_ref().is_server()
-        && std::env::var("SOS_TEST_SERVER_DB").ok().is_some()
-    {
+    let path = if paths.as_ref().is_using_db() {
         paths.as_ref().blob_location(
             file.vault_id(),
             file.secret_id(),
