@@ -5,14 +5,13 @@ use sos_backend::AccessPoint;
 use sos_client_storage::ClientFolderStorage;
 use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
-    decode, encode,
+    encode,
 };
 use sos_login::DelegatedAccess;
 use sos_vault::{
     secret::SecretRow, BuilderCredentials, SecretAccess, Summary, Vault,
     VaultBuilder,
 };
-use sos_vfs as vfs;
 
 /// Comparison between an existing cipher and a
 /// target cipher.

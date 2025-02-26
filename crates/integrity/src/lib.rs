@@ -31,7 +31,7 @@ pub enum IntegrityFailure {
     /// External file is missing.
     MissingFile,
     /// Checksum mismatch for a folder vault or event log.
-    Corrupted {
+    CorruptedFolder {
         /// Folder identifier.
         folder_id: VaultId,
         /// Expected file name checksum.

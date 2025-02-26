@@ -178,7 +178,7 @@ async fn account_integrity_corrupted_vault() -> Result<()> {
     assert_eq!(1, failures.len());
     assert!(matches!(
         failures.remove(0),
-        IntegrityFailure::Corrupted { .. }
+        IntegrityFailure::CorruptedFolder { .. }
     ));
 
     account.sign_out().await?;
@@ -236,7 +236,7 @@ async fn account_integrity_corrupted_event() -> Result<()> {
     assert_eq!(1, failures.len());
     assert!(matches!(
         failures.remove(0),
-        IntegrityFailure::Corrupted { .. }
+        IntegrityFailure::CorruptedFolder { .. }
     ));
 
     account.sign_out().await?;

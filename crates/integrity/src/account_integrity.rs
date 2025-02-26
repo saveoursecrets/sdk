@@ -217,7 +217,7 @@ async fn check_folder(
                           notify_listeners(
                               &mut vault_tx,
                               FolderIntegrityEvent::Failure(
-                                vault_id, IntegrityFailure::Corrupted {
+                                vault_id, IntegrityFailure::CorruptedFolder {
                                   folder_id: vault_id,
                                   expected: commit,
                                   actual: value,
@@ -273,7 +273,7 @@ async fn check_folder(
                           notify_listeners(
                               &mut event_tx,
                               FolderIntegrityEvent::Failure(
-                                vault_id, IntegrityFailure::Corrupted {
+                                vault_id, IntegrityFailure::CorruptedFolder {
                                   folder_id: vault_id,
                                   expected: commit,
                                   actual: value,
