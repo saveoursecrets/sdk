@@ -147,20 +147,33 @@ pub async fn run(cmd: Command) -> Result<()> {
                 }
             }
         }
-        Command::Paths { account, filter } => {
-            let account_id =
-                resolve_account_address(account.as_ref()).await?;
-            let paths = Paths::new_client(Paths::data_dir()?)
-                .with_account_id(&account_id);
-            if filter.is_empty() {
-                let value = toml::to_string_pretty(&*paths)?;
-                print!("{}", value);
-            } else {
-                for item in filter {
-                    item.print(&paths);
+        Command::Paths { account, filter } => match &account {
+            Some(account_ref) => {
+                let account_id =
+                    resolve_account_address(Some(account_ref)).await?;
+                let paths = Paths::new_client(Paths::data_dir()?)
+                    .with_account_id(&account_id);
+                if filter.is_empty() {
+                    let value = toml::to_string_pretty(&*paths)?;
+                    print!("{}", value);
+                } else {
+                    for item in filter {
+                        item.print(&paths);
+                    }
                 }
             }
-        }
+            None => {
+                let paths = Paths::new_client(Paths::data_dir()?);
+                if filter.is_empty() {
+                    let value = toml::to_string_pretty(&*paths)?;
+                    print!("{}", value);
+                } else {
+                    for item in filter {
+                        item.print(&paths);
+                    }
+                }
+            }
+        },
         Command::PrintPathFilters => {
             for variant in all::<PathFilter>() {
                 println!("{}", variant);

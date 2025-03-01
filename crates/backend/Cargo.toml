@@ -11,7 +11,18 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-full = ["audit", "files", "preferences", "search", "system-messages"]
+full = [
+  "archive",
+  "audit",
+  "files",
+  "preferences",
+  "search",
+  "system-messages",
+]
+archive = [
+  "sos-database/archive",
+  "sos-filesystem/archive",
+]
 audit = [
   "sos-audit",
   "sos-database/audit",

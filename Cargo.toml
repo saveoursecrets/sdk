@@ -40,6 +40,7 @@ members = [
   "crates/web",   
   "crates/vault",
 
+  "tests/command_line",
   "tests/integration",
   "tests/unit",
   "tests/utils",

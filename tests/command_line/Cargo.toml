@@ -1,0 +1,12 @@
+[package]
+name = "sos-command-line-tests"
+version = "0.1.1"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+anticipate-runner = "0.5"
+sos-test-utils.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+anyhow.workspace = true

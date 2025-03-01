@@ -48,11 +48,9 @@ workspace = true
 command = "cargo"
 args = ["clippy", "--all-features"]
 
-[tasks.build]
-workspace = true
+[tasks.debug]
 command = "cargo"
 args = ["build"]
-dependencies = ["clean"]
 
 [tasks.release]
 command = "cargo"
@@ -96,8 +94,8 @@ command = "cargo"
 args = [
   "test",
   "command_line",
-  "--features",
-  "enable-cli-tests",
+  "-p",
+  "sos-command-line-tests",
   "--",
   "--nocapture",
 ]
@@ -115,12 +113,14 @@ mkdir -p target/demo
 '''
 
 [tasks.test-cli]
+env = { SOS_TEST_DEBUG="1" }
 script = { file = "./scripts/cli/specs.sh" }
-dependencies = ["clean-cli"]
+dependencies = ["clean-cli", "build-debug" ]
 
 [tasks.test-shell]
+env = { SOS_TEST_DEBUG="1" }
 script = { file = "./scripts/cli/shell.sh" }
-dependencies = ["clean-cli"]
+dependencies = ["clean-cli", "build-debug"]
 
 [tasks.demos]
 script = { file = "./scripts/cli/demos.sh" }

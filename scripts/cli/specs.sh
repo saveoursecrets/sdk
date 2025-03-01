@@ -4,14 +4,17 @@ set -e
 
 source scripts/cli/env.sh
 export NO_COLOR=1
+export SOS_TEST=1
 
-if [ -n "$DEBUG" ]; then
+if [ -n "$SOS_CLI_DEBUG" ]; then
   export PATH="target/debug:$PATH"
 fi
 
 command -v sos
 
-scripts=crates/integration_tests/tests/command_line/scripts
+sos env paths
+
+scripts=tests/command_line/scripts
 SPECS=($scripts/specs/*.sh)
 SPEC=${SPEC:-${SPECS[@]}}
 
