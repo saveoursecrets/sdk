@@ -14,5 +14,4 @@ switch "$ACCOUNT_NAME_ALT"
 #$ wait
 
 switch "$ACCOUNT_NAME"
-#$ include ../includes/signin.sh
 #$ wait

@@ -1,3 +1,3 @@
 # print vault header information
-sos check header $(sos env paths -f identity-vault)
+sos tool check header -a $ACCOUNT_NAME -f $DEFAULT_FOLDER_NAME
 #$ wait

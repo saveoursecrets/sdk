@@ -1,3 +1,3 @@
 # print device event log records
-sos events device "$(sos env paths -f device-events)"
+sos tool events device -a $ACCOUNT_NAME
 #$ wait

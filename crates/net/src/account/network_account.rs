@@ -27,7 +27,8 @@ use sos_login::{
     DelegatedAccess,
 };
 use sos_protocol::{
-    AccountSync, DiffRequest, RemoteSync, SyncClient, SyncOptions, SyncResult,
+    is_offline, AccountSync, DiffRequest, RemoteResult, RemoteSync,
+    SyncClient, SyncOptions, SyncResult,
 };
 use sos_remote_sync::RemoteSyncHandler;
 use sos_sync::{CreateSet, StorageEventLogs, UpdateSet};
@@ -293,52 +294,55 @@ impl NetworkAccount {
     pub async fn add_server(
         &mut self,
         origin: Origin,
-    ) -> Result<Option<Error>> {
+    ) -> Result<Option<RemoteResult<Error>>> {
+        let remote = self.remote_bridge(&origin).await?;
+
         #[cfg(feature = "files")]
         {
-            let remote = self.remote_bridge(&origin).await?;
-
             if let Some(file_transfers) = self.file_transfers.as_mut() {
                 file_transfers.add_client(remote.client().clone()).await;
             };
 
-            let mut remotes = self.remotes.write().await;
             if let Some(handle) = &self.file_transfer_handle {
                 self.proxy_remote_file_queue(handle, &remote).await;
             }
+        }
+
+        {
+            let mut remotes = self.remotes.write().await;
             remotes.insert(origin.clone(), remote);
             self.server_origins
                 .as_mut()
                 .unwrap()
                 .add_server(origin.clone())
                 .await?;
-            // self.save_remotes(&*remotes).await?;
+            tracing::debug!(url = %origin.url(), "server::added");
         }
 
-        let mut sync_error = None;
-        {
+        let mut sync_result = None;
+        if !is_offline() {
             let remotes = self.remotes.read().await;
             if let Some(remote) = remotes.get(&origin) {
                 let options = SyncOptions {
                     origins: vec![origin.clone()],
                     ..Default::default()
                 };
-                if let Err(err) =
-                    remote.sync_with_options(&options).await.result
-                {
-                    sync_error = Some(err);
+
+                let res = remote.sync_with_options(&options).await;
+                if let Some(sync_error) = res.result.as_ref().err() {
+                    tracing::warn!(
+                        sync_error = ?sync_error,
+                        "server::initial_sync_failed");
                 }
+                sync_result = Some(res);
             }
-        }
-
-        tracing::debug!(url = %origin.url(), "server::added");
-        if let Some(sync_error) = &sync_error {
+        } else {
             tracing::warn!(
-                sync_error = ?sync_error,
-                "server::initial_sync_failed");
+                "offline mode active, ignoring initial server sync"
+            );
         }
 
-        Ok(sync_error)
+        Ok(sync_result)
     }
 
     /// Replace a server origin with updated origin information.

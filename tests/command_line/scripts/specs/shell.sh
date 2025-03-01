@@ -56,7 +56,6 @@ sos shell
 #############################################################
 
 switch "$ACCOUNT_NAME_ALT"
-#$ include ../includes/signin.sh
 #$ wait
 
 account delete

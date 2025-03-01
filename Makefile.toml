@@ -113,23 +113,16 @@ mkdir -p target/demo
 '''
 
 [tasks.test-cli]
-env = { SOS_TEST_DEBUG="1" }
 script = { file = "./scripts/cli/specs.sh" }
-dependencies = ["clean-cli", "build-debug" ]
+dependencies = ["clean-cli", "debug" ]
 
 [tasks.test-shell]
-env = { SOS_TEST_DEBUG="1" }
 script = { file = "./scripts/cli/shell.sh" }
-dependencies = ["clean-cli", "build-debug"]
+dependencies = ["clean-cli", "debug"]
 
 [tasks.demos]
 script = { file = "./scripts/cli/demos.sh" }
 dependencies = ["clean-cli"]
-
-# [tasks.test]
-# command = "cargo"
-# args = ["test", "--all", "--features", "enable-cli-tests"]
-# dependencies = ["clean-cli"]
 
 # build test helper executables
 [tasks.build-test]
@@ -143,35 +136,47 @@ rm -rf target/integration-test
 
 [tasks.test]
 script = '''
-cargo nextest run
+cargo nextest run -p sos-integration-tests -p sos-unit-tests
 '''
 dependencies = ["clean-tests", "build-test"]
 
 [tasks.test-all]
 script = '''
-cargo nextest run
-SOS_TEST_CLIENT_DB=1 cargo nextest run
-SOS_TEST_SERVER_DB=1 cargo nextest run
-SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo nextest run
+cargo nextest run \
+  -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_CLIENT_DB=1 cargo nextest run \
+  -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_SERVER_DB=1 cargo nextest run \
+  -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo nextest run \
+  -p sos-integration-tests -p sos-unit-tests
 '''
 dependencies = ["clean-tests", "build-test"]
 
 [tasks.ci]
 script = '''
-cargo nextest run --profile ci
-SOS_TEST_CLIENT_DB=1 cargo nextest run --profile ci
-SOS_TEST_SERVER_DB=1 cargo nextest run --profile ci
-SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo nextest run --profile ci
+cargo nextest run --profile ci \
+  -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_CLIENT_DB=1 cargo nextest run --profile ci \
+  -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_SERVER_DB=1 cargo nextest run --profile ci \
+  -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo nextest run --profile ci \
+  -p sos-integration-tests -p sos-unit-tests
 '''
 dependencies = ["clean-tests", "build-test"]
 
 [tasks.cover]
 script = '''
 cargo llvm-cov clean --workspace
-cargo llvm-cov nextest --no-report
-SOS_TEST_CLIENT_DB=1 cargo llvm-cov nextest --no-report
-SOS_TEST_SERVER_DB=1 cargo llvm-cov nextest --no-report
-SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo llvm-cov nextest --no-report
+cargo llvm-cov nextest \
+  --no-report -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_CLIENT_DB=1 cargo llvm-cov nextest \
+  --no-report -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_SERVER_DB=1 cargo llvm-cov nextest \
+  --no-report -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo llvm-cov nextest \
+  --no-report -p sos-integration-tests -p sos-unit-tests
 cargo llvm-cov report --html
 '''
 dependencies = ["clean-tests"]

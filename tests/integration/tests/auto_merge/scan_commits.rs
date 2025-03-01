@@ -11,7 +11,7 @@ use sos_sync::StorageEventLogs;
 #[tokio::test]
 async fn auto_merge_scan_commits() -> Result<()> {
     const TEST_ID: &str = "auto_merge_scan_commits";
-    // crate::test_utils::init_tracing();
+    crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

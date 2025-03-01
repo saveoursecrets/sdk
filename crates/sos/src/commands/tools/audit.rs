@@ -9,7 +9,7 @@ use std::path::PathBuf;
 #[derive(Subcommand, Debug)]
 pub enum Command {
     /// Print the events in an audit log file.
-    File {
+    Logs {
         /// Print each event as a line of JSON
         #[clap(short, long)]
         json: bool,
@@ -33,7 +33,7 @@ pub enum Command {
 
 pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
-        Command::File {
+        Command::Logs {
             audit_log,
             json,
             account_id,

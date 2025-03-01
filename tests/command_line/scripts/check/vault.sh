@@ -1,3 +1,3 @@
 # verify vault integrity
-sos check vault $(sos env paths -f identity-vault)
+sos tool check vault -a $ACCOUNT_NAME -f $DEFAULT_FOLDER_NAME
 #$ wait

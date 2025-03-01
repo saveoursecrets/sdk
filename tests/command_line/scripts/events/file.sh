@@ -1,3 +1,3 @@
 # print file event log records
-sos events file "$(sos env paths -f file-events)"
+sos tool events file -a $ACCOUNT_NAME
 #$ wait

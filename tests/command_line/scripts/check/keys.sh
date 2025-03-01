@@ -1,3 +1,3 @@
-# print keys in a vault 
-sos check keys $(sos env paths -f identity-vault)
+# print keys in a vault
+sos tool check keys -a $ACCOUNT_NAME -f $DEFAULT_FOLDER_NAME
 #$ wait

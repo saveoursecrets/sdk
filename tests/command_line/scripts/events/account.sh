@@ -1,3 +1,3 @@
 # print account event log records
-sos events account "$(sos env paths -f account-events)"
+sos tool events account -a $ACCOUNT_NAME
 #$ wait

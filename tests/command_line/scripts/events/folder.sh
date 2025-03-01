@@ -1,3 +1,3 @@
 # print folder event log records
-sos events folder "$(sos env paths -f identity-events)"
+sos tool events folder -a $ACCOUNT_NAME -f $DEFAULT_FOLDER_NAME
 #$ wait

@@ -38,9 +38,9 @@ ANTICIPATE_ECHO=true cargo make test-command-line
 
 ## Test Scripts
 
-The test scripts make it much faster to run tests by using a release version installed with `cargo install --path .`.
+Test scripts will prefer an executable in `target/debug` but it can be much faster to run tests using a release build installed with `cargo install --path crates/sos`.
 
-To run the CLI test specs using the first version of `sos` in `PATH`:
+To run all the CLI test specs (including for the `shell` command) using the version of `sos` in `target/debug`:
 
 ```
 cargo make test-cli
@@ -52,6 +52,8 @@ Or to just test the shell command:
 cargo make test-shell
 ```
 
+The shell tests complete much faster as they don't need to launch an executable for each command.
+
 If you need to debug the CLI tests enable echo to see the I/O, for example:
 
 ```
@@ -59,7 +61,13 @@ ANTICIPATE_ECHO=true cargo make test-cli
 ANTICIPATE_ECHO=true cargo make test-shell
 ```
 
-Use the `SPEC` variable to run a specific test:
+Use the `SPEC` variable to debug a specific test:
+
+```
+cargo make clean-cli && SPEC=tests/command_line/scripts/secret/add-note.sh ANTICIPATE_ECHO=true ./scripts/cli/specs.sh
+```
+
+This will run the test setup beforehand and the teardown afterwards so the test account data will exist.
 
 ## Notes
 

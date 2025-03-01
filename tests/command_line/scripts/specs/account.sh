@@ -5,7 +5,6 @@
 #$ include ../account/stats-json.sh
 
 #$ include ../account/backup.sh
-#$ include ../account/restore.sh
 
 #$ include ../account/contacts/import.sh
 #$ include ../account/contacts/export.sh

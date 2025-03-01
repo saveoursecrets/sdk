@@ -1,3 +1,3 @@
 # verify event log integrity
-sos check events $(sos env paths -f identity-events)
+sos tool check events -a $ACCOUNT_NAME -f $DEFAULT_FOLDER_NAME
 #$ wait
