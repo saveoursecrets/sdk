@@ -661,14 +661,6 @@ pub trait Account {
         path: impl AsRef<Path> + Send + Sync,
     ) -> std::result::Result<(), Self::Error>;
 
-    /// Read the inventory from an archive.
-    #[cfg(feature = "archive")]
-    async fn restore_archive_inventory<
-        R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
-    >(
-        buffer: R,
-    ) -> std::result::Result<Inventory, Self::Error>;
-
     /// Restore from a backup archive file.
     #[cfg(feature = "archive")]
     async fn import_backup_archive(

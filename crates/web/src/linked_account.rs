@@ -1002,15 +1002,6 @@ impl Account for LinkedAccount {
     }
 
     #[cfg(feature = "archive")]
-    async fn restore_archive_inventory<
-        R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
-    >(
-        _buffer: R,
-    ) -> Result<Inventory> {
-        unimplemented!();
-    }
-
-    #[cfg(feature = "archive")]
     async fn import_backup_archive(
         _path: impl AsRef<Path> + Send + Sync,
         _options: RestoreOptions,

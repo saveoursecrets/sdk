@@ -1798,15 +1798,6 @@ impl Account for NetworkAccount {
     }
 
     #[cfg(feature = "archive")]
-    async fn restore_archive_inventory<
-        R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
-    >(
-        buffer: R,
-    ) -> Result<Inventory> {
-        Ok(LocalAccount::restore_archive_inventory(buffer).await?)
-    }
-
-    #[cfg(feature = "archive")]
     async fn import_backup_archive(
         path: impl AsRef<Path> + Send + Sync,
         options: RestoreOptions,

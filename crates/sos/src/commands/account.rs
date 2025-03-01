@@ -11,18 +11,13 @@ use crate::{
 };
 use clap::Subcommand;
 use enum_iterator::all;
-use sos_account::Account;
+use sos_account::{Account, LocalAccount};
 use sos_backend::BackendTarget;
-use sos_core::{AccountRef, Paths, PublicIdentity};
-use sos_database::open_file;
-use sos_filesystem::archive::{
-    AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
-};
+use sos_core::{AccountId, AccountRef, Paths, PublicIdentity};
 use sos_migrate::import::{ImportFormat, ImportTarget};
 use sos_net::NetworkAccount;
 use sos_vfs as vfs;
 use std::{path::PathBuf, sync::Arc};
-use tokio::io::BufReader;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -69,8 +64,8 @@ pub enum Command {
         /// Output zip archive.
         output: PathBuf,
     },
-    /// Restore account from secure backup.
-    Restore {
+    /// Import account from secure backup.
+    Import {
         /// Input zip archive.
         input: PathBuf,
     },
@@ -199,11 +194,13 @@ pub async fn run(cmd: Command) -> Result<()> {
             output,
             force,
         } => {
-            account_backup(account, output, force).await?;
+            export_account_backup_archive(account, output, force).await?;
             success("Backup archive created");
         }
-        Command::Restore { input } => {
-            if let Some(accounts) = account_restore(input).await? {
+        Command::Import { input } => {
+            if let Some(accounts) =
+                import_account_backup_archive(input).await?
+            {
                 for account in accounts {
                     success(format!("Account restored {}", account.label()));
                 }
@@ -370,32 +367,42 @@ async fn account_info(
 }
 
 /// Create a backup zip archive.
-async fn account_backup(
+async fn export_account_backup_archive(
     account: Option<AccountRef>,
     output: PathBuf,
     force: bool,
 ) -> Result<()> {
-    let account = resolve_account(account.as_ref())
-        .await
-        .ok_or_else(|| Error::NoAccountFound)?;
-
     if !force && vfs::try_exists(&output).await? {
         return Err(Error::FileExists(output));
     }
 
-    let account = find_account(&account)
-        .await?
-        .ok_or(Error::NoAccount(account.to_string()))?;
-    let address = account.account_id();
-    let paths =
-        Paths::new_client(Paths::data_dir()?).with_account_id(address);
+    let paths = Paths::new_client(Paths::data_dir()?);
+    let target = BackendTarget::from_paths(&paths).await?;
 
-    AccountBackup::export_archive_file(&output, address, &paths).await?;
+    // Database backups exports all accounts by default
+    let account_id = if paths.is_using_db() {
+        // But the API requires an account identifier for backwards compat
+        AccountId::random()
+    // Legacy file system requires an account identifier
+    } else {
+        let account = resolve_account(account.as_ref())
+            .await
+            .ok_or_else(|| Error::NoAccountFound)?;
+
+        let account = find_account(&account)
+            .await?
+            .ok_or(Error::NoAccount(account.to_string()))?;
+        *account.account_id()
+    };
+
+    sos_backend::archive::export_backup_archive(output, &target, &account_id)
+        .await?;
+
     Ok(())
 }
 
-/// Restore from a zip archive.
-async fn account_restore(
+/// Import from a zip archive.
+async fn import_account_backup_archive(
     input: PathBuf,
 ) -> Result<Option<Vec<PublicIdentity>>> {
     if !vfs::try_exists(&input).await?
@@ -404,37 +411,17 @@ async fn account_restore(
         return Err(Error::NotFile(input));
     }
 
-    let reader = vfs::File::open(&input).await?;
-    let inventory: Inventory =
-        AccountBackup::restore_archive_inventory(BufReader::new(reader))
-            .await?;
-    let account_ref = AccountRef::Id(inventory.manifest.account_id);
-
-    let account = find_account(&account_ref).await?;
-    if account.is_some() {
-        return Ok(None);
-    }
-
     let paths = Paths::new_client(Paths::data_dir()?);
-    let target = if paths.is_using_db() {
-        let client = open_file(paths.database_file()).await?;
-        BackendTarget::Database(paths.clone(), client)
-    } else {
-        BackendTarget::FileSystem(paths.clone())
-    };
-
+    let target = BackendTarget::from_paths(&paths).await?;
     let account = {
-        let account_id = inventory.manifest.account_id;
-        let paths = paths.with_account_id(&account_id);
-        let files_dir = paths.files_dir();
-        let options = RestoreOptions {
-            selected: inventory.vaults,
-            files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
-        };
-        NetworkAccount::import_backup_archive(&input, options, &target, None)
-            .await?
+        NetworkAccount::import_backup_archive(
+            &input,
+            Default::default(),
+            &target,
+            None,
+        )
+        .await?
     };
-
     Ok(Some(account))
 }
 

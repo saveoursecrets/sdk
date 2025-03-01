@@ -85,9 +85,6 @@ use sos_migrate::{
     Convert,
 };
 
-#[cfg(feature = "archive")]
-use tokio::io::{AsyncRead, AsyncSeek, BufReader};
-
 #[cfg(feature = "clipboard")]
 use {
     crate::{ClipboardCopyRequest, ClipboardTextFormat},
@@ -2309,28 +2306,6 @@ impl Account for LocalAccount {
         }
 
         Ok(())
-    }
-
-    #[cfg(feature = "archive")]
-    async fn restore_archive_inventory<
-        R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
-    >(
-        buffer: R,
-    ) -> Result<Inventory> {
-        use sos_filesystem::archive::AccountBackup;
-
-        let mut inventory =
-            AccountBackup::restore_archive_inventory(BufReader::new(buffer))
-                .await?;
-        /*
-        let accounts = self.target.list_accounts().await?;
-        let exists_local = accounts.iter().any(|account| {
-            account.account_id() == &inventory.manifest.account_id
-        });
-        inventory.exists_local = exists_local;
-        Ok(inventory)
-        */
-        todo!("expect BackendTarget for restore_archive_inventory");
     }
 
     /// Restore from a backup archive file.
