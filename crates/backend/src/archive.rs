@@ -1,7 +1,55 @@
 //! Export and import archives for any backend target.
-use crate::{BackendTarget, Result};
-use sos_core::{AccountId, PublicIdentity};
+use crate::{BackendTarget, Error, Result};
+use sos_archive::ZipReader;
+use sos_core::{AccountId, ArchiveManifestVersion, PublicIdentity};
+use sos_database::archive::ManifestVersion3;
+use sos_filesystem::archive::ManifestVersion1;
+use sos_vfs::File;
 use std::path::Path;
+use tokio::io::BufReader;
+
+/// Enumeration of possible backup archive manifests
+pub enum ArchiveManifest {
+    /// Version 1 manifest.
+    V1(ManifestVersion1),
+    /// Version 2 manifest.
+    V2(ManifestVersion1),
+    /// Version 3 manifest.
+    V3(ManifestVersion3),
+}
+
+/// Try to read the manifest from a backup archive.
+pub async fn try_read_backup_archive_manifest(
+    input: impl AsRef<Path>,
+) -> Result<ArchiveManifest> {
+    let file = BufReader::new(File::open(input.as_ref()).await?);
+    let mut zip = ZipReader::new(file).await?;
+
+    match zip.find_manifest::<ManifestVersion1>().await {
+        Ok(Some(manifest)) => match manifest.version.as_ref() {
+            Some(ArchiveManifestVersion::V1) => {
+                Ok(ArchiveManifest::V1(manifest))
+            }
+            Some(ArchiveManifestVersion::V2) => {
+                Ok(ArchiveManifest::V2(manifest))
+            }
+            _ => Ok(ArchiveManifest::V1(manifest)),
+        },
+        Ok(None) => {
+            Err(Error::NotValidBackupArchive(input.as_ref().to_owned()))
+        }
+        Err(sos_archive::Error::Json(_)) => {
+            if let Some(manifest) =
+                zip.find_manifest::<ManifestVersion3>().await?
+            {
+                Ok(ArchiveManifest::V3(manifest))
+            } else {
+                Err(Error::NotValidBackupArchive(input.as_ref().to_owned()))
+            }
+        }
+        Err(e) => Err(e.into()),
+    }
+}
 
 /// Create a backup archive.
 pub async fn export_backup_archive(

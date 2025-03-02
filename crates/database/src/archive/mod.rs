@@ -9,6 +9,7 @@ mod types;
 
 pub use error::Error;
 pub use import::BackupImport;
+pub use types::ManifestVersion3;
 
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 

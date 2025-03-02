@@ -20,6 +20,7 @@ full = [
   "system-messages",
 ]
 archive = [
+  "sos-archive",
   "sos-database/archive",
   "sos-filesystem/archive",
 ]
@@ -58,6 +59,7 @@ sos-vfs.workspace = true
 
 sos-external-files = { workspace = true, optional = true }
 sos-audit = { workspace = true, optional = true }
+sos-archive = { workspace = true, optional = true }
 sos-preferences = { workspace = true, optional = true }
 sos-system-messages = { workspace = true, optional = true }
 
