@@ -1,9 +1,9 @@
-use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_backend::BackendTarget;
+use sos_core::Paths;
 use sos_database::open_file;
-use sos_sdk::prelude::Paths;
+use sos_test_utils::{setup, teardown};
 
 /// Test importing from a v2 backup archive.
 #[tokio::test]
@@ -28,7 +28,6 @@ async fn backup_import_v2() -> Result<()> {
 
     let accounts =
         LocalAccount::import_backup_archive(&archive, &target).await?;
-
     assert_eq!(1, accounts.len());
 
     teardown(TEST_ID).await;

@@ -1,9 +1,9 @@
-use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_backend::BackendTarget;
+use sos_core::Paths;
 use sos_database::open_file;
-use sos_sdk::prelude::Paths;
+use sos_test_utils::{setup, teardown};
 
 /// Test importing from a v1 backup archive.
 #[tokio::test]

@@ -1,9 +1,9 @@
-use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use maplit2::hashmap;
 use sos_account::{Account, LocalAccount};
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{mock, setup, teardown};
 
 /// Tests creating a backup and importing from the
 /// backup archive then asserting on the restored data.
