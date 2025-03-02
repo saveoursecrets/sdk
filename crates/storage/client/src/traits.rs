@@ -35,9 +35,6 @@ use sos_vault::{
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
-#[cfg(feature = "archive")]
-use sos_filesystem::archive::RestoreTargets;
-
 #[cfg(feature = "search")]
 use sos_search::{AccountSearch, DocumentCount};
 
@@ -1375,24 +1372,23 @@ pub trait ClientAccountStorage:
         Ok(log_file.tree().commit_state()?)
     }
 
+    /*
     /// Restore vaults from an archive.
     #[cfg(feature = "archive")]
     async fn restore_archive(
         &mut self,
-        targets: &RestoreTargets,
+        vaults: Vec<Vault>,
         folder_keys: &FolderKeys,
     ) -> Result<()> {
-        let RestoreTargets { vaults, .. } = targets;
-
         // We may be restoring vaults that do not exist
         // so we need to update the cache
         let summaries = vaults
             .iter()
-            .map(|(_, v)| v.summary().clone())
+            .map(|v| v.summary().clone())
             .collect::<Vec<_>>();
         self.load_caches(&summaries, Internal).await?;
 
-        for (_, vault) in vaults {
+        for vault in vaults {
             // Prepare a fresh log of event log events
             let (vault, events) =
                 FolderReducer::split::<Error>(vault.clone()).await?;
@@ -1408,6 +1404,7 @@ pub trait ClientAccountStorage:
 
         Ok(())
     }
+    */
 
     /// External file manager.
     #[cfg(feature = "files")]

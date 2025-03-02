@@ -1,7 +1,8 @@
-use super::{zip::Writer, Error, Result};
+use super::{types::ManifestVersion3, Error, Result};
 use crate::entity::{AccountEntity, AccountRecord, AccountRow};
 use async_sqlite::rusqlite::{backup, Connection};
 use sha2::{Digest, Sha256};
+use sos_archive::ZipWriter;
 use sos_core::{
     commit::CommitHash,
     constants::{BLOBS_DIR, DATABASE_FILE},
@@ -33,7 +34,7 @@ pub(crate) async fn create(
     }
 
     let zip_file = vfs::File::create(output.as_ref()).await?;
-    let mut zip_writer = Writer::new(zip_file);
+    let mut zip_writer = ZipWriter::new(zip_file, ManifestVersion3::new_v3());
 
     // Find blobs that we need to add to the archive
     let accounts = list_accounts(source_db.as_ref())?;
@@ -44,7 +45,7 @@ pub(crate) async fn create(
 
     let db_buffer = vfs::read(db_temp.path()).await?;
     let db_checksum = Sha256::digest(&db_buffer);
-    zip_writer.manifest.checksum =
+    zip_writer.manifest_mut().checksum =
         CommitHash(db_checksum.as_slice().try_into()?);
     zip_writer.add_file(DATABASE_FILE, &db_buffer).await?;
 

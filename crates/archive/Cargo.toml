@@ -1,0 +1,19 @@
+[package]
+name = "sos-archive"
+version = "0.16.0"
+edition = "2021"
+description = "ZIP archive reader and writer for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[dependencies]
+thiserror.workspace = true
+async_zip.workspace = true
+sanitize-filename.workspace = true
+time.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true

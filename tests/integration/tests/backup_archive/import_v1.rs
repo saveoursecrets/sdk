@@ -3,11 +3,7 @@ use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_backend::BackendTarget;
 use sos_database::open_file;
-use sos_filesystem::archive::{
-    AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
-};
-use sos_sdk::prelude::{vfs, Paths};
-use tokio::io::BufReader;
+use sos_sdk::prelude::Paths;
 
 /// Test importing from a v1 backup archive.
 #[tokio::test]
@@ -21,21 +17,8 @@ async fn backup_import_v1() -> Result<()> {
 
     let archive =
         "../fixtures/backups/v1/0xba0faea9bbc182e3f4fdb3eea7636b5bb31ea9ac.zip";
-    let reader = vfs::File::open(archive).await?;
-    let inventory: Inventory =
-        AccountBackup::restore_archive_inventory(BufReader::new(reader))
-            .await?;
 
-    let paths = Paths::new_client(&data_dir)
-        .with_account_id(&inventory.manifest.account_id);
-    paths.ensure().await?;
-
-    let options = RestoreOptions {
-        selected: inventory.vaults,
-        files_dir: Some(ExtractFilesLocation::Path(
-            paths.files_dir().to_owned(),
-        )),
-    };
+    let paths = Paths::new_client(&data_dir);
 
     let target = if paths.is_using_db() {
         let client = open_file(paths.database_file()).await?;
@@ -44,13 +27,15 @@ async fn backup_import_v1() -> Result<()> {
         BackendTarget::FileSystem(paths.clone())
     };
 
-    LocalAccount::import_backup_archive(
+    let accounts = LocalAccount::import_backup_archive(
         &archive,
-        options,
+        Default::default(),
         &target,
         Some(data_dir.clone()),
     )
     .await?;
+
+    assert_eq!(1, accounts.len());
 
     teardown(TEST_ID).await;
 

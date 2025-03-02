@@ -10,12 +10,11 @@ repository = "https://github.com/saveoursecrets/sdk"
 [features]
 full = ["archive", "audit", "files", "preferences", "system-messages"]
 archive = [
-  "dep:async_zip",
+  "sos-archive",
   "dep:serde",
   "dep:sha2",
   "dep:uuid",
   "dep:walkdir",
-  "dep:sanitize-filename",
   "dep:time",
   "dep:hex",
   "dep:futures-util",
@@ -31,6 +30,7 @@ sos-reducers.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 
+sos-archive = { workspace = true, optional = true }
 sos-audit = { workspace = true, optional = true }
 sos-system-messages = { workspace = true, optional = true }
 sos-preferences = { workspace = true, optional = true }
@@ -45,7 +45,6 @@ binary-stream.workspace = true
 async-stream.workspace = true
 parking_lot.workspace = true
 indexmap.workspace = true
-tempfile.workspace = true
 tracing.workspace = true
 async-fd-lock.workspace = true
 

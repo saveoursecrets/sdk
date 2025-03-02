@@ -33,7 +33,7 @@ use std::{
 use sos_search::{DocumentCount, SearchIndex};
 
 #[cfg(feature = "archive")]
-use sos_filesystem::archive::{Inventory, RestoreOptions};
+use sos_filesystem::archive::RestoreOptions;
 
 #[cfg(feature = "search")]
 use sos_search::*;
@@ -41,9 +41,6 @@ use sos_search::*;
 use async_trait::async_trait;
 use secrecy::SecretString;
 use tokio::sync::RwLock;
-
-#[cfg(feature = "archive")]
-use tokio::io::{AsyncRead, AsyncSeek};
 
 #[cfg(feature = "contacts")]
 use crate::ContactImportProgress;

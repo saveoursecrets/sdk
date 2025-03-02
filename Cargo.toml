@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
   "crates/account",
+  "crates/archive",
   "crates/artifact",
   "crates/audit",
   "crates/backend",
@@ -43,13 +44,14 @@ members = [
   "tests/command_line",
   "tests/integration",
   "tests/unit",
-  "tests/utils",
+  "tests/utils", 
 ]
 
 [workspace.dependencies]
 sos-account = { version = "0.16", path = "crates/account" }
 sos-artifact = { version = "0.8", path = "crates/artifact" }
 sos-audit = { version = "0.16", path = "crates/audit" }
+sos-archive = { version = "0.16", path = "crates/archive" }
 sos-backend  = { version = "0.16", path = "crates/backend" }
 sos-cli-helpers = { version = "0.1", path = "crates/cli_helpers" }
 sos-core = { version = "0.16", path = "crates/core" }

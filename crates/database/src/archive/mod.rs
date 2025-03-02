@@ -2,24 +2,23 @@
 use sos_core::Paths;
 use std::path::Path;
 
-mod archive;
 mod error;
+mod export;
 mod import;
 mod types;
-mod zip;
 
 pub use error::Error;
 pub use import::BackupImport;
 
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
-/// Create a backup archive.
-pub async fn create_backup_archive(
+/// Export a backup archive.
+pub async fn export_backup_archive(
     source_db: impl AsRef<Path>,
     paths: &Paths,
     output: impl AsRef<Path>,
 ) -> Result<()> {
-    archive::create(source_db, paths, output).await
+    export::create(source_db, paths, output).await
 }
 
 /// Import from a backup archive.

@@ -21,7 +21,6 @@ indexmap.workspace = true
 secrecy.workspace = true
 sha2.workspace = true
 urn.workspace = true
-tokio-util.workspace = true
 typeshare.workspace = true
 uuid.workspace = true
 futures.workspace = true

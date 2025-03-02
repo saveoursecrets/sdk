@@ -1,4 +1,4 @@
-use super::{types::ManifestVersion3, zip::Reader, Error, Result};
+use super::{types::ManifestVersion3, Error, Result};
 use crate::entity::{
     AccountEntity, AccountRecord, AccountRow, EventEntity, EventRecordRow,
     FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, SecretRow,
@@ -6,11 +6,13 @@ use crate::entity::{
 };
 use async_sqlite::rusqlite::Connection;
 use sha2::{Digest, Sha256};
+use sos_archive::{sanitize_file_path, ZipReader};
 use sos_core::{
     commit::CommitHash,
     constants::{BLOBS_DIR, DATABASE_FILE},
     events::EventLogType,
-    AccountId, ExternalFile, Paths,
+    AccountId, ExternalFile, ExternalFileName, Paths, SecretId, SecretPath,
+    VaultId,
 };
 use sos_vfs as vfs;
 use std::{
@@ -64,7 +66,7 @@ pub struct BackupImport {
     #[allow(dead_code)]
     db_temp: NamedTempFile,
     blobs: HashMap<AccountId, Vec<ExternalFile>>,
-    zip_reader: Reader<BufReader<vfs::File>>,
+    zip_reader: ZipReader<BufReader<vfs::File>>,
 }
 
 impl BackupImport {
@@ -355,12 +357,15 @@ pub(crate) async fn start(
     }
 
     let zip_file = BufReader::new(vfs::File::open(input.as_ref()).await?);
-    let mut zip_reader = Reader::new(zip_file).await?;
-    let manifest = zip_reader.find_manifest().await?.ok_or_else(|| {
-        Error::InvalidArchiveManifest(input.as_ref().to_owned())
-    })?;
+    let mut zip_reader = ZipReader::new(zip_file).await?;
+    let manifest = zip_reader
+        .find_manifest::<ManifestVersion3>()
+        .await?
+        .ok_or_else(|| {
+            Error::InvalidArchiveManifest(input.as_ref().to_owned())
+        })?;
 
-    let blobs = zip_reader.find_blobs()?;
+    let blobs = find_blobs(&zip_reader)?;
 
     // Extract the database and write to a temp file
     let db_buffer =
@@ -403,4 +408,53 @@ pub(crate) async fn start(
     };
 
     Ok(import)
+}
+
+/// Find blobs embedded in the archive.
+fn find_blobs(
+    reader: &ZipReader<BufReader<vfs::File>>,
+) -> Result<HashMap<AccountId, Vec<ExternalFile>>> {
+    let mut out = HashMap::new();
+    for index in 0..reader.inner().file().entries().len() {
+        let entry = reader.inner().file().entries().get(index).unwrap();
+        let is_dir = entry.dir().map_err(sos_archive::Error::from)?;
+        if !is_dir {
+            let file_name = entry.filename();
+            let path = sanitize_file_path(
+                file_name.as_str().map_err(sos_archive::Error::from)?,
+            );
+            let mut it = path.iter();
+            if let (
+                Some(first),
+                Some(second),
+                Some(third),
+                Some(fourth),
+                Some(fifth),
+            ) = (it.next(), it.next(), it.next(), it.next(), it.next())
+            {
+                if first == BLOBS_DIR {
+                    if let Ok(account_id) =
+                        second.to_string_lossy().parse::<AccountId>()
+                    {
+                        let files =
+                            out.entry(account_id).or_insert(Vec::new());
+
+                        if let (Ok(folder_id), Ok(secret_id), Ok(file_name)) = (
+                            third.to_string_lossy().parse::<VaultId>(),
+                            fourth.to_string_lossy().parse::<SecretId>(),
+                            fifth
+                                .to_string_lossy()
+                                .parse::<ExternalFileName>(),
+                        ) {
+                            files.push(ExternalFile::new(
+                                SecretPath(folder_id, secret_id),
+                                file_name,
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(out)
 }

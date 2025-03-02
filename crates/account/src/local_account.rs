@@ -60,7 +60,7 @@ use {
 };
 
 #[cfg(feature = "archive")]
-use sos_filesystem::archive::{Inventory, RestoreOptions};
+use sos_filesystem::archive::RestoreOptions;
 
 #[cfg(feature = "files")]
 use sos_external_files::FileMutationEvent;

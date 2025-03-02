@@ -31,7 +31,7 @@ async fn database_import_archive_client() -> Result<()> {
     // Create a backup archive.
     let zip = dirs.test_dir.join("backup.zip");
     let paths = Paths::new_client(dirs.test_dir.clone());
-    archive::create_backup_archive(&result.database_file, &paths, &zip)
+    archive::export_backup_archive(&result.database_file, &paths, &zip)
         .await?;
 
     assert!(zip.exists());

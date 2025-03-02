@@ -13,8 +13,8 @@ pub async fn export_backup_archive(
 ) -> Result<()> {
     match target {
         BackendTarget::FileSystem(paths) => {
-            use sos_filesystem::archive::AccountBackup;
-            AccountBackup::export_archive_file(
+            use sos_filesystem::archive;
+            archive::export_backup_archive(
                 output.as_ref(),
                 &account_id,
                 paths,
@@ -24,7 +24,7 @@ pub async fn export_backup_archive(
         BackendTarget::Database(paths, _) => {
             use sos_database::archive;
             let db_path = paths.database_file();
-            archive::create_backup_archive(db_path, paths, output.as_ref())
+            archive::export_backup_archive(db_path, paths, output.as_ref())
                 .await?;
         }
     }
@@ -39,30 +39,10 @@ pub async fn import_backup_archive(
 ) -> Result<Vec<PublicIdentity>> {
     let accounts = match target {
         BackendTarget::FileSystem(paths) => {
-            use sos_filesystem::archive::{
-                AccountBackup, ExtractFilesLocation,
-            };
-            use tokio::io::BufReader;
-
-            let mut options: RestoreOptions = Default::default();
-            if options.files_dir.is_none() {
-                let files_dir =
-                    ExtractFilesLocation::Builder(Box::new(|account_id| {
-                        let data_dir = Paths::data_dir().unwrap();
-                        let paths = Paths::new_client(data_dir)
-                            .with_account_id(account_id);
-                        Some(paths.files_dir().to_owned())
-                    }));
-                options.files_dir = Some(files_dir);
-            }
-
-            let file = File::open(input.as_ref()).await?;
-            let (_, account) = AccountBackup::import_archive_reader(
-                BufReader::new(file),
-                options,
-                Some(paths.documents_dir().to_owned()),
-            )
-            .await?;
+            use sos_filesystem::archive;
+            let account =
+                archive::import_backup_archive(input.as_ref(), &paths)
+                    .await?;
             vec![account]
         }
         BackendTarget::Database(paths, _) => {

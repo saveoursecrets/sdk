@@ -9,7 +9,6 @@ use sos_database::{
     open_file_with_journal_mode, open_memory,
 };
 use sos_external_files::list_external_files;
-use sos_filesystem::archive::AccountBackup;
 use sos_server_storage::ServerStorage;
 use sos_sync::SyncStatus;
 use sos_vault::list_accounts;
@@ -346,7 +345,7 @@ async fn create_backups(options: &UpgradeOptions) -> Result<Vec<PathBuf>> {
             backup_directory.join(account.account_id().to_string());
         backup_path.set_extension("zip");
 
-        AccountBackup::export_archive_file(
+        sos_filesystem::archive::export_backup_archive(
             &backup_path,
             account.account_id(),
             &account_paths,

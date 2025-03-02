@@ -1,16 +1,12 @@
 //! Read and write backup zip archives.
-mod backup;
 mod error;
+mod export;
+mod import;
 mod types;
-mod zip;
-
-pub use backup::{
-    AccountBackup, AccountManifest, ExtractFilesLocation, ManifestEntry,
-    RestoreOptions,
-};
-pub use zip::*;
 
 pub use error::Error;
+pub use export::export_backup_archive;
+pub use import::import_backup_archive;
 pub use types::*;
 
 /// Result type for the library.

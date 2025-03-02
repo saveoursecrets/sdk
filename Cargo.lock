@@ -5089,6 +5089,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-archive"
+version = "0.16.0"
+dependencies = [
+ "async_zip",
+ "sanitize-filename",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.11",
+ "time",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "sos-artifact"
 version = "0.8.9"
 dependencies = [
@@ -5111,11 +5126,8 @@ dependencies = [
  "rustc_version",
  "serde",
  "sos-core",
- "sos-signer",
- "sos-vault",
  "sos-vfs",
  "tokio",
- "tokio-util",
 ]
 
 [[package]]
@@ -5242,19 +5254,16 @@ version = "0.16.3"
 dependencies = [
  "async-sqlite",
  "async-trait",
- "async_zip",
  "binary-stream",
  "futures",
- "futures-util",
- "hex",
  "indexmap 2.7.1",
  "refinery",
  "rustc_version",
- "sanitize-filename",
  "secrecy",
  "serde",
  "serde_json",
  "sha2",
+ "sos-archive",
  "sos-audit",
  "sos-core",
  "sos-external-files",
@@ -5265,15 +5274,12 @@ dependencies = [
  "sql_query_builder",
  "tempfile",
  "thiserror 2.0.11",
- "time",
  "tokio",
  "tokio-stream",
- "tokio-util",
  "tracing",
  "url",
  "urn",
  "uuid",
- "walkdir",
 ]
 
 [[package]]
@@ -5342,6 +5348,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "sos-archive",
  "sos-audit",
  "sos-core",
  "sos-preferences",
@@ -5349,7 +5356,6 @@ dependencies = [
  "sos-system-messages",
  "sos-vault",
  "sos-vfs",
- "tempfile",
  "thiserror 2.0.11",
  "time",
  "tokio",
@@ -6043,7 +6049,6 @@ dependencies = [
  "sos-vfs",
  "thiserror 2.0.11",
  "tokio",
- "tokio-util",
  "totp-rs",
  "tracing",
  "typeshare",

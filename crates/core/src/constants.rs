@@ -133,6 +133,7 @@ mod files {
     pub const DATABASE_FILE: &str = "accounts.db";
 
     /// Manifest file for archives.
+    #[deprecated]
     pub const ARCHIVE_MANIFEST: &str = "sos-manifest.json";
 
     /// File thats stores account-level system messages.

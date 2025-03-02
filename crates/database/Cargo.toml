@@ -19,15 +19,7 @@ full = [
   "preferences",
   "system-messages",
 ]
-archive = [
-  "dep:async_zip",
-  "dep:walkdir",
-  "dep:sanitize-filename",
-  "dep:time",
-  "dep:hex",
-  "dep:futures-util",
-  "dep:tokio-util",
-]
+archive = ["sos-archive"]
 audit = ["sos-audit"]
 files = ["sos-external-files/files"]
 preferences = ["sos-preferences"]
@@ -39,6 +31,7 @@ sos-external-files.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 
+sos-archive = { workspace = true, optional = true }
 sos-audit = { workspace = true, optional = true }
 sos-preferences = { workspace = true, optional = true }
 sos-system-messages = { workspace = true, optional = true }
@@ -67,15 +60,6 @@ sql_query_builder = { workspace = true }
 
 # system-messages
 urn = { workspace = true, optional = true }
-
-# archive
-async_zip = { workspace = true, optional = true }
-walkdir = { workspace = true, optional = true }
-sanitize-filename = { workspace = true, optional = true }
-time = { workspace = true, optional = true }
-hex = { workspace = true, optional = true }
-futures-util = { workspace = true, optional = true }
-tokio-util = { workspace = true, optional = true }
 
 [build-dependencies]
 rustc_version.workspace = true

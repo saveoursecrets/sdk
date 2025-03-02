@@ -64,13 +64,10 @@ use sos_search::{
 };
 
 #[cfg(feature = "archive")]
-use sos_filesystem::archive::{Inventory, RestoreOptions};
+use sos_filesystem::archive::RestoreOptions;
 
 #[cfg(feature = "contacts")]
 use sos_account::ContactImportProgress;
-
-#[cfg(feature = "archive")]
-use tokio::io::{AsyncRead, AsyncSeek};
 
 #[cfg(feature = "migrate")]
 use sos_migrate::import::ImportTarget;
