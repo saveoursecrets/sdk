@@ -9,6 +9,7 @@ use sos_backend::{
 };
 use sos_core::Paths;
 use sos_database::open_file;
+use sos_vfs as vfs;
 use std::path::Path;
 use tempfile::tempdir;
 
@@ -18,6 +19,12 @@ pub async fn upgrade_backup_archive(
     input: impl AsRef<Path>,
     output: impl AsRef<Path>,
 ) -> Result<()> {
+    if vfs::try_exists(output.as_ref()).await? {
+        return Err(Error::ArchiveFileAlreadyExists(
+            output.as_ref().to_owned(),
+        ));
+    }
+
     let manifest = try_read_backup_archive_manifest(input.as_ref()).await?;
     match manifest {
         ArchiveManifest::V1(manifest) | ArchiveManifest::V2(manifest) => {
@@ -27,6 +34,7 @@ pub async fn upgrade_backup_archive(
                 .with_account_id(&manifest.account_id);
             source_paths.ensure().await?;
             let target = BackendTarget::FileSystem(source_paths.clone());
+
             import_backup_archive(input.as_ref(), &target).await?;
 
             let options = UpgradeOptions {

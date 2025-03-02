@@ -2,7 +2,9 @@ use crate::{Error, Result};
 use clap::Subcommand;
 use sos_cli_helpers::messages::{info, warn};
 use sos_core::Paths;
-use sos_database_upgrader::{upgrade_accounts, UpgradeOptions};
+use sos_database_upgrader::{
+    archive::upgrade_backup_archive, upgrade_accounts, UpgradeOptions,
+};
 use sos_vault::list_accounts;
 use std::path::PathBuf;
 
@@ -32,6 +34,14 @@ pub enum Command {
 
         /// Root directory for the file system accounts.
         directory: PathBuf,
+    },
+
+    /// Upgrade a version 1 or 2 backup archive to version 3.
+    UpgradeArchive {
+        /// Input backup archive ZIP file.
+        input: PathBuf,
+        /// Output backup archive ZIP file.
+        output: PathBuf,
     },
 }
 
@@ -89,6 +99,9 @@ pub async fn run(cmd: Command) -> Result<()> {
             };
             let result = upgrade_accounts(&directory, options).await?;
             serde_json::to_writer_pretty(&mut std::io::stdout(), &result)?;
+        }
+        Command::UpgradeArchive { input, output } => {
+            upgrade_backup_archive(input, output).await?;
         }
     }
     Ok(())

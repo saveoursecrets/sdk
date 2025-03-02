@@ -118,6 +118,11 @@ pub(crate) async fn import_globals(
         None
     };
 
+    tracing::debug!(
+        rows = ?global_preferences,
+        "db_upgrade::globals::preferences",
+    );
+
     let mut audit_events = Vec::new();
     if vfs::try_exists(paths.audit_file()).await? {
         let log_file = AuditFileProvider::<sos_filesystem::Error>::new(
@@ -130,6 +135,11 @@ pub(crate) async fn import_globals(
             audit_events.push((&event).try_into()?);
         }
     }
+
+    tracing::debug!(
+        length = %audit_events.len(),
+        "db_upgrade::globals::audit_events",
+    );
 
     client
         .conn_mut(move |conn| {
@@ -157,6 +167,10 @@ pub(crate) async fn import_account(
 ) -> Result<AccountStorage> {
     debug_assert!(!paths.is_global());
 
+    tracing::debug!(
+        account_id = %account.account_id(),
+        "db_upgrade::import_account");
+
     let is_server = paths.is_server();
     let account_name = account.label().to_owned();
     let account_row =
@@ -175,9 +189,19 @@ pub(crate) async fn import_account(
     let identity_events =
         collect_folder_events(fs_storage.identity_log().await?).await?;
 
+    tracing::debug!(
+        length = identity_events.len(),
+        "db_upgrade::identity_events"
+    );
+
     // Account events
     let account_events =
         collect_account_events(fs_storage.account_log().await?).await?;
+
+    tracing::debug!(
+        length = account_events.len(),
+        "db_upgrade::account_events"
+    );
 
     // Device vault
     let device_info = if !is_server {
@@ -199,9 +223,16 @@ pub(crate) async fn import_account(
     let device_events =
         collect_device_events(fs_storage.device_log().await?).await?;
 
+    tracing::debug!(
+        length = device_events.len(),
+        "db_upgrade::device_events"
+    );
+
     // File events
     let file_events =
         collect_file_events(fs_storage.file_log().await?).await?;
+
+    tracing::debug!(length = file_events.len(), "db_upgrade::file_events");
 
     // User folders
     let mut folders = Vec::new();
@@ -218,6 +249,13 @@ pub(crate) async fn import_account(
         let events =
             collect_folder_events(fs_storage.folder_log(summary.id()).await?)
                 .await?;
+
+        tracing::debug!(
+            folder_id = %summary.id(),
+            length = events.len(),
+            "db_upgrade::folder_events",
+        );
+
         folders.push((vault, vault_meta, rows, events));
     }
 
