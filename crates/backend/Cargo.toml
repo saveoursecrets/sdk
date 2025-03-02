@@ -30,6 +30,7 @@ audit = [
 ]
 files = [
   "sos-core/files",
+  "sos-external-files/files",
   "sos-database/files",
   "sos-filesystem/files",
   "sos-reducers/files",
@@ -55,6 +56,7 @@ sos-reducers.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 
+sos-external-files = { workspace = true, optional = true }
 sos-audit = { workspace = true, optional = true }
 sos-preferences = { workspace = true, optional = true }
 sos-system-messages = { workspace = true, optional = true }

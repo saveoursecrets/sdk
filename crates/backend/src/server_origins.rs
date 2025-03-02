@@ -1,7 +1,7 @@
 use crate::{BackendTarget, Error};
 use async_trait::async_trait;
 use sos_core::{AccountId, Origin, RemoteOrigins};
-use std::{collections::HashSet, sync::Arc};
+use std::collections::HashSet;
 
 type BoxedServerOrigins =
     Box<dyn RemoteOrigins<Error = Error> + Send + Sync + 'static>;

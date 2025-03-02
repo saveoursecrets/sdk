@@ -52,6 +52,9 @@ use sos_database::{
 };
 use std::sync::Arc;
 
+#[cfg(feature = "files")]
+use {indexmap::IndexSet, sos_core::ExternalFile};
+
 /// Target backend.
 #[derive(Clone)]
 pub enum BackendTarget {
@@ -149,5 +152,18 @@ impl BackendTarget {
                 Ok(folders)
             }
         }
+    }
+
+    /// List external files for this backend target.
+    #[cfg(feature = "files")]
+    pub async fn list_files(&self) -> Result<IndexSet<ExternalFile>> {
+        Ok(match self {
+            BackendTarget::FileSystem(paths) => {
+                sos_external_files::list_external_files(paths).await?
+            }
+            BackendTarget::Database(paths, _) => {
+                sos_external_files::list_external_blobs(paths).await?
+            }
+        })
     }
 }

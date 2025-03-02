@@ -46,7 +46,7 @@ use sos_vault::{
 use sos_vfs as vfs;
 use std::{
     collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
+    path::Path,
     sync::Arc,
 };
 use tokio::sync::{Mutex, RwLock};
@@ -62,9 +62,6 @@ use sos_search::{
     AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
     QueryFilter, SearchIndex,
 };
-
-#[cfg(feature = "archive")]
-use sos_filesystem::archive::RestoreOptions;
 
 #[cfg(feature = "contacts")]
 use sos_account::ContactImportProgress;
@@ -1001,9 +998,7 @@ impl Account for LinkedAccount {
     #[cfg(feature = "archive")]
     async fn import_backup_archive(
         _path: impl AsRef<Path> + Send + Sync,
-        _options: RestoreOptions,
         _target: &BackendTarget,
-        _data_dir: Option<PathBuf>,
     ) -> Result<Vec<PublicIdentity>> {
         unimplemented!();
     }

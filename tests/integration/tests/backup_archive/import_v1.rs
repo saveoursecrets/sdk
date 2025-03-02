@@ -19,7 +19,6 @@ async fn backup_import_v1() -> Result<()> {
         "../fixtures/backups/v1/0xba0faea9bbc182e3f4fdb3eea7636b5bb31ea9ac.zip";
 
     let paths = Paths::new_client(&data_dir);
-
     let target = if paths.is_using_db() {
         let client = open_file(paths.database_file()).await?;
         BackendTarget::Database(paths.clone(), client)
@@ -27,13 +26,8 @@ async fn backup_import_v1() -> Result<()> {
         BackendTarget::FileSystem(paths.clone())
     };
 
-    let accounts = LocalAccount::import_backup_archive(
-        &archive,
-        Default::default(),
-        &target,
-        Some(data_dir.clone()),
-    )
-    .await?;
+    let accounts =
+        LocalAccount::import_backup_archive(&archive, &target).await?;
 
     assert_eq!(1, accounts.len());
 

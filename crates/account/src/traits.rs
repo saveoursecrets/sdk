@@ -23,17 +23,10 @@ use sos_vault::{
     secret::{Secret, SecretMeta, SecretPath, SecretRow},
     Summary, Vault, VaultFlags,
 };
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 #[cfg(feature = "search")]
 use sos_search::{DocumentCount, SearchIndex};
-
-#[cfg(feature = "archive")]
-use sos_filesystem::archive::RestoreOptions;
 
 #[cfg(feature = "search")]
 use sos_search::*;
@@ -662,9 +655,7 @@ pub trait Account {
     #[cfg(feature = "archive")]
     async fn import_backup_archive(
         path: impl AsRef<Path> + Send + Sync,
-        options: RestoreOptions,
         target: &BackendTarget,
-        data_dir: Option<PathBuf>,
     ) -> std::result::Result<Vec<PublicIdentity>, Self::Error>;
 
     /// Copy a secret to the clipboard.

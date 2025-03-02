@@ -39,7 +39,7 @@ use sos_vault::{
 use sos_vfs as vfs;
 use std::{
     collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
+    path::Path,
     sync::Arc,
 };
 use tokio::sync::{Mutex, RwLock};
@@ -55,9 +55,6 @@ use sos_search::{
     AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
     QueryFilter, SearchIndex,
 };
-
-#[cfg(feature = "archive")]
-use sos_filesystem::archive::RestoreOptions;
 
 use indexmap::IndexSet;
 
@@ -1797,14 +1794,9 @@ impl Account for NetworkAccount {
     #[cfg(feature = "archive")]
     async fn import_backup_archive(
         path: impl AsRef<Path> + Send + Sync,
-        options: RestoreOptions,
         target: &BackendTarget,
-        data_dir: Option<PathBuf>,
     ) -> Result<Vec<PublicIdentity>> {
-        Ok(LocalAccount::import_backup_archive(
-            path, options, target, data_dir,
-        )
-        .await?)
+        Ok(LocalAccount::import_backup_archive(path, target).await?)
     }
 
     #[cfg(feature = "clipboard")]

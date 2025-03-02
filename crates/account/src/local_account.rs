@@ -59,9 +59,6 @@ use {
     sos_backend::audit::append_audit_events,
 };
 
-#[cfg(feature = "archive")]
-use sos_filesystem::archive::RestoreOptions;
-
 #[cfg(feature = "files")]
 use sos_external_files::FileMutationEvent;
 
@@ -194,8 +191,7 @@ impl LocalAccount {
 
         // Must import the new account before signing in
         storage.create_account(&public_account).await?;
-
-        tracing::debug!("new_account::imported");
+        tracing::debug!("new_account::created");
 
         Ok(Self {
             account_id,
@@ -2312,9 +2308,7 @@ impl Account for LocalAccount {
     #[cfg(feature = "archive")]
     async fn import_backup_archive(
         path: impl AsRef<Path> + Send + Sync,
-        options: RestoreOptions,
         target: &BackendTarget,
-        data_dir: Option<PathBuf>,
     ) -> Result<Vec<PublicIdentity>> {
         let accounts =
             sos_backend::archive::import_backup_archive(path, target).await?;

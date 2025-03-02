@@ -1,20 +1,20 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use maplit2::hashmap;
-use serde_json::de;
 use sos_account::{Account, LocalAccount};
-use sos_backend::BackendTarget;
-use sos_database::open_file;
-use sos_filesystem::archive::RestoreOptions;
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
 
-const TEST_ID: &str = "backup_export_import";
-
 /// Tests creating a backup and importing from the
 /// backup archive then asserting on the restored data.
+///
+/// Unlike the other roundtrip tests that explicitly
+/// set the backend and check for external files this
+/// test will use the backend inferred from the environment
+/// variables.
 #[tokio::test]
-async fn backup_export_import() -> Result<()> {
+async fn export_roundtrip() -> Result<()> {
+    const TEST_ID: &str = "export_roundtrip";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
@@ -34,7 +34,7 @@ async fn backup_export_import() -> Result<()> {
     let account_id = account.account_id().clone();
 
     let key: AccessKey = password.clone().into();
-    let folders = account.sign_in(&key).await?;
+    account.sign_in(&key).await?;
     let default_folder = account.default_folder().await.unwrap();
 
     let docs = vec![
@@ -77,19 +77,7 @@ async fn backup_export_import() -> Result<()> {
     account.delete_account().await?;
     assert!(!account.is_authenticated().await);
 
-    // Restore from the backup archive
-    let options = RestoreOptions {
-        selected: folders.clone(),
-        ..Default::default()
-    };
-
-    LocalAccount::import_backup_archive(
-        &archive,
-        options,
-        &target,
-        Some(data_dir.clone()),
-    )
-    .await?;
+    LocalAccount::import_backup_archive(&archive, &target).await?;
 
     // Sign in after restoring the account
     let mut account =

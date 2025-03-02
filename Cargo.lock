@@ -5142,6 +5142,7 @@ dependencies = [
  "sos-audit",
  "sos-core",
  "sos-database",
+ "sos-external-files",
  "sos-filesystem",
  "sos-preferences",
  "sos-reducers",
@@ -5336,7 +5337,6 @@ dependencies = [
  "async-fd-lock",
  "async-stream",
  "async-trait",
- "async_zip",
  "binary-stream",
  "futures",
  "futures-util",
@@ -5344,13 +5344,13 @@ dependencies = [
  "indexmap 2.7.1",
  "parking_lot",
  "rustc_version",
- "sanitize-filename",
  "serde",
  "serde_json",
  "sha2",
  "sos-archive",
  "sos-audit",
  "sos-core",
+ "sos-external-files",
  "sos-preferences",
  "sos-reducers",
  "sos-system-messages",
@@ -5363,7 +5363,6 @@ dependencies = [
  "tracing",
  "urn",
  "uuid",
- "walkdir",
 ]
 
 [[package]]

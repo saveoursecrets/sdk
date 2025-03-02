@@ -8,7 +8,6 @@ use crate::test_utils::{mock, setup, teardown};
 use futures::{pin_mut, StreamExt};
 use sos_account::{Account, FolderCreate, LocalAccount, SecretChange};
 use sos_audit::AuditEvent;
-use sos_filesystem::archive::RestoreOptions;
 use sos_migrate::import::ImportTarget;
 use sos_sdk::prelude::*;
 use std::{path::PathBuf, sync::Arc};
@@ -47,7 +46,6 @@ async fn audit_trail_client() -> Result<()> {
     .await?;
 
     let key: AccessKey = passphrase.clone().into();
-
     account.sign_in(&key).await?;
     let summary = account.default_folder().await.unwrap();
 
@@ -59,7 +57,7 @@ async fn audit_trail_client() -> Result<()> {
     let mut kinds: Vec<_> = events.iter().map(|e| e.event_kind()).collect();
 
     //println!("events {:#?}", events);
-    //println!("kinds {:#?}", kinds);
+    println!("kinds {:#?}", kinds);
 
     // Created the account
     assert!(matches!(kinds.remove(0), EventKind::CreateAccount));
@@ -226,12 +224,6 @@ async fn simulate_session(
     // Delete the account
     account.delete_account().await?;
 
-    // Import from a backup archive
-    let restore_options = RestoreOptions {
-        selected: vec![default_folder.clone()],
-        files_dir: None,
-    };
-
     let target = if paths.is_using_db() {
         let client = open_file(paths.database_file()).await?;
         BackendTarget::Database(paths.clone(), client)
@@ -239,13 +231,7 @@ async fn simulate_session(
         BackendTarget::FileSystem(paths.clone())
     };
 
-    LocalAccount::import_backup_archive(
-        archive,
-        restore_options,
-        &target,
-        Some(paths.documents_dir().clone()),
-    )
-    .await?;
+    LocalAccount::import_backup_archive(archive, &target).await?;
 
     Ok(())
 }

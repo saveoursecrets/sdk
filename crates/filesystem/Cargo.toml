@@ -2,7 +2,7 @@
 name = "sos-filesystem"
 version = "0.16.2"
 edition = "2021"
-description = "Filesystem event logs for the Save Our Secrets SDK"
+description = "Filesystem backend for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
@@ -11,10 +11,10 @@ repository = "https://github.com/saveoursecrets/sdk"
 full = ["archive", "audit", "files", "preferences", "system-messages"]
 archive = [
   "sos-archive",
+  "sos-external-files",
   "dep:serde",
   "dep:sha2",
   "dep:uuid",
-  "dep:walkdir",
   "dep:time",
   "dep:hex",
   "dep:futures-util",
@@ -34,6 +34,7 @@ sos-archive = { workspace = true, optional = true }
 sos-audit = { workspace = true, optional = true }
 sos-system-messages = { workspace = true, optional = true }
 sos-preferences = { workspace = true, optional = true }
+sos-external-files = { workspace = true, optional = true, features = ["full"] }
 
 thiserror.workspace = true
 async-trait.workspace = true
@@ -52,12 +53,9 @@ async-fd-lock.workspace = true
 urn = { workspace = true, optional = true }
 
 # archive
-async_zip = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 sha2 = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
-walkdir = { workspace = true, optional = true }
-sanitize-filename = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }

@@ -1,8 +1,6 @@
 //! Export and import archives for any backend target.
 use crate::{BackendTarget, Result};
-use sos_core::{AccountId, Paths, PublicIdentity};
-use sos_filesystem::archive::RestoreOptions;
-use sos_vfs::File;
+use sos_core::{AccountId, PublicIdentity};
 use std::path::Path;
 
 /// Create a backup archive.

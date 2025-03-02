@@ -1,22 +1,21 @@
 //! Export an account backup archive.
-use super::ManifestVersion1;
-use crate::archive::{Error, Result};
+use crate::archive::{Error, ManifestVersion1, Result};
 use hex;
 use sha2::{Digest, Sha256};
 use sos_archive::ZipWriter;
-use sos_core::constants::{
-    ACCOUNT_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILE_EVENTS, JSON_EXT,
-    PREFERENCES_FILE, REMOTES_FILE,
+use sos_core::{
+    constants::{
+        ACCOUNT_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILE_EVENTS, JSON_EXT,
+        PREFERENCES_FILE, REMOTES_FILE, VAULT_EXT,
+    },
+    AccountId, Paths, VaultId,
 };
-use sos_core::{constants::VAULT_EXT, VaultId};
-use sos_core::{AccountId, Paths};
 use sos_vault::list_local_folders;
 use sos_vfs as vfs;
 use std::{
     io::Cursor,
     path::{Path, PathBuf},
 };
-use walkdir::WalkDir;
 
 /// Export an archive of the account to disc.
 pub async fn export_backup_archive<P: AsRef<Path>>(
@@ -87,18 +86,14 @@ async fn export_archive_buffer(
         add_remote_servers(&mut writer, buffer.as_slice()).await?;
     }
 
-    // TODO: use list_external_files() rather than
-    // TODO: walking the directory
-    let files = paths.files_dir();
-    for entry in WalkDir::new(files) {
-        let entry = entry?;
-        if vfs::metadata(entry.path()).await?.is_file() {
-            let relative = PathBuf::from("files")
-                .join(entry.path().strip_prefix(files)?);
-            let relative = relative.to_string_lossy().into_owned();
-            let buffer = vfs::read(entry.path()).await?;
-            writer.add_file(&relative, &buffer).await?;
-        }
+    let external_files =
+        sos_external_files::list_external_files(paths).await?;
+    for file in &external_files {
+        let relative = PathBuf::from("files").join(file.to_string());
+        let buffer = vfs::read(paths.into_file_path(file)).await?;
+        writer
+            .add_file(relative.to_string_lossy().as_ref(), &buffer)
+            .await?;
     }
 
     writer.finish().await?;
@@ -118,7 +113,7 @@ async fn set_identity(
     writer.manifest_mut().checksum =
         hex::encode(Sha256::digest(vault).as_slice());
     writer
-        .add_file(path.to_string_lossy().into_owned().as_ref(), vault)
+        .add_file(path.to_string_lossy().as_ref(), vault)
         .await?;
 
     Ok(())
@@ -136,7 +131,7 @@ async fn add_vault(
     let checksum = hex::encode(Sha256::digest(vault).as_slice());
     writer.manifest_mut().vaults.insert(vault_id, checksum);
     writer
-        .add_file(path.to_string_lossy().into_owned().as_ref(), vault)
+        .add_file(path.to_string_lossy().as_ref(), vault)
         .await?;
 
     Ok(())
@@ -156,14 +151,14 @@ async fn add_devices(
     let mut path = PathBuf::from(DEVICE_FILE);
     path.set_extension(VAULT_EXT);
     writer
-        .add_file(path.to_string_lossy().into_owned().as_ref(), vault)
+        .add_file(path.to_string_lossy().as_ref(), vault)
         .await?;
 
     // Create the device events file
     let mut path = PathBuf::from(DEVICE_FILE);
     path.set_extension(EVENT_LOG_EXT);
     writer
-        .add_file(path.to_string_lossy().into_owned().as_ref(), events)
+        .add_file(path.to_string_lossy().as_ref(), events)
         .await?;
 
     Ok(())
@@ -181,7 +176,7 @@ async fn add_account_events(
     let mut path = PathBuf::from(ACCOUNT_EVENTS);
     path.set_extension(EVENT_LOG_EXT);
     writer
-        .add_file(path.to_string_lossy().into_owned().as_ref(), events)
+        .add_file(path.to_string_lossy().as_ref(), events)
         .await?;
 
     Ok(())
@@ -199,7 +194,7 @@ async fn add_file_events(
     let mut path = PathBuf::from(FILE_EVENTS);
     path.set_extension(EVENT_LOG_EXT);
     writer
-        .add_file(path.to_string_lossy().into_owned().as_ref(), events)
+        .add_file(path.to_string_lossy().as_ref(), events)
         .await?;
 
     Ok(())
@@ -218,7 +213,7 @@ async fn add_preferences(
     path.set_extension(JSON_EXT);
 
     writer
-        .add_file(path.to_string_lossy().into_owned().as_ref(), prefs)
+        .add_file(path.to_string_lossy().as_ref(), prefs)
         .await?;
 
     Ok(())
@@ -237,7 +232,7 @@ async fn add_remote_servers(
     path.set_extension(JSON_EXT);
 
     writer
-        .add_file(path.to_string_lossy().into_owned().as_ref(), remotes)
+        .add_file(path.to_string_lossy().as_ref(), remotes)
         .await?;
 
     Ok(())

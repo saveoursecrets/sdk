@@ -413,15 +413,8 @@ async fn import_account_backup_archive(
 
     let paths = Paths::new_client(Paths::data_dir()?);
     let target = BackendTarget::from_paths(&paths).await?;
-    let account = {
-        NetworkAccount::import_backup_archive(
-            &input,
-            Default::default(),
-            &target,
-            None,
-        )
-        .await?
-    };
+    let account =
+        { NetworkAccount::import_backup_archive(&input, &target).await? };
     Ok(Some(account))
 }
 
