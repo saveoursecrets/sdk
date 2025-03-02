@@ -2,6 +2,8 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Database upgrader for the [Save Our Secrets](https://saveoursecrets.com) SDK.
+#[cfg(feature = "archive")]
+pub mod archive;
 mod upgrader;
 
 pub use upgrader::*;

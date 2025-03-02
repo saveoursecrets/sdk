@@ -17,7 +17,7 @@ sos-external-files.workspace = true
 sos-account = { workspace = true, features = ["full"] }
 sos-backend = { workspace = true, features = ["full"] }
 sos-database = { workspace = true, features = ["full"] }
-sos-database-upgrader.workspace = true
+sos-database-upgrader = { workspace = true, features = ["full"] }
 sos-login = { workspace = true, features = ["full"] }
 sos-filesystem = { workspace = true, features = ["full"] }
 sos-migrate = { workspace = true, features = ["full"] }

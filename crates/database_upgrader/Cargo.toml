@@ -11,6 +11,10 @@ repository = "https://github.com/saveoursecrets/sdk"
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+[features]
+full = ["archive"]
+archive = ["sos-backend/archive"]
+
 [dependencies]
 sos-core.workspace = true
 sos-backend.workspace = true
