@@ -26,32 +26,11 @@ pub async fn list_external_files(
         .await
 }
 
-#[doc(hidden)]
-#[deprecated]
-pub async fn list_external_blobs(
-    paths: &Paths,
-) -> Result<IndexSet<ExternalFile>> {
-    list_external_files(paths).await
-}
-
-#[doc(hidden)]
-#[deprecated]
-pub async fn list_folder_blobs(
-    paths: &Paths,
-    folder_id: &VaultId,
-) -> Result<Vec<(SecretId, IndexSet<ExternalFileName>)>> {
-    list_folder_files(paths, folder_id).await
-}
-
 /// List all the external files in a folder.
 ///
 /// If a directory name cannot be parsed to a folder or secret
 /// identifier or the file name cannot be converted to `[u8; 32]`
 /// the directory or file will be ignored.
-///
-/// This is an implementation for the v1 file system backend that
-/// stores external files in the account directories. For the newer
-/// v2 layout for the SQLite update use `list_folder_blobs`.
 pub async fn list_folder_files(
     paths: &Paths,
     folder_id: &VaultId,

@@ -15,7 +15,7 @@ use sos_core::{
     Paths,
 };
 use sos_database::archive;
-use sos_external_files::list_external_blobs;
+use sos_external_files::list_external_files;
 use std::path::PathBuf;
 use test_utils::{copy_dir, TestDirs};
 
@@ -114,7 +114,7 @@ pub async fn assert_import_archive(
     // Should have some extracted external file blobs
     let account_paths =
         paths.with_account_id(account_record.identity.account_id());
-    let external_blobs = list_external_blobs(&account_paths).await?;
+    let external_blobs = list_external_files(&account_paths).await?;
     assert!(!external_blobs.is_empty());
 
     Ok(())

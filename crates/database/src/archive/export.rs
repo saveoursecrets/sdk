@@ -8,7 +8,7 @@ use sos_core::{
     constants::{BLOBS_DIR, DATABASE_FILE},
     Paths,
 };
-use sos_external_files::list_external_blobs;
+use sos_external_files::list_external_files;
 use sos_vfs as vfs;
 use std::{
     path::{Path, PathBuf},
@@ -90,7 +90,7 @@ async fn find_blobs(
         let record: AccountRecord = account.try_into()?;
         let account_paths = Paths::new_client(paths.documents_dir())
             .with_account_id(record.identity.account_id());
-        let blobs = list_external_blobs(&account_paths).await?;
+        let blobs = list_external_files(&account_paths).await?;
         let paths = blobs
             .into_iter()
             .map(|file| {

@@ -162,7 +162,7 @@ impl BackendTarget {
                 sos_external_files::list_external_files(paths).await?
             }
             BackendTarget::Database(paths, _) => {
-                sos_external_files::list_external_blobs(paths).await?
+                sos_external_files::list_external_files(paths).await?
             }
         })
     }

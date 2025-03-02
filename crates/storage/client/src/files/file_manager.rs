@@ -117,13 +117,10 @@ impl ExternalFileManager {
         &self,
         folder_id: &VaultId,
     ) -> Result<Vec<FileEvent>> {
-        use sos_external_files::{list_folder_blobs, list_folder_files};
+        use sos_external_files::list_folder_files;
         let mut events = Vec::new();
-        let mut folder_files = if self.paths.is_using_db() {
-            list_folder_blobs(&self.paths, folder_id).await?
-        } else {
-            list_folder_files(&self.paths, folder_id).await?
-        };
+        let mut folder_files =
+            list_folder_files(&self.paths, folder_id).await?;
         for (secret_id, mut external_files) in folder_files.drain(..) {
             for file_name in external_files.drain(..) {
                 // Remove each file as we go and create

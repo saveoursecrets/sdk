@@ -376,7 +376,7 @@ mod handlers {
     use indexmap::IndexSet;
     use sha2::{Digest, Sha256};
     use sos_core::{ExternalFileName, SecretId, VaultId};
-    use sos_external_files::{list_external_blobs, list_external_files};
+    use sos_external_files::list_external_files;
     use sos_protocol::{
         constants::MIME_TYPE_PROTOBUF,
         transfer::{FileSet, FileTransfersSet},
@@ -625,11 +625,7 @@ mod handlers {
         tracing::debug!(
             local_set_len = %local_set.len(), "compare_files");
 
-        let remote_set = if paths.is_using_db() {
-            list_external_blobs(&*paths).await?
-        } else {
-            list_external_files(&*paths).await?
-        };
+        let remote_set = list_external_files(&*paths).await?;
         tracing::debug!(
             remote_set_len = %remote_set.len(), "compare_files");
 
