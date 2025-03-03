@@ -24,7 +24,7 @@ full = [
 ]
 listen = ["tokio-tungstenite"]
 hashcheck = ["reqwest"]
-network-client = ["reqwest", "bs58", "async-stream", "tokio-util"]
+network-client = ["reqwest", "bs58", "tokio-util", "tokio-stream"]
 pairing = []
 contacts = []
 files = ["sos-external-files"]
@@ -63,7 +63,7 @@ tokio = { version = "1", features = ["rt",  "macros"] }
 # network-client
 tokio-tungstenite = { workspace = true, optional = true }
 bs58 = { workspace = true, optional = true }
-async-stream = { workspace = true, optional = true }
+tokio-stream = { workspace = true, optional = true }
 tokio-util = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.reqwest]

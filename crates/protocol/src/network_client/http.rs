@@ -455,6 +455,8 @@ impl FileSyncClient for HttpClient {
             Body,
         };
         use sos_vfs as vfs;
+        use tokio::sync::mpsc;
+        use tokio_stream::wrappers::ReceiverStream;
         use tokio_util::io::ReaderStream;
 
         let url_path = format!("api/v1/sync/file/{}", file_info);
@@ -475,27 +477,36 @@ impl FileSyncClient for HttpClient {
         }
 
         let mut reader_stream = ReaderStream::new(file);
-        let progress_stream = async_stream::stream! {
+
+        let (tx, rx) = mpsc::channel(8);
+        tokio::task::spawn(async move {
             loop {
-              tokio::select! {
-                biased;
-                _ = cancel.changed() => {
-                  let reason = cancel.borrow().clone();
-                  tracing::debug!(reason = ?reason, "upload::canceled");
-                  yield Err(Error::TransferCanceled(reason));
-                }
-                Some(chunk) = reader_stream.next() => {
-                  if let Ok(bytes) = &chunk {
-                      bytes_sent += bytes.len() as u64;
-                      if let Err(error) = progress.send((bytes_sent, Some(file_size))).await {
-                        tracing::warn!(error = ?error);
-                      }
+                tokio::select! {
+                  biased;
+                  _ = cancel.changed() => {
+                    let reason = cancel.borrow().clone();
+                    tracing::debug!(reason = ?reason, "upload::canceled");
+                    if let Err(e) = tx.send(Err(Error::TransferCanceled(reason))).await {
+                        tracing::warn!(error = %e);
+                    }
                   }
-                  yield chunk.map_err(Error::from);
+                  Some(chunk) = reader_stream.next() => {
+                    if let Ok(bytes) = &chunk {
+                        bytes_sent += bytes.len() as u64;
+                        if let Err(e) = progress.send((bytes_sent, Some(file_size))).await {
+                          tracing::warn!(error = %e);
+                        }
+                    }
+                    if let Err(e) = tx.send(chunk.map_err(Error::from)).await {
+                        tracing::error!(error = %e);
+                        break;
+                    }
+                  }
                 }
-              }
             }
-        };
+        });
+
+        let progress_stream = ReceiverStream::new(rx);
 
         // Use a client without the read timeout
         // as this may be a long running request
