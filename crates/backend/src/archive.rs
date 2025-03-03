@@ -1,7 +1,9 @@
 //! Export and import archives for any backend target.
 use crate::{BackendTarget, Error, Result};
 use sos_archive::ZipReader;
-use sos_core::{AccountId, ArchiveManifestVersion, PublicIdentity};
+use sos_core::{
+    constants::VAULT_EXT, AccountId, ArchiveManifestVersion, PublicIdentity,
+};
 use sos_database::archive::ManifestVersion3;
 use sos_filesystem::archive::ManifestVersion1;
 use sos_vfs::File;
@@ -18,7 +20,7 @@ pub enum ArchiveManifest {
     V3(ManifestVersion3),
 }
 
-/// Try to read the manifest from a backup archive.
+/// Try to read the manifest in a backup archive.
 pub async fn try_read_backup_archive_manifest(
     input: impl AsRef<Path>,
 ) -> Result<ArchiveManifest> {
@@ -48,6 +50,57 @@ pub async fn try_read_backup_archive_manifest(
             }
         }
         Err(e) => Err(e.into()),
+    }
+}
+
+/// Try to list the accounts in a backup archive.
+pub async fn try_list_backup_archive_accounts(
+    input: impl AsRef<Path>,
+) -> Result<Vec<PublicIdentity>> {
+    let manifest = try_read_backup_archive_manifest(input.as_ref()).await?;
+
+    match manifest {
+        // Versions 1 and 2 only support a single account
+        ArchiveManifest::V1(manifest) | ArchiveManifest::V2(manifest) => {
+            use sos_core::decode;
+            use sos_vault::Vault;
+            let file = File::open(input.as_ref()).await?;
+            let mut zip_reader = ZipReader::new(BufReader::new(file)).await?;
+            let name =
+                format!("{}.{}", manifest.account_id.to_string(), VAULT_EXT);
+            if let Some(identity_buffer) = zip_reader.by_name(&name).await? {
+                let identity_vault: Vault = decode(&identity_buffer).await?;
+                let label = identity_vault.name().to_owned();
+                let identity =
+                    PublicIdentity::new(manifest.account_id, label);
+                Ok(vec![identity])
+            } else {
+                Err(Error::NotValidBackupArchive(input.as_ref().to_owned()))
+            }
+        }
+        // Version 3 backup archives can contain multiple accounts
+        ArchiveManifest::V3(_) => {
+            use sos_core::Paths;
+            use sos_database::archive;
+            use tempfile::tempdir;
+
+            let temp = tempdir()?;
+            let paths = Paths::new_client(temp.path());
+
+            let mut import = archive::import_backup_archive(
+                paths.database_file(),
+                &*paths,
+                input.as_ref(),
+            )
+            .await?;
+
+            // Run migrations on the source to ensure it's
+            // schema is up to date.
+            import.migrate_source()?;
+
+            let accounts = import.list_source_accounts()?;
+            Ok(accounts.into_iter().map(|a| a.identity).collect())
+        }
     }
 }
 
