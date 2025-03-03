@@ -24,7 +24,7 @@ use std::{
     path::PathBuf,
 };
 use terminal_banner::{Banner, Padding};
-use {hex, secrecy, url::Url};
+use {secrecy, url::Url};
 
 /// Resolved secret data.
 pub(crate) struct ResolvedSecret {
