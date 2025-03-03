@@ -5,6 +5,8 @@ mod export_roundtrip_v3;
 mod import_v1;
 mod import_v2;
 
+mod upgrade_import;
+
 use anyhow::Result;
 use secrecy::SecretString;
 use sos_account::{Account, LocalAccount, SecretChange};

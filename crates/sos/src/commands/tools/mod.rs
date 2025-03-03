@@ -1,7 +1,7 @@
 use crate::{
     helpers::{
         account::{resolve_account_address, resolve_user_with_password},
-        messages::{fail, info, success},
+        messages::{info, success},
         readline::read_flag,
     },
     Error, Result,
@@ -9,9 +9,7 @@ use crate::{
 use clap::Subcommand;
 use sos_account::Account;
 use sos_backend::{BackendTarget, FolderEventLog};
-use sos_client_storage::{
-    ClientAccountStorage, ClientFolderStorage, ClientStorage,
-};
+use sos_client_storage::{ClientAccountStorage, ClientStorage};
 use sos_core::FolderRef;
 use sos_core::{
     constants::EVENT_LOG_EXT,
