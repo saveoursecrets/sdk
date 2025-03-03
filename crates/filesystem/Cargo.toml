@@ -43,11 +43,11 @@ futures.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 binary-stream.workspace = true
-async-stream.workspace = true
 parking_lot.workspace = true
 indexmap.workspace = true
 tracing.workspace = true
 async-fd-lock.workspace = true
+tokio-stream.workspace = true
 
 # preferences / system messages
 urn = { workspace = true, optional = true }

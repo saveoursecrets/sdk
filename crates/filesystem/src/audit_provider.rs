@@ -5,11 +5,11 @@ use crate::formats::{
 };
 use crate::Result;
 use async_fd_lock::{LockRead, LockWrite};
-use async_stream::try_stream;
 use async_trait::async_trait;
-use binary_stream::futures::{BinaryReader, BinaryWriter};
-use binary_stream::futures::{Decodable, Encodable};
-use futures::stream::BoxStream;
+use binary_stream::futures::{
+    BinaryReader, BinaryWriter, Decodable, Encodable,
+};
+use futures::{stream::BoxStream, StreamExt};
 use sos_audit::{AuditEvent, AuditStreamSink};
 use sos_core::{constants::AUDIT_IDENTITY, encoding::encoding_options};
 use sos_vfs::{self as vfs, File};
@@ -19,9 +19,14 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite, BufReader, BufWriter};
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
-use tokio::sync::Mutex;
+use tokio::{
+    io::{
+        AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
+        AsyncWriteExt, BufReader, BufWriter,
+    },
+    sync::{mpsc, Mutex},
+};
+use tokio_stream::wrappers::ReceiverStream;
 
 /// Represents an audit log file.
 struct AuditLogFile {
@@ -197,6 +202,8 @@ where
         BoxStream<'static, std::result::Result<AuditEvent, Self::Error>>,
         Self::Error,
     > {
+        let (tx, rx) =
+            mpsc::channel::<std::result::Result<AuditEvent, Self::Error>>(8);
         let file_path = {
             let file = self.file.lock().await;
             file.file_path().to_owned()
@@ -213,12 +220,17 @@ where
         .await?;
 
         let it_file = self.file.clone();
-        Ok(Box::pin(try_stream! {
+        tokio::task::spawn(async move {
             while let Some(record) = it.next().await? {
                 let mut inner = it_file.lock().await;
                 let event = inner.read_event(&record).await?;
-                yield event;
+                if let Err(e) = tx.send(Ok(event)).await {
+                    tracing::error!(error = %e);
+                }
             }
-        }))
+            Ok::<_, Self::Error>(())
+        });
+
+        Ok(ReceiverStream::new(rx).boxed())
     }
 }

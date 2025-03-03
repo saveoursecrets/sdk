@@ -498,6 +498,7 @@ impl FileSyncClient for HttpClient {
         };
 
         // Use a client without the read timeout
+        // as this may be a long running request
         let client = reqwest::ClientBuilder::new()
             .connect_timeout(Duration::from_millis(5000))
             .build()?;

@@ -21,10 +21,9 @@ use crate::{
     Error, Result,
 };
 use async_fd_lock::{LockRead, LockWrite};
-use async_stream::try_stream;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, Decodable, Encodable};
-use futures::stream::BoxStream;
+use futures::{stream::BoxStream, StreamExt, TryStreamExt};
 use sos_core::{
     commit::{CommitHash, CommitProof, CommitTree, Comparison},
     encode,
@@ -35,13 +34,16 @@ use sos_core::{
     },
 };
 use sos_vfs::{self as vfs, File, OpenOptions};
-use std::io::Cursor;
 use std::result::Result as StdResult;
 use std::{
-    io::SeekFrom,
+    io::{Cursor, SeekFrom},
     path::{Path, PathBuf},
 };
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
+use tokio::{
+    io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader},
+    sync::mpsc,
+};
+use tokio_stream::wrappers::ReceiverStream;
 
 #[cfg(feature = "files")]
 use sos_core::events::FileEvent;
@@ -127,17 +129,25 @@ where
         &self,
         reverse: bool,
     ) -> BoxStream<'async_trait, StdResult<EventRecord, Self::Error>> {
+        let (tx, rx) =
+            mpsc::channel::<StdResult<EventRecord, Self::Error>>(8);
+
         let mut it =
             self.iter(reverse).await.expect("to initialize iterator");
         let file_path = self.data.clone();
-        Box::pin(try_stream! {
+        tokio::task::spawn(async move {
             while let Some(record) = it.next().await? {
-                let event_buffer = read_event_buffer(
-                    file_path.clone(), &record).await?;
+                let event_buffer =
+                    read_event_buffer(file_path.clone(), &record).await?;
                 let event_record = record.into_event_record(event_buffer);
-                yield event_record;
+                if let Err(e) = tx.send(Ok(event_record)).await {
+                    tracing::error!(error = %e);
+                }
             }
-        })
+            Ok::<_, Self::Error>(())
+        });
+
+        ReceiverStream::new(rx).boxed()
     }
 
     async fn event_stream(
@@ -145,19 +155,13 @@ where
         reverse: bool,
     ) -> BoxStream<'async_trait, StdResult<(EventRecord, T), Self::Error>>
     {
-        let mut it =
-            self.iter(reverse).await.expect("to initialize iterator");
-
-        let file_path = self.data.clone();
-        Box::pin(try_stream! {
-            while let Some(record) = it.next().await? {
-                let event_buffer = read_event_buffer(
-                    file_path.clone(), &record).await?;
-                let event_record = record.into_event_record(event_buffer);
-                let event = event_record.decode_event::<T>().await?;
-                yield (event_record, event);
-            }
-        })
+        self.record_stream(reverse)
+            .await
+            .try_filter_map(|record| async {
+                let event = record.decode_event::<T>().await?;
+                Ok(Some((record, event)))
+            })
+            .boxed()
     }
 
     async fn diff_checked(

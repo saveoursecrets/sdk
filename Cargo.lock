@@ -5335,7 +5335,6 @@ name = "sos-filesystem"
 version = "0.16.2"
 dependencies = [
  "async-fd-lock",
- "async-stream",
  "async-trait",
  "binary-stream",
  "futures",
@@ -5359,6 +5358,7 @@ dependencies = [
  "thiserror 2.0.11",
  "time",
  "tokio",
+ "tokio-stream",
  "tokio-util",
  "tracing",
  "urn",
