@@ -33,129 +33,6 @@ pub async fn import_backup_archive(
     import_archive_reader(BufReader::new(file), paths).await
 }
 
-/*
-/// Build a manifest for an account.
-async fn manifest(
-    address: &AccountId,
-    paths: &Paths,
-    options: AccountManifestOptions,
-) -> Result<(AccountManifest, u64)> {
-    let mut total_size: u64 = 0;
-    let mut manifest = AccountManifest::new(*address);
-    let path = paths.identity_vault();
-    let (size, checksum) = read_file_entry(path, None).await?;
-    let entry = ManifestEntry::Identity {
-        id: Uuid::new_v4(),
-        label: address.to_string(),
-        size,
-        checksum: checksum.as_slice().try_into()?,
-    };
-    manifest.entries.push(entry);
-    total_size += size;
-
-    let vaults = list_local_folders(paths).await?;
-    for (summary, path) in vaults {
-        if options.no_sync && summary.flags().is_sync_disabled() {
-            continue;
-        }
-
-        let (size, checksum) = read_file_entry(path, None).await?;
-        let entry = ManifestEntry::Vault {
-            id: *summary.id(),
-            label: summary.name().to_owned(),
-            size,
-            checksum: checksum.as_slice().try_into()?,
-        };
-        manifest.entries.push(entry);
-        total_size += size;
-    }
-
-    let files = paths.files_dir();
-    for entry in WalkDir::new(files) {
-        let entry = entry?;
-        if vfs::metadata(entry.path()).await?.is_file() {
-            let relative = entry.path().strip_prefix(files)?;
-
-            let mut it = relative.iter();
-            if let (Some(vault_id), Some(secret_id), Some(file_name)) =
-                (it.next(), it.next(), it.next())
-            {
-                let label = file_name.to_string_lossy().into_owned();
-                let vault_id: VaultId = vault_id.to_string_lossy().parse()?;
-
-                let secret_id: SecretId =
-                    secret_id.to_string_lossy().parse()?;
-
-                let (size, checksum) =
-                    read_file_entry(entry.path(), Some(label.clone()))
-                        .await?;
-                let entry = ManifestEntry::File {
-                    id: Uuid::new_v4(),
-                    label,
-                    size,
-                    checksum: checksum.as_slice().try_into()?,
-                    vault_id,
-                    secret_id,
-                };
-                manifest.entries.push(entry);
-                total_size += size;
-            }
-        }
-    }
-    Ok((manifest, total_size))
-}
-*/
-
-/*
-/// Resolve a manifest entry to a path.
-fn resolve_manifest_entry(
-    _address: &AccountId,
-    paths: &Paths,
-    entry: &ManifestEntry,
-) -> Result<PathBuf> {
-    match entry {
-        ManifestEntry::Identity { .. } => Ok(paths.identity_vault()),
-        ManifestEntry::Vault { id, .. } => {
-            let mut path = paths.vaults_dir().join(id.to_string());
-            path.set_extension(VAULT_EXT);
-            Ok(path)
-        }
-        ManifestEntry::File {
-            vault_id,
-            secret_id,
-            label,
-            ..
-        } => Ok(paths
-            .files_dir()
-            .join(vault_id.to_string())
-            .join(secret_id.to_string())
-            .join(label)),
-    }
-}
-*/
-
-/*
-async fn read_file_entry<P: AsRef<Path>>(
-    path: P,
-    file_name: Option<String>,
-) -> Result<(u64, [u8; 32])> {
-    let file = File::open(path.as_ref()).await?;
-    let size = file.metadata().await?.len();
-    // For files we already have the checksum encoded in the
-    // file name so parse it from the file name
-    let checksum = if let Some(file_name) = file_name {
-        hex::decode(file_name.as_bytes())?
-    // Otherwise for vaults read in the file data and compute
-    } else {
-        let buffer = vfs::read(path.as_ref()).await?;
-        let mut hasher = Sha256::new();
-        hasher.update(&buffer);
-        hasher.finalize().to_vec()
-    };
-    Ok((size, checksum.as_slice().try_into()?))
-}
-*/
-
 /// Import from an archive.
 ///
 /// The owner must not be signed in and the account must not exist.
@@ -182,8 +59,15 @@ async fn import_archive_reader(
     let paths = paths.with_account_id(&address_path);
 
     // Write out the identity vault
+    let identity_vault: Vault = decode(&restore_targets.identity.1).await?;
     let identity_vault_file = paths.identity_vault();
     vfs::write(identity_vault_file, &restore_targets.identity.1).await?;
+
+    // Write out the identity event log file
+    let (_, events) = FolderReducer::split::<Error>(identity_vault).await?;
+    let mut event_log =
+        FolderEventLog::<Error>::new_folder(paths.identity_events()).await?;
+    event_log.apply(events.as_slice()).await?;
 
     // Check if the identity name already exists
     // and rename the identity being imported if necessary
@@ -298,21 +182,6 @@ async fn extract_archive(
     let manifest = manifest.take().ok_or(Error::NoArchiveManifest)?;
     let paths = paths.with_account_id(&manifest.account_id);
     extract_files(&mut reader, &paths).await?;
-
-    // if let Some(files_dir) = &options.files_dir {
-    //     match files_dir {
-    //         ExtractFilesLocation::Path(files_dir) => {
-    //             extract_files(&mut reader, files_dir).await?;
-    //         }
-    //         ExtractFilesLocation::Builder(builder) => {
-    //             let account_id = manifest.account_id;
-    //             if let Some(files_dir) = builder(&account_id) {
-    //                 extract_files(&mut reader, files_dir).await?;
-    //             }
-    //         }
-    //     }
-    // }
-
     let (
         manifest,
         identity,
