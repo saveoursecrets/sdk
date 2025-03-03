@@ -32,6 +32,16 @@ async fn backup_list_accounts_v3() -> Result<()> {
     Ok(())
 }
 
+/// Test listing accounts in a v3 backup archive
+/// when multiple accounts are present.
+#[tokio::test]
+async fn backup_list_accounts_v3_multiple() -> Result<()> {
+    //crate::test_utils::init_tracing();
+    let archive = "../fixtures/backups/v3/multiple-accounts.zip";
+    assert_list_accounts(archive, 2).await?;
+    Ok(())
+}
+
 async fn assert_list_accounts(
     input: impl AsRef<Path>,
     expected: usize,

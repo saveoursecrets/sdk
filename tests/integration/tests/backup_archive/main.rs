@@ -3,6 +3,7 @@ mod export_roundtrip_v2;
 mod export_roundtrip_v3;
 mod import_v1;
 mod import_v2;
+mod import_v3;
 mod list_accounts;
 mod upgrade_import;
 
