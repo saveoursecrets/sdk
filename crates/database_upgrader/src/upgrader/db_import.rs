@@ -195,8 +195,11 @@ pub(crate) async fn import_account(
     );
 
     // Account events
-    let account_events =
-        collect_account_events(fs_storage.account_log().await?).await?;
+    let account_events = if vfs::try_exists(paths.account_events()).await? {
+        collect_account_events(fs_storage.account_log().await?).await?
+    } else {
+        Vec::new()
+    };
 
     tracing::debug!(
         length = account_events.len(),
@@ -204,24 +207,28 @@ pub(crate) async fn import_account(
     );
 
     // Device vault
-    let device_info = if !is_server {
-        let buffer = vfs::read(paths.device_file()).await?;
-        let device_vault: Vault = decode(&buffer).await?;
-        let device_vault_meta =
-            if let Some(meta) = device_vault.header().meta() {
-                Some(encode(meta).await?)
-            } else {
-                None
-            };
-        let device_rows = collect_vault_rows(&device_vault).await?;
-        Some((device_vault, device_vault_meta, device_rows))
-    } else {
-        None
-    };
+    let device_info =
+        if !is_server && vfs::try_exists(paths.device_file()).await? {
+            let buffer = vfs::read(paths.device_file()).await?;
+            let device_vault: Vault = decode(&buffer).await?;
+            let device_vault_meta =
+                if let Some(meta) = device_vault.header().meta() {
+                    Some(encode(meta).await?)
+                } else {
+                    None
+                };
+            let device_rows = collect_vault_rows(&device_vault).await?;
+            Some((device_vault, device_vault_meta, device_rows))
+        } else {
+            None
+        };
 
     // Device events
-    let device_events =
-        collect_device_events(fs_storage.device_log().await?).await?;
+    let device_events = if vfs::try_exists(paths.device_events()).await? {
+        collect_device_events(fs_storage.device_log().await?).await?
+    } else {
+        Vec::new()
+    };
 
     tracing::debug!(
         length = device_events.len(),
@@ -229,8 +236,11 @@ pub(crate) async fn import_account(
     );
 
     // File events
-    let file_events =
-        collect_file_events(fs_storage.file_log().await?).await?;
+    let file_events = if vfs::try_exists(paths.file_events()).await? {
+        collect_file_events(fs_storage.file_log().await?).await?
+    } else {
+        Vec::new()
+    };
 
     tracing::debug!(length = file_events.len(), "db_upgrade::file_events");
 
@@ -324,9 +334,9 @@ pub(crate) async fn import_account(
 
             // Create the device folder without events
             // as it is configured for SYSTEM | DEVICE | NO_SYNC
-            if !is_server {
-                let (device_vault, device_vault_meta, device_rows) =
-                    device_info.unwrap();
+            if let Some((device_vault, device_vault_meta, device_rows)) =
+                device_info
+            {
                 let (device_folder_id, _) = create_folder(
                     &tx,
                     account_id,

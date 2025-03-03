@@ -45,6 +45,16 @@ pub struct UpgradeOptions {
     pub keep_stale_files: bool,
     /// Move file blobs.
     pub copy_file_blobs: bool,
+    /// Bypass status integrity check.
+    ///
+    /// This exists only to support upgrading version 1
+    /// backup archives which do not contain all the
+    /// required event logs which means that we can't
+    /// gather the sync status for these backup archives
+    /// in order to perform an integrity check.
+    ///
+    /// Only use this for that scenario.
+    pub bypass_status_check: bool,
 }
 
 impl Default for UpgradeOptions {
@@ -56,6 +66,7 @@ impl Default for UpgradeOptions {
             backup_directory: None,
             keep_stale_files: false,
             copy_file_blobs: true,
+            bypass_status_check: false,
         }
     }
 }
@@ -142,7 +153,11 @@ async fn import_accounts(
 
         // Compute account status so we can compare and assert
         // after importing the account
-        let fs_status = fs_storage.sync_status().await?;
+        let fs_status = if !options.bypass_status_check {
+            Some(fs_storage.sync_status().await?)
+        } else {
+            None
+        };
 
         let db_storage = db_import::import_account(
             fs_storage,
@@ -153,9 +168,15 @@ async fn import_accounts(
         .await?;
 
         // Compute the imported account status
-        let db_status = db_storage.sync_status().await?;
+        let db_status = if !options.bypass_status_check {
+            Some(db_storage.sync_status().await?)
+        } else {
+            None
+        };
 
-        sync_status.push((fs_status, db_status));
+        if let (Some(fs_status), Some(db_status)) = (fs_status, db_status) {
+            sync_status.push((fs_status, db_status));
+        }
     }
 
     Ok((accounts, sync_status))
@@ -245,11 +266,11 @@ async fn assert_sync_status(
         );
         */
 
-        tracing::info!(
+        tracing::debug!(
             account_id = %account.account_id(),
             fs = %fs_status.root,
             db = %db_status.root,
-            "upgrade::ok"
+            "upgrade::status_ok"
         );
 
         if fs_status.root != db_status.root {

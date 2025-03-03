@@ -26,6 +26,7 @@ pub async fn upgrade_backup_archive(
     }
 
     let manifest = try_read_backup_archive_manifest(input.as_ref()).await?;
+    let bypass_status_check = matches!(manifest, ArchiveManifest::V1(_));
     match manifest {
         ArchiveManifest::V1(manifest) | ArchiveManifest::V2(manifest) => {
             let source_temp = tempdir()?;
@@ -40,6 +41,7 @@ pub async fn upgrade_backup_archive(
             let options = UpgradeOptions {
                 paths: source_paths.clone(),
                 dry_run: false,
+                bypass_status_check,
                 ..Default::default()
             };
             upgrade_accounts(source_temp.path(), options).await?;

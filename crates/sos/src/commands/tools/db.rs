@@ -1,6 +1,6 @@
 use crate::{Error, Result};
 use clap::Subcommand;
-use sos_cli_helpers::messages::{info, warn};
+use sos_cli_helpers::messages::{info, success, warn};
 use sos_core::Paths;
 use sos_database_upgrader::{
     archive::upgrade_backup_archive, upgrade_accounts, UpgradeOptions,
@@ -35,7 +35,6 @@ pub enum Command {
         /// Root directory for the file system accounts.
         directory: PathBuf,
     },
-
     /// Upgrade a version 1 or 2 backup archive to version 3.
     UpgradeArchive {
         /// Input backup archive ZIP file.
@@ -102,6 +101,7 @@ pub async fn run(cmd: Command) -> Result<()> {
         }
         Command::UpgradeArchive { input, output } => {
             upgrade_backup_archive(input, output).await?;
+            success("backup archive upgrade completed");
         }
     }
     Ok(())

@@ -229,6 +229,18 @@ pub enum ArchiveManifestVersion {
     /// multiple accounts.
     V3 = 3,
 }
+
+impl Default for ArchiveManifestVersion {
+    // Backwards compatible before we added tracking
+    // of backup archive manifest versions.
+    //
+    // For version 2 and version 3 the version is
+    // explicitly added to each manifest file.
+    fn default() -> Self {
+        Self::V1
+    }
+}
+
 // Implement serialization manually
 impl Serialize for ArchiveManifestVersion {
     fn serialize<S>(
