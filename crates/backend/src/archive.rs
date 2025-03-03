@@ -1,5 +1,6 @@
 //! Export and import archives for any backend target.
 use crate::{BackendTarget, Error, Result};
+use serde::Serialize;
 use sos_archive::ZipReader;
 use sos_core::{AccountId, ArchiveManifestVersion, PublicIdentity};
 use sos_database::archive::ManifestVersion3;
@@ -9,6 +10,8 @@ use std::path::Path;
 use tokio::io::BufReader;
 
 /// Enumeration of possible backup archive manifests
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
 pub enum ArchiveManifest {
     /// Version 1 manifest.
     V1(ManifestVersion1),
@@ -111,10 +114,11 @@ pub async fn export_backup_archive(
     match target {
         BackendTarget::FileSystem(paths) => {
             use sos_filesystem::archive;
+            let paths = paths.with_account_id(&account_id);
             archive::export_backup_archive(
                 output.as_ref(),
                 &account_id,
-                paths,
+                &*paths,
             )
             .await?;
         }

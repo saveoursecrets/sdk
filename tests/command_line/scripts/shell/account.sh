@@ -3,7 +3,7 @@ account ls -v
 #$ wait
 
 # backup current account
-account backup --force $ACCOUNT_BACKUP
+tool backup export --force $ACCOUNT_BACKUP
 #$ regex (?i)archive created
 #$ wait
 

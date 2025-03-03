@@ -22,6 +22,7 @@ use terminal_banner::{Banner, Padding};
 
 mod audit;
 mod authenticator;
+mod backup;
 mod check;
 mod db;
 mod debug;
@@ -30,6 +31,7 @@ mod security_report;
 
 use audit::Command as AuditCommand;
 use authenticator::Command as AuthenticatorCommand;
+use backup::Command as BackupCommand;
 use check::{verify_events, Command as CheckCommand};
 use db::Command as DbCommand;
 use debug::Command as DebugCommand;
@@ -48,6 +50,11 @@ pub enum Command {
     Authenticator {
         #[clap(subcommand)]
         cmd: AuthenticatorCommand,
+    },
+    /// Export, import and inspect backup archives.
+    Backup {
+        #[clap(subcommand)]
+        cmd: BackupCommand,
     },
     /// Check file status and integrity.
     Check {
@@ -127,6 +134,7 @@ pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
         Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Authenticator { cmd } => authenticator::run(cmd).await?,
+        Command::Backup { cmd } => backup::run(cmd).await?,
         Command::Check { cmd } => check::run(cmd).await?,
         Command::Debug { cmd } => debug::run(cmd).await?,
         Command::ConvertCipher {

@@ -1,7 +1,7 @@
 use crate::{
     commands::{
         AccountCommand, EnvironmentCommand, FolderCommand, PreferenceCommand,
-        SecretCommand, ServerCommand, SyncCommand,
+        SecretCommand, ServerCommand, SyncCommand, ToolsCommand,
     },
     helpers::account::{cd_folder, switch, USER},
     Error, Result,
@@ -65,6 +65,12 @@ enum ShellCommand {
     Cd {
         /// Folder name or id.
         folder: Option<FolderRef>,
+    },
+    /// Utility tools.
+    #[clap(alias = "tools")]
+    Tool {
+        #[clap(subcommand)]
+        cmd: ToolsCommand,
     },
     /// Switch account.
     #[clap(alias = "su")]
@@ -192,6 +198,7 @@ async fn exec_program(program: Shell) -> Result<()> {
         ShellCommand::Environment { cmd } => {
             crate::commands::environment::run(cmd).await
         }
+        ShellCommand::Tool { cmd } => crate::commands::tools::run(cmd).await,
         ShellCommand::Cd { folder } => cd_folder(folder.as_ref()).await,
 
         /*

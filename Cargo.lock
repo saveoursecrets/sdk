@@ -5116,6 +5116,7 @@ dependencies = [
  "futures",
  "indexmap 2.7.1",
  "rustc_version",
+ "serde",
  "sos-archive",
  "sos-audit",
  "sos-core",

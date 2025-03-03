@@ -1,8 +1,8 @@
 use crate::{
     helpers::{
         account::{
-            find_account, list_accounts, new_account, resolve_account,
-            resolve_user, verify, Owner, SHELL, USER,
+            list_accounts, new_account, resolve_account, resolve_user,
+            verify, Owner, SHELL, USER,
         },
         messages::success,
         readline::read_flag,
@@ -11,11 +11,9 @@ use crate::{
 };
 use clap::Subcommand;
 use enum_iterator::all;
-use sos_account::{Account, LocalAccount};
-use sos_backend::BackendTarget;
-use sos_core::{AccountId, AccountRef, Paths, PublicIdentity};
+use sos_account::Account;
+use sos_core::AccountRef;
 use sos_migrate::import::{ImportFormat, ImportTarget};
-use sos_net::NetworkAccount;
 use sos_vfs as vfs;
 use std::{path::PathBuf, sync::Arc};
 
@@ -50,24 +48,6 @@ pub enum Command {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
-    },
-    /// Create secure backup as a zip archive.
-    Backup {
-        /// Force overwrite of existing file.
-        #[clap(long)]
-        force: bool,
-
-        /// Account name or address.
-        #[clap(short, long)]
-        account: Option<AccountRef>,
-
-        /// Output zip archive.
-        output: PathBuf,
-    },
-    /// Import account from secure backup.
-    Import {
-        /// Input zip archive.
-        input: PathBuf,
     },
     /// Rename an account.
     Rename {
@@ -188,23 +168,6 @@ pub async fn run(cmd: Command) -> Result<()> {
             json,
         } => {
             account_info(account, verbose, json).await?;
-        }
-        Command::Backup {
-            account,
-            output,
-            force,
-        } => {
-            export_account_backup_archive(account, output, force).await?;
-            success("Backup archive created");
-        }
-        Command::Import { input } => {
-            if let Some(accounts) =
-                import_account_backup_archive(input).await?
-            {
-                for account in accounts {
-                    success(format!("Account restored {}", account.label()));
-                }
-            }
         }
         Command::Rename { name, account } => {
             account_rename(account, name).await?;
@@ -364,58 +327,6 @@ async fn account_info(
         }
     }
     Ok(())
-}
-
-/// Create a backup zip archive.
-async fn export_account_backup_archive(
-    account: Option<AccountRef>,
-    output: PathBuf,
-    force: bool,
-) -> Result<()> {
-    if !force && vfs::try_exists(&output).await? {
-        return Err(Error::FileExists(output));
-    }
-
-    let paths = Paths::new_client(Paths::data_dir()?);
-    let target = BackendTarget::from_paths(&paths).await?;
-
-    // Database backups exports all accounts by default
-    let account_id = if paths.is_using_db() {
-        // But the API requires an account identifier for backwards compat
-        AccountId::random()
-    // Legacy file system requires an account identifier
-    } else {
-        let account = resolve_account(account.as_ref())
-            .await
-            .ok_or_else(|| Error::NoAccountFound)?;
-
-        let account = find_account(&account)
-            .await?
-            .ok_or(Error::NoAccount(account.to_string()))?;
-        *account.account_id()
-    };
-
-    sos_backend::archive::export_backup_archive(output, &target, &account_id)
-        .await?;
-
-    Ok(())
-}
-
-/// Import from a zip archive.
-async fn import_account_backup_archive(
-    input: PathBuf,
-) -> Result<Option<Vec<PublicIdentity>>> {
-    if !vfs::try_exists(&input).await?
-        || !vfs::metadata(&input).await?.is_file()
-    {
-        return Err(Error::NotFile(input));
-    }
-
-    let paths = Paths::new_client(Paths::data_dir()?);
-    let target = BackendTarget::from_paths(&paths).await?;
-    let account =
-        { NetworkAccount::import_backup_archive(&input, &target).await? };
-    Ok(Some(account))
 }
 
 /// Rename an account.

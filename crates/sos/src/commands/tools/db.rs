@@ -101,7 +101,7 @@ pub async fn run(cmd: Command) -> Result<()> {
         }
         Command::UpgradeArchive { input, output } => {
             upgrade_backup_archive(input, output).await?;
-            success("backup archive upgrade completed");
+            success("Backup archive upgrade completed");
         }
     }
     Ok(())
