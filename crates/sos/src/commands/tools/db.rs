@@ -20,10 +20,6 @@ pub enum Command {
         #[clap(short, long)]
         keep_stale_files: bool,
 
-        /// Copy external files to new blob location.
-        #[clap(short, long, default_value = "true")]
-        copy_file_blobs: bool,
-
         /// Server accounts storage.
         #[clap(short, long)]
         server: bool,
@@ -51,7 +47,6 @@ pub async fn run(cmd: Command) -> Result<()> {
             server,
             directory,
             keep_stale_files,
-            copy_file_blobs,
             backup_directory,
         } => {
             if !directory.is_dir() {
@@ -92,7 +87,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                 dry_run: !apply_changes,
                 paths,
                 keep_stale_files,
-                copy_file_blobs,
                 backup_directory,
                 ..Default::default()
             };
