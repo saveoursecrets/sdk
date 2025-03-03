@@ -2,7 +2,7 @@ use anyhow::Result;
 use hex;
 use sos_client_storage::files::*;
 use sos_password::diceware::generate_passphrase;
-use sos_sdk::vfs;
+use sos_vfs as vfs;
 use std::path::PathBuf;
 
 #[tokio::test]

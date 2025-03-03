@@ -1,10 +1,10 @@
 use anyhow::Result;
 use sos_backend::{AccessPoint, BackendTarget};
 use sos_core::AccountId;
+use sos_core::Paths;
 use sos_core::{crypto::AccessKey, encode};
 use sos_login::IdentityFolder;
 use sos_password::diceware::generate_passphrase;
-use sos_sdk::Paths;
 use sos_vault::{
     BuilderCredentials, SecretAccess, Vault, VaultBuilder, VaultFlags,
 };

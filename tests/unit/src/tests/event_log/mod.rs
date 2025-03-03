@@ -8,15 +8,18 @@ mod stream;
 pub mod mock {
     use anyhow::Result;
     use futures::{pin_mut, StreamExt};
-    use sos_backend::BackendTarget;
-    use sos_backend::{AccountEventLog, FolderEventLog};
-    use sos_core::commit::{CommitHash, CommitTree};
-    use sos_core::{events::EventLog, AccountId};
+    use sos_backend::{AccountEventLog, BackendTarget, FolderEventLog};
+    use sos_core::{
+        commit::{CommitHash, CommitTree},
+        crypto::PrivateKey,
+        encode,
+        events::{EventLog, WriteEvent},
+        AccountId, Paths, SecretId, VaultCommit, VaultEntry, VaultId,
+    };
     use sos_database::async_sqlite::Client;
-    use sos_sdk::crypto::PrivateKey;
-    use sos_sdk::prelude::*;
     use sos_test_utils::mock;
     use sos_vault::Vault;
+    use sos_vfs as vfs;
     use std::path::Path;
     use tempfile::{tempdir_in, TempDir};
     use uuid::Uuid;

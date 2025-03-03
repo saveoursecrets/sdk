@@ -1,11 +1,10 @@
 use anyhow::Result;
 use sos_account::AccountBuilder;
 use sos_backend::BackendTarget;
-use sos_core::Paths;
+use sos_core::{crypto::AccessKey, Paths};
 use sos_database::{migrations::migrate_client, open_file};
 use sos_login::Identity;
 use sos_password::memorable;
-use sos_sdk::crypto::AccessKey;
 use sos_test_utils::{setup, teardown};
 
 /// Test building a file system account and signing in.

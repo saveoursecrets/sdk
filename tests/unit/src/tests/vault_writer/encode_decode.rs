@@ -1,9 +1,9 @@
 use super::get_vault_entry;
 use anyhow::Result;
 use binary_stream::futures::{BinaryReader, BinaryWriter};
-use sos_core::encoding::encoding_options;
-use sos_sdk::prelude::*;
+use sos_core::{encoding::encoding_options, SecretId, VaultCommit};
 use sos_test_utils::mock;
+use sos_vault::Contents;
 use std::io::Cursor;
 use tokio::io::{BufReader, BufWriter};
 

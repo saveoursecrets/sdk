@@ -12,16 +12,18 @@ use sos_core::{
     crypto::AccessKey, encode, events::EventLog, AccountId, FolderRef, Paths,
     SecretId, VaultFlags, VaultId,
 };
-use sos_login::{DelegatedAccess, FolderKeys, Identity};
+use sos_core::{
+    device::TrustedDevice,
+    events::{patch::FolderPatch, DeviceEvent, EventRecord},
+};
+use sos_login::{
+    device::DeviceSigner, DelegatedAccess, FolderKeys, Identity,
+};
 use sos_password::diceware::generate_passphrase;
 use sos_reducers::FolderReducer;
-use sos_sdk::{
-    device::{DeviceSigner, TrustedDevice},
-    events::{patch::FolderPatch, DeviceEvent, EventRecord},
-    prelude::SecretRow,
-};
 use sos_sync::StorageEventLogs;
 use sos_test_utils::mock::{self, memory_database};
+use sos_vault::secret::SecretRow;
 use std::collections::HashMap;
 use tempfile::tempdir_in;
 

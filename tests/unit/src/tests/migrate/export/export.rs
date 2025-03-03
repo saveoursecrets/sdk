@@ -1,9 +1,12 @@
 use anyhow::Result;
 use sos_backend::AccessPoint;
+use sos_core::{crypto::AccessKey, SecretId, VaultFlags};
 use sos_migrate::export::PublicExport;
-use sos_sdk::prelude::*;
+use sos_password::diceware::generate_passphrase;
 use sos_test_utils::mock;
-use sos_vault::SecretAccess;
+use sos_vault::{
+    secret::SecretRow, BuilderCredentials, SecretAccess, VaultBuilder,
+};
 use std::io::Cursor;
 use tokio::io::{AsyncSeek, AsyncWrite};
 

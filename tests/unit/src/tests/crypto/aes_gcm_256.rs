@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sos_sdk::crypto::{
+use sos_core::crypto::{
     cipher::aes_gcm_256::{decrypt, encrypt},
     DerivedPrivateKey,
 };

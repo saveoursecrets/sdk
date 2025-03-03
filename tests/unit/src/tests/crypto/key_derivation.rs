@@ -1,6 +1,6 @@
 use anyhow::Result;
+use sos_core::crypto::KeyDerivation;
 use sos_password::diceware::generate_passphrase;
-use sos_sdk::crypto::*;
 
 fn assert_key_length(kdf: &KeyDerivation) -> Result<()> {
     let salt = KeyDerivation::generate_salt();

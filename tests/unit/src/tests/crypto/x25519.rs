@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sos_sdk::crypto::cipher::x25519::{decrypt, encrypt};
+use sos_core::crypto::cipher::x25519::{decrypt, encrypt};
 
 #[tokio::test]
 async fn x25519_encrypt_decrypt() -> Result<()> {

@@ -2,10 +2,10 @@ use anyhow::Result;
 use futures::{pin_mut, StreamExt};
 use secrecy::ExposeSecret;
 use sos_backend::{Folder, FolderEventLog};
+use sos_core::Paths;
 use sos_core::{
     crypto::AccessKey, encode, events::EventLog, SecretId, VaultFlags,
 };
-use sos_sdk::Paths;
 use sos_test_utils::mock::{
     self, file_database, insert_database_vault, vault_file, vault_memory,
 };

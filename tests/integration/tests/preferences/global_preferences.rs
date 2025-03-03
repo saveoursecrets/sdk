@@ -5,7 +5,7 @@ use crate::{
 use anyhow::Result;
 use sos_backend::Preferences;
 use sos_preferences::PreferenceManager;
-use sos_sdk::Paths;
+use sos_core::Paths;
 use sos_test_utils::make_client_backend;
 
 /// Tests the global preferences for all accounts.

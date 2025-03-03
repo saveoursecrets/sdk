@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sos_backend::{BackendTarget, Preferences};
+use sos_core::Paths;
 use sos_preferences::PreferenceManager;
-use sos_sdk::Paths;
 use sos_test_utils::{assert::assert_preferences, mock::memory_database};
 use tempfile::tempdir_in;
 

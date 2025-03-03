@@ -2,8 +2,7 @@ use super::mock;
 use anyhow::Result;
 use futures::{pin_mut, StreamExt};
 use sos_backend::{BackendTarget, FolderEventLog};
-use sos_core::{commit::CommitHash, events::EventLog};
-use sos_sdk::Paths;
+use sos_core::{commit::CommitHash, events::EventLog, Paths};
 use sos_test_utils::mock::file_database;
 
 #[tokio::test]

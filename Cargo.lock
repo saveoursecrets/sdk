@@ -6007,7 +6007,6 @@ dependencies = [
  "sos-protocol",
  "sos-recovery",
  "sos-reducers",
- "sos-sdk",
  "sos-search",
  "sos-server-storage",
  "sos-signer",

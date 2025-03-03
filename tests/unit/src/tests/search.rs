@@ -1,5 +1,5 @@
 use sos_search::*;
-use sos_sdk::vault::secret::{Secret, SecretMeta, SecretType};
+use sos_vault::secret::{Secret, SecretMeta, SecretType};
 use uuid::Uuid;
 
 #[test]

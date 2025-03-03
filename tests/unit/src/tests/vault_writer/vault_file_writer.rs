@@ -1,8 +1,8 @@
 use super::create_secure_note;
 use anyhow::Result;
 use sos_filesystem::{Error, VaultFileWriter};
-use sos_sdk::prelude::*;
 use sos_test_utils::mock;
+use sos_vault::{EncryptedEntry, Header};
 
 /// Test file writer deletion and splice logic.
 #[tokio::test]

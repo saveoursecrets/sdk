@@ -1,8 +1,11 @@
 use anyhow::Result;
 use secrecy::{ExposeSecret, SecretBox};
-use sos_sdk::prelude::*;
+use sos_core::{decode, encode, SecretId};
 use sos_signer::{ecdsa::SingleParty, Signer};
 use sos_test_utils::mock;
+use sos_vault::secret::{
+    IdentityKind, Secret, SecretMeta, SecretRow, SecretSigner, UserData,
+};
 use std::collections::HashMap;
 use vcard4::Vcard;
 

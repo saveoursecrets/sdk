@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sos_sdk::{decode, encode, UtcDateTime};
+use sos_core::{decode, encode, UtcDateTime};
 
 #[tokio::test]
 async fn date_time_encode_decode() -> Result<()> {

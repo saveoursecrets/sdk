@@ -1,16 +1,15 @@
 use super::mock;
 use anyhow::Result;
 use sos_backend::{BackendTarget, FolderEventLog};
+use sos_core::Paths;
 use sos_core::{
     commit::CommitHash,
     encode,
     events::{EventLog, WriteEvent},
 };
-use sos_sdk::Paths;
 use sos_test_utils::mock::memory_database;
 use sos_vault::Vault;
 use sos_vfs as vfs;
-use tempfile::tempdir_in;
 
 #[tokio::test]
 async fn fs_event_log_rewind() -> Result<()> {

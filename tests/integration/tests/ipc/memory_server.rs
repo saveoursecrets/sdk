@@ -5,7 +5,7 @@ use sos_ipc::{
     memory_server::LocalMemoryServer,
     ServiceAppInfo, WebAccounts,
 };
-use sos_sdk::Paths;
+use sos_core::Paths;
 use sos_test_utils::teardown;
 use std::sync::Arc;
 use tokio::sync::RwLock;

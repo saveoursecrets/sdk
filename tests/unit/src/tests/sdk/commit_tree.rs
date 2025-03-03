@@ -1,7 +1,11 @@
 use anyhow::Result;
-use sos_core::commit::{CommitTree, Comparison};
-use sos_sdk::prelude::*;
+use sos_core::{
+    commit::{CommitTree, Comparison},
+    events::WriteEvent,
+    VaultEntry,
+};
 use sos_test_utils::mock;
+use sos_vault::{BuilderCredentials, EncryptedEntry, Vault, VaultBuilder};
 
 fn vault_to_commit_tree(value: &Vault) -> CommitTree {
     let mut commit_tree = CommitTree::new();

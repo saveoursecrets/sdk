@@ -33,7 +33,6 @@ sos-reducers.workspace = true
 sos-preferences.workspace = true
 sos-search.workspace = true
 sos-signer.workspace = true
-sos-sdk = { workspace = true, features = ["full"] }
 sos-sync = { workspace = true, features = ["full"] }
 sos-server-storage = { workspace = true, features = ["full"] }
 sos-test-utils.workspace = true

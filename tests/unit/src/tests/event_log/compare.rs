@@ -1,10 +1,12 @@
+use super::mock;
 use anyhow::Result;
 use sos_backend::FolderEventLog;
-use sos_core::{commit::Comparison, SecretId};
-use sos_sdk::prelude::*;
+use sos_core::{
+    commit::Comparison,
+    events::{EventLog, WriteEvent},
+    SecretId,
+};
 use sos_test_utils::mock::memory_database;
-
-use super::mock;
 
 #[tokio::test]
 async fn fs_event_log_compare() -> Result<()> {

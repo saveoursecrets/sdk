@@ -1,8 +1,11 @@
 use anyhow::Result;
 use sos_backend::AccessPoint;
-use sos_sdk::prelude::*;
+use sos_core::{crypto::AccessKey, SecretId};
 use sos_test_utils::*;
-use sos_vault::SecretAccess;
+use sos_vault::{
+    secret::SecretRow, BuilderCredentials, ChangePassword, SecretAccess,
+    VaultBuilder,
+};
 
 #[tokio::test]
 async fn change_password() -> Result<()> {

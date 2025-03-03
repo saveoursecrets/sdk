@@ -1,7 +1,10 @@
 use anyhow::Result;
-use sos_core::commit::CommitHash;
-use sos_sdk::prelude::*;
+use sos_core::{
+    commit::CommitHash, crypto::PrivateKey, events::WriteEvent, SecretId,
+    VaultEntry,
+};
 use sos_test_utils::mock;
+use sos_vault::{EncryptedEntry, Vault};
 
 mod encode_decode;
 mod vault_access;

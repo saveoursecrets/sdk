@@ -1,8 +1,8 @@
 use anyhow::Result;
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
+use sos_core::{decode, encode, VaultId};
 use sos_recovery::*;
-use sos_sdk::{decode, encode, vault::VaultId};
 use sos_signer::{ecdsa::SingleParty, Signer};
 
 #[derive(Serialize, Deserialize)]

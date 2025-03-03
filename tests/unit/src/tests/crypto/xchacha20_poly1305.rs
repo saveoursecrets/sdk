@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sos_sdk::crypto::{
+use sos_core::crypto::{
     cipher::xchacha20_poly1305::{decrypt, encrypt},
     DerivedPrivateKey,
 };
