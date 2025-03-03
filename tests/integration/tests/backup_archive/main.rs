@@ -4,6 +4,7 @@ mod export_roundtrip_v3;
 mod import_v1;
 mod import_v2;
 mod import_v3;
+mod incompatibility_matrix;
 mod list_accounts;
 mod upgrade_import;
 

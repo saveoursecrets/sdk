@@ -149,43 +149,67 @@ pub async fn import_backup_archive(
     input: impl AsRef<Path>,
     target: &BackendTarget,
 ) -> Result<Vec<PublicIdentity>> {
-    let accounts = match target {
-        BackendTarget::FileSystem(paths) => {
-            use sos_filesystem::archive;
-            let account =
-                archive::import_backup_archive(input.as_ref(), &paths)
+    let manifest = try_read_backup_archive_manifest(input.as_ref()).await?;
+    let version = manifest.version();
+
+    match (&version, target) {
+        (
+            ArchiveManifestVersion::V1 | ArchiveManifestVersion::V2,
+            BackendTarget::Database(_, _),
+        ) => Err(Error::BackupArchiveUpgradeRequired(
+            input.as_ref().to_owned(),
+            version as u8,
+            target.to_string(),
+        )),
+        (ArchiveManifestVersion::V3, BackendTarget::FileSystem(_)) => {
+            Err(Error::IncompatibleBackupArchive(
+                input.as_ref().to_owned(),
+                version as u8,
+                target.to_string(),
+            ))
+        }
+        _ => {
+            let accounts = match target {
+                BackendTarget::FileSystem(paths) => {
+                    use sos_filesystem::archive;
+                    let account = archive::import_backup_archive(
+                        input.as_ref(),
+                        &paths,
+                    )
                     .await?;
-            vec![account]
+                    vec![account]
+                }
+                BackendTarget::Database(paths, _) => {
+                    use sos_database::archive;
+
+                    let mut import = archive::import_backup_archive(
+                        paths.database_file(),
+                        paths,
+                        input.as_ref(),
+                    )
+                    .await?;
+
+                    // Run migrations on the source to ensure it's
+                    // schema is up to date.
+                    import.migrate_source()?;
+
+                    // Run migrations on the target database to
+                    // ensure schema is up to date
+                    import.migrate_target()?;
+
+                    // Import all accounts in the backup
+                    let mut imported_accounts = Vec::new();
+                    let source_accounts = import.list_source_accounts()?;
+                    for account in &source_accounts {
+                        import.import_account(account).await?;
+                        imported_accounts.push(account.identity.clone());
+                    }
+
+                    imported_accounts
+                }
+            };
+
+            Ok(accounts)
         }
-        BackendTarget::Database(paths, _) => {
-            use sos_database::archive;
-
-            let mut import = archive::import_backup_archive(
-                paths.database_file(),
-                paths,
-                input.as_ref(),
-            )
-            .await?;
-
-            // Run migrations on the source to ensure it's
-            // schema is up to date.
-            import.migrate_source()?;
-
-            // Run migrations on the target database to
-            // ensure schema is up to date
-            import.migrate_target()?;
-
-            // Import all accounts in the backup
-            let mut imported_accounts = Vec::new();
-            let source_accounts = import.list_source_accounts()?;
-            for account in &source_accounts {
-                import.import_account(account).await?;
-                imported_accounts.push(account.identity.clone());
-            }
-
-            imported_accounts
-        }
-    };
-
-    Ok(accounts)
+    }
 }

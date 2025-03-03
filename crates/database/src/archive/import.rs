@@ -159,11 +159,7 @@ impl BackupImport {
                     file.secret_id(),
                     file.file_name(),
                 );
-                let target = account_paths.blob_location(
-                    file.vault_id(),
-                    file.secret_id(),
-                    file.file_name().to_string(),
-                );
+                let target = account_paths.into_file_path(file);
                 let blob_buffer =
                     self.zip_reader.by_name(&entry_name).await?.unwrap();
 

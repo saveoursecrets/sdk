@@ -50,7 +50,7 @@ use sos_database::{
     entity::{AccountEntity, AccountRecord, FolderEntity, FolderRecord},
     open_file,
 };
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
 #[cfg(feature = "files")]
 use {indexmap::IndexSet, sos_core::ExternalFile};
@@ -62,6 +62,17 @@ pub enum BackendTarget {
     FileSystem(Arc<Paths>),
     /// Database backend.
     Database(Arc<Paths>, Client),
+}
+
+impl fmt::Display for BackendTarget {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", {
+            match self {
+                Self::FileSystem(_) => "filesystem",
+                Self::Database(_, _) => "database",
+            }
+        })
+    }
 }
 
 impl BackendTarget {
