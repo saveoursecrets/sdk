@@ -1,9 +1,7 @@
 //! Export and import archives for any backend target.
 use crate::{BackendTarget, Error, Result};
 use sos_archive::ZipReader;
-use sos_core::{
-    constants::VAULT_EXT, AccountId, ArchiveManifestVersion, PublicIdentity,
-};
+use sos_core::{AccountId, ArchiveManifestVersion, PublicIdentity};
 use sos_database::archive::ManifestVersion3;
 use sos_filesystem::archive::ManifestVersion1;
 use sos_vfs::File;
@@ -62,7 +60,7 @@ pub async fn try_list_backup_archive_accounts(
     match manifest {
         // Versions 1 and 2 only support a single account
         ArchiveManifest::V1(manifest) | ArchiveManifest::V2(manifest) => {
-            use sos_core::decode;
+            use sos_core::{constants::VAULT_EXT, decode};
             use sos_vault::Vault;
             let file = File::open(input.as_ref()).await?;
             let mut zip_reader = ZipReader::new(BufReader::new(file)).await?;
