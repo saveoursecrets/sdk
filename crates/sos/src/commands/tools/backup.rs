@@ -45,6 +45,11 @@ pub enum Command {
         /// Input backup archive ZIP file.
         input: PathBuf,
     },
+    /// Print the version of a backup archive.
+    Version {
+        /// Input backup archive ZIP file.
+        input: PathBuf,
+    },
 }
 
 pub async fn run(cmd: Command) -> Result<()> {
@@ -72,6 +77,10 @@ pub async fn run(cmd: Command) -> Result<()> {
             for account in &accounts {
                 println!("{} {}", account.account_id(), account.label());
             }
+        }
+        Command::Version { input } => {
+            let manifest = try_read_backup_archive_manifest(&input).await?;
+            println!("Version {}", manifest.version() as u8);
         }
     }
     Ok(())

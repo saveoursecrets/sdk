@@ -21,6 +21,17 @@ pub enum ArchiveManifest {
     V3(ManifestVersion3),
 }
 
+impl ArchiveManifest {
+    /// Version of the archive manifest.
+    pub fn version(&self) -> ArchiveManifestVersion {
+        match self {
+            Self::V1(_) => ArchiveManifestVersion::V1,
+            Self::V2(_) => ArchiveManifestVersion::V2,
+            Self::V3(_) => ArchiveManifestVersion::V3,
+        }
+    }
+}
+
 /// Try to read the manifest in a backup archive.
 pub async fn try_read_backup_archive_manifest(
     input: impl AsRef<Path>,
