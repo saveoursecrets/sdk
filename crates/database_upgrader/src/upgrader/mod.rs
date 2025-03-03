@@ -431,10 +431,12 @@ async fn delete_stale_files(
               file = ?file,
               "upgrade_accounts::delete_file");
 
-            if file.is_dir() {
-                vfs::remove_dir_all(file).await?;
-            } else {
-                vfs::remove_file(file).await?;
+            if vfs::try_exists(file).await? {
+                if file.is_dir() {
+                    vfs::remove_dir_all(file).await?;
+                } else {
+                    vfs::remove_file(file).await?;
+                }
             }
         }
     }
