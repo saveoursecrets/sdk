@@ -80,7 +80,7 @@ notify = { version = "7", features = ["serde"]}
 axum-server = { version = "0.7", features = ["tls-rustls-no-provider"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
-keyring = { version = "3.5", features = ["apple-native", "windows-native", "sync-secret-service"] }
+keyring = { version = "3.6", features = ["apple-native", "windows-native", "sync-secret-service"] }
 
 [workspace.dependencies.rs_merkle]
 version = "1.4.2"
