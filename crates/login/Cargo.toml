@@ -18,6 +18,7 @@ files = []
 [dependencies]
 sos-core.workspace = true
 sos-backend.workspace = true
+sos-filesystem.workspace = true
 sos-password.workspace = true
 sos-signer.workspace = true
 sos-vault.workspace = true

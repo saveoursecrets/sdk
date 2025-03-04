@@ -5485,6 +5485,7 @@ dependencies = [
  "serde",
  "sos-backend",
  "sos-core",
+ "sos-filesystem",
  "sos-password",
  "sos-signer",
  "sos-vault",

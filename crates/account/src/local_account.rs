@@ -9,8 +9,7 @@ use async_trait::async_trait;
 use indexmap::IndexSet;
 use secrecy::SecretString;
 use sos_backend::{
-    compact::compact_folder, write_exclusive, AccessPoint, BackendTarget,
-    Folder, StorageError,
+    compact::compact_folder, AccessPoint, BackendTarget, Folder, StorageError,
 };
 use sos_client_storage::{
     AccessOptions, ClientAccountStorage, ClientDeviceStorage,
@@ -30,6 +29,7 @@ use sos_core::{
     AccountId, AccountRef, AuthenticationError, FolderRef, Paths, SecretId,
     UtcDateTime, VaultCommit, VaultId,
 };
+use sos_filesystem::write_exclusive;
 use sos_login::{
     device::{DeviceManager, DeviceSigner},
     DelegatedAccess, FolderKeys, Identity, PublicIdentity,

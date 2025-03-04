@@ -8,8 +8,8 @@ use async_trait::async_trait;
 use indexmap::IndexSet;
 use parking_lot::Mutex;
 use sos_backend::{
-    write_exclusive, AccountEventLog, BackendTarget, DeviceEventLog, Folder,
-    FolderEventLog, StorageError,
+    AccountEventLog, BackendTarget, DeviceEventLog, Folder, FolderEventLog,
+    StorageError,
 };
 use sos_core::{
     constants::VAULT_EXT,
@@ -19,6 +19,7 @@ use sos_core::{
     events::{DeviceEvent, Event, EventLog, ReadEvent},
     AccountId, Paths, VaultFlags, VaultId,
 };
+use sos_filesystem::write_exclusive;
 use sos_login::Identity;
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, StorageEventLogs};

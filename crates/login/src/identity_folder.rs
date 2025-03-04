@@ -17,12 +17,13 @@ use sos_backend::{
             SecretRecord,
         },
     },
-    write_exclusive, AccessPoint, BackendTarget, Folder, FolderEventLog,
+    AccessPoint, BackendTarget, Folder, FolderEventLog,
 };
 use sos_core::{
     constants::LOGIN_AGE_KEY_URN, crypto::AccessKey, decode, encode,
     AccountId, AuthenticationError, Paths,
 };
+use sos_filesystem::write_exclusive;
 use sos_signer::ed25519;
 use sos_vault::Summary;
 use sos_vault::{

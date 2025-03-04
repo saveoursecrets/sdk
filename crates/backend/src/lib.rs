@@ -32,8 +32,6 @@ pub use helpers::extract_vault;
 pub use preferences::BackendPreferences as Preferences;
 pub use server_origins::ServerOrigins;
 pub use sos_database as database;
-pub use sos_filesystem::write_exclusive;
-use sos_vault::Summary;
 #[cfg(feature = "system-messages")]
 pub use system_messages::SystemMessages;
 pub use vault_writer::VaultWriter;
@@ -50,6 +48,7 @@ use sos_database::{
     entity::{AccountEntity, AccountRecord, FolderEntity, FolderRecord},
     open_file,
 };
+use sos_vault::Summary;
 use std::{fmt, sync::Arc};
 
 #[cfg(feature = "files")]
