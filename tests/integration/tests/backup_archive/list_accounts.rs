@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sos_backend::archive::try_list_backup_archive_accounts;
+use sos_backend::archive::list_backup_archive_accounts;
 use std::path::Path;
 
 /// Test listing accounts in a v1 backup archive.
@@ -46,7 +46,7 @@ async fn assert_list_accounts(
     input: impl AsRef<Path>,
     expected: usize,
 ) -> Result<()> {
-    let accounts = try_list_backup_archive_accounts(input.as_ref()).await?;
+    let accounts = list_backup_archive_accounts(input.as_ref()).await?;
     assert_eq!(expected, accounts.len());
     Ok(())
 }

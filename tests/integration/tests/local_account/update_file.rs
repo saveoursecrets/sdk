@@ -1,6 +1,5 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use hex;
 use sos_account::{Account, LocalAccount, SecretChange};
 use sos_core::ExternalFileName;
 use sos_sdk::{prelude::*, vfs};

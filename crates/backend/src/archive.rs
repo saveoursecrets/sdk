@@ -33,7 +33,7 @@ impl ArchiveManifest {
 }
 
 /// Try to read the manifest in a backup archive.
-pub async fn try_read_backup_archive_manifest(
+pub async fn read_backup_archive_manifest(
     input: impl AsRef<Path>,
 ) -> Result<ArchiveManifest> {
     let file = BufReader::new(File::open(input.as_ref()).await?);
@@ -66,10 +66,10 @@ pub async fn try_read_backup_archive_manifest(
 }
 
 /// Try to list the accounts in a backup archive.
-pub async fn try_list_backup_archive_accounts(
+pub async fn list_backup_archive_accounts(
     input: impl AsRef<Path>,
 ) -> Result<Vec<PublicIdentity>> {
-    let manifest = try_read_backup_archive_manifest(input.as_ref()).await?;
+    let manifest = read_backup_archive_manifest(input.as_ref()).await?;
 
     match manifest {
         // Versions 1 and 2 only support a single account
@@ -149,9 +149,8 @@ pub async fn import_backup_archive(
     input: impl AsRef<Path>,
     target: &BackendTarget,
 ) -> Result<Vec<PublicIdentity>> {
-    let manifest = try_read_backup_archive_manifest(input.as_ref()).await?;
+    let manifest = read_backup_archive_manifest(input.as_ref()).await?;
     let version = manifest.version();
-
     match (&version, target) {
         (
             ArchiveManifestVersion::V1 | ArchiveManifestVersion::V2,
@@ -169,47 +168,90 @@ pub async fn import_backup_archive(
             ))
         }
         _ => {
-            let accounts = match target {
+            let accounts = match &target {
                 BackendTarget::FileSystem(paths) => {
                     use sos_filesystem::archive;
-                    let account = archive::import_backup_archive(
-                        input.as_ref(),
-                        &paths,
-                    )
-                    .await?;
+                    let account =
+                        archive::import_backup_archive(input.as_ref(), paths)
+                            .await?;
                     vec![account]
                 }
-                BackendTarget::Database(paths, _) => {
-                    use sos_database::archive;
-
-                    let mut import = archive::import_backup_archive(
-                        paths.database_file(),
-                        paths,
+                BackendTarget::Database(_, _) => {
+                    import_backup_archive_accounts(
                         input.as_ref(),
+                        target,
+                        manifest,
+                        None,
                     )
-                    .await?;
-
-                    // Run migrations on the source to ensure it's
-                    // schema is up to date.
-                    import.migrate_source()?;
-
-                    // Run migrations on the target database to
-                    // ensure schema is up to date
-                    import.migrate_target()?;
-
-                    // Import all accounts in the backup
-                    let mut imported_accounts = Vec::new();
-                    let source_accounts = import.list_source_accounts()?;
-                    for account in &source_accounts {
-                        import.import_account(account).await?;
-                        imported_accounts.push(account.identity.clone());
-                    }
-
-                    imported_accounts
+                    .await?
                 }
             };
 
             Ok(accounts)
         }
     }
+}
+
+/// Import specific accounts from a v3 backup archive.
+///
+/// The backend must be a database backend and the
+/// backup archive must be v3.
+///
+/// If an empty slice is passed for the accounts no
+/// accounts will be imported.
+///
+/// # Panics
+///
+/// If the manifest is not v3 or the backend target
+/// is not a database backend.
+pub async fn import_backup_archive_accounts(
+    input: impl AsRef<Path>,
+    target: &BackendTarget,
+    manifest: ArchiveManifest,
+    accounts: Option<&[AccountId]>,
+) -> Result<Vec<PublicIdentity>> {
+    assert!(
+        matches!(manifest, ArchiveManifest::V3(_)),
+        "not v3 backup archive"
+    );
+    let BackendTarget::Database(paths, _) = target else {
+        panic!("not database backend")
+    };
+
+    use sos_database::archive;
+    let mut import = archive::import_backup_archive(
+        paths.database_file(),
+        paths,
+        input.as_ref(),
+    )
+    .await?;
+
+    // Run migrations on the source to ensure it's
+    // schema is up to date.
+    import.migrate_source()?;
+
+    // Run migrations on the target database to
+    // ensure schema is up to date
+    import.migrate_target()?;
+
+    let mut imported_accounts = Vec::new();
+    let source_accounts = import.list_source_accounts()?;
+
+    // Import selected accounts only
+    let source_accounts = if let Some(accounts) = accounts {
+        source_accounts
+            .into_iter()
+            .filter(|a| accounts.contains(a.identity.account_id()))
+            .collect()
+    // Import all accounts in the backup
+    } else {
+        source_accounts
+    };
+
+    for account in &source_accounts {
+        import.import_account(account).await?;
+        imported_accounts.push(account.identity.clone());
+    }
+
+    Ok(imported_accounts)
 }

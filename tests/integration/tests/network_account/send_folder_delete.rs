@@ -68,11 +68,7 @@ async fn network_sync_folder_delete() -> Result<()> {
 
     // Check the file secret was deleted from the server
     let server_paths = server.paths(&address);
-    let server_file_path = server_paths.file_location(
-        file.vault_id(),
-        file.secret_id(),
-        file.file_name().to_string(),
-    );
+    let server_file_path = server_paths.into_file_path(&file);
     assert!(!vfs::try_exists(server_file_path).await?);
 
     // Get the remote out of the owner so we can

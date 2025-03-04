@@ -3,7 +3,7 @@ use crate::{upgrade_accounts, Error, Result, UpgradeOptions};
 use sos_backend::{
     archive::{
         export_backup_archive, import_backup_archive,
-        try_read_backup_archive_manifest, ArchiveManifest,
+        read_backup_archive_manifest, ArchiveManifest,
     },
     BackendTarget,
 };
@@ -25,7 +25,7 @@ pub async fn upgrade_backup_archive(
         ));
     }
 
-    let manifest = try_read_backup_archive_manifest(input.as_ref()).await?;
+    let manifest = read_backup_archive_manifest(input.as_ref()).await?;
     let bypass_status_check = matches!(manifest, ArchiveManifest::V1(_));
     match manifest {
         ArchiveManifest::V1(manifest) | ArchiveManifest::V2(manifest) => {

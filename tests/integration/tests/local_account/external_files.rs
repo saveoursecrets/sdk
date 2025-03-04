@@ -9,7 +9,6 @@ use crate::test_utils::{
     setup, teardown,
 };
 use anyhow::Result;
-use hex;
 use sos_account::{Account, FolderCreate, LocalAccount, SecretMove};
 use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::commit::ZERO;

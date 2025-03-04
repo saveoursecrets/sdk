@@ -4,9 +4,7 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_backend::{
-    archive::{
-        try_list_backup_archive_accounts, try_read_backup_archive_manifest,
-    },
+    archive::{list_backup_archive_accounts, read_backup_archive_manifest},
     BackendTarget,
 };
 use sos_cli_helpers::messages::success;
@@ -69,17 +67,17 @@ pub async fn run(cmd: Command) -> Result<()> {
             }
         }
         Command::Manifest { input } => {
-            let manifest = try_read_backup_archive_manifest(&input).await?;
+            let manifest = read_backup_archive_manifest(&input).await?;
             serde_json::to_writer_pretty(std::io::stdout(), &manifest)?;
         }
         Command::ListAccounts { input } => {
-            let accounts = try_list_backup_archive_accounts(&input).await?;
+            let accounts = list_backup_archive_accounts(&input).await?;
             for account in &accounts {
                 println!("{} {}", account.account_id(), account.label());
             }
         }
         Command::Version { input } => {
-            let manifest = try_read_backup_archive_manifest(&input).await?;
+            let manifest = read_backup_archive_manifest(&input).await?;
             println!("Version {}", manifest.version() as u8);
         }
     }
