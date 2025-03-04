@@ -31,7 +31,6 @@ use sos_protocol::{
     SyncOptions,
 };
 use std::collections::HashSet;
-use std::path::PathBuf;
 use tokio::{net::TcpStream, sync::mpsc};
 use url::Url;
 
@@ -528,8 +527,6 @@ pub struct AcceptPairing<'a> {
     tx: WsSink,
     /// Current state of the protocol.
     state: PairProtocolState,
-    /// Data directory for the device enrollment.
-    data_dir: Option<PathBuf>,
     /// Device enrollment.
     enrollment: Option<DeviceEnrollment>,
     /// Whether the pairing is inverted.
@@ -542,14 +539,10 @@ impl<'a> AcceptPairing<'a> {
         share_url: ServerPairUrl,
         device: &'a DeviceMetaData,
         target: BackendTarget,
-        data_dir: Option<PathBuf>,
     ) -> Result<(AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
-        Self::new_connection(
-            share_url, device, target, data_dir, keypair, false,
-        )
-        .await
+        Self::new_connection(share_url, device, target, keypair, false).await
     }
 
     /// Create a new inverted pairing connection.
@@ -558,7 +551,6 @@ impl<'a> AcceptPairing<'a> {
         server: Url,
         device: &'a DeviceMetaData,
         target: BackendTarget,
-        data_dir: Option<PathBuf>,
     ) -> Result<(ServerPairUrl, AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
@@ -568,7 +560,6 @@ impl<'a> AcceptPairing<'a> {
             share_url.clone(),
             device,
             target,
-            data_dir,
             keypair,
             true,
         )
@@ -580,7 +571,6 @@ impl<'a> AcceptPairing<'a> {
         share_url: ServerPairUrl,
         device: &'a DeviceMetaData,
         target: BackendTarget,
-        data_dir: Option<PathBuf>,
         keypair: Keypair,
         is_inverted: bool,
     ) -> Result<(AcceptPairing<'a>, WsStream)> {
@@ -618,7 +608,6 @@ impl<'a> AcceptPairing<'a> {
                 tunnel: Some(Tunnel::Handshake(tunnel)),
                 tx,
                 state: PairProtocolState::Pending,
-                data_dir,
                 enrollment: None,
                 is_inverted,
             },

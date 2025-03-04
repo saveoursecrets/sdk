@@ -416,10 +416,12 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         }
 
         for (id, folder) in &account_data.folders {
-            let events_path = self.paths.event_log_path(id);
-
-            let mut event_log =
-                FolderEventLog::new_fs_folder(events_path).await?;
+            let mut event_log = FolderEventLog::new_folder(
+                self.target.clone(),
+                &self.account_id,
+                id,
+            )
+            .await?;
             event_log.patch_unchecked(folder).await?;
 
             let vault = FolderReducer::new()

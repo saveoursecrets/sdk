@@ -8,7 +8,10 @@ use pem as pem_encoding;
 use secrecy::SecretBox;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
+use sos_backend::BackendTarget;
 use sos_backend::FolderEventLog;
+use sos_core::Paths;
+use sos_core::VaultId;
 use sos_core::{
     commit::CommitHash,
     crypto::{KeyDerivation, PrivateKey},
@@ -32,7 +35,9 @@ use sos_vault::{
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
+use tempfile::tempdir;
 use tempfile::NamedTempFile;
+use tempfile::TempDir;
 use url::Url;
 use uuid::Uuid;
 
@@ -151,13 +156,19 @@ pub async fn vault_memory() -> Result<(Vault, SecretString)> {
 }
 
 /// Create a mock event log in a temp file.
-pub async fn event_log_file(
-) -> Result<(NamedTempFile, FolderEventLog, PrivateKey)> {
+pub async fn event_log_file() -> Result<(TempDir, FolderEventLog, PrivateKey)>
+{
     let (encryption_key, _, _) = encryption_key()?;
     let (_, mut vault, _) = vault_file().await?;
 
-    let temp = NamedTempFile::new()?;
-    let mut event_log = FolderEventLog::new_fs_folder(temp.path()).await?;
+    let temp = tempdir()?;
+    Paths::scaffold(&temp.path().to_owned()).await?;
+    let paths = Paths::new_client(temp.path());
+    let target = BackendTarget::FileSystem(paths);
+    let account_id = AccountId::random();
+    let folder_id = VaultId::new_v4();
+    let mut event_log =
+        FolderEventLog::new_folder(target, &account_id, &folder_id).await?;
 
     // Create the vault
     let event = vault.into_event().await?;

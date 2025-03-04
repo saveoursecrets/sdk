@@ -49,13 +49,8 @@ pub async fn run_pairing_protocol(
         let device_meta: DeviceMetaData = Default::default();
 
         // Create the device that will accept the pairing
-        let (mut accept, accept_stream) = AcceptPairing::new(
-            share_url,
-            &device_meta,
-            target,
-            Some(data_dir),
-        )
-        .await?;
+        let (mut accept, accept_stream) =
+            AcceptPairing::new(share_url, &device_meta, target).await?;
 
         let (_otx, offer_shutdown_rx) = mpsc::channel::<()>(1);
         let (_atx, accept_shutdown_rx) = mpsc::channel::<()>(1);
@@ -121,7 +116,6 @@ pub async fn run_inverted_pairing_protocol(
                 origin.url().clone(),
                 &device_meta,
                 target,
-                Some(data_dir),
             )
             .await?;
 

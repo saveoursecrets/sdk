@@ -87,7 +87,7 @@ dependencies = ["clean-doc"]
 
 [tasks.unit]
 command = "cargo"
-args = ["test", "--all", "--lib"]
+args = ["test", "-p", "sos-unit-tests", "--lib"]
 
 [tasks.test-command-line]
 command = "cargo"

@@ -94,19 +94,11 @@ async fn file_integrity_missing_file() -> Result<()> {
         create_file_secret(&mut account, &default_folder, None).await?;
 
     let paths = account.paths();
-    let file_location = if paths.is_using_db() {
-        paths.blob_location(
-            default_folder.id(),
-            &secret_id,
-            file_name.to_string(),
-        )
-    } else {
-        paths.file_location(
-            default_folder.id(),
-            &secret_id,
-            file_name.to_string(),
-        )
-    };
+    let file_location = paths.into_file_path_parts(
+        default_folder.id(),
+        &secret_id,
+        &file_name,
+    );
 
     // Delete the file to trigger the report failure
     std::fs::remove_file(&file_location)?;
@@ -165,19 +157,11 @@ async fn file_integrity_corrupted() -> Result<()> {
         create_file_secret(&mut account, &default_folder, None).await?;
 
     let paths = account.paths();
-    let file_location = if target.paths().is_using_db() {
-        paths.blob_location(
-            default_folder.id(),
-            &secret_id,
-            file_name.to_string(),
-        )
-    } else {
-        paths.file_location(
-            default_folder.id(),
-            &secret_id,
-            file_name.to_string(),
-        )
-    };
+    let file_location = paths.into_file_path_parts(
+        default_folder.id(),
+        &secret_id,
+        &file_name,
+    );
 
     // Write different file content to trigger the checksum mismatch
     std::fs::write(&file_location, "corrupted-file-contents".as_bytes())?;
