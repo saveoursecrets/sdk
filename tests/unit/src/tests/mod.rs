@@ -17,7 +17,6 @@ mod pairing_share_url;
 mod password;
 mod preferences;
 mod protocol_encoding;
-mod recovery;
 mod sdk;
 mod search;
 mod server_origins;

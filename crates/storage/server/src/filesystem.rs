@@ -262,9 +262,12 @@ impl ServerAccountStorage for ServerFileStorage {
         folder_id: &VaultId,
         diff: &FolderDiff,
     ) -> Result<(FolderEventLog, Vault)> {
-        let events_path = self.paths.event_log_path(folder_id);
-        let mut event_log =
-            FolderEventLog::new_fs_folder(events_path).await?;
+        let mut event_log = FolderEventLog::new_folder(
+            self.target.clone(),
+            &self.account_id,
+            folder_id,
+        )
+        .await?;
         event_log.replace_all_events(&diff).await?;
         let vault = FolderReducer::new()
             .reduce(&event_log)
@@ -307,11 +310,12 @@ impl ServerAccountStorage for ServerFileStorage {
         }
 
         for (id, folder) in &account_data.folders {
-            let vault_path = self.paths.vault_path(id);
-            let events_path = self.paths.event_log_path(id);
-
-            let mut event_log =
-                FolderEventLog::new_fs_folder(events_path).await?;
+            let mut event_log = FolderEventLog::new_folder(
+                self.target.clone(),
+                &self.account_id,
+                id,
+            )
+            .await?;
             event_log.patch_unchecked(folder).await?;
 
             let vault = FolderReducer::new()
@@ -321,7 +325,7 @@ impl ServerAccountStorage for ServerFileStorage {
                 .await?;
 
             let buffer = encode(&vault).await?;
-            vfs::write(vault_path, buffer).await?;
+            vfs::write(self.paths.vault_path(id), buffer).await?;
 
             self.folders.insert(*id, Arc::new(RwLock::new(event_log)));
         }

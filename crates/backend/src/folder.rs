@@ -83,7 +83,8 @@ impl Folder {
         events_path.set_extension(EVENT_LOG_EXT);
 
         let mut event_log =
-            FolderEventLog::new_fs_folder(events_path).await?;
+            sos_filesystem::FolderEventLog::<Error>::new_folder(events_path)
+                .await?;
         event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
@@ -116,7 +117,10 @@ impl Folder {
         let access_point =
             VaultAccessPoint::<Error>::new_mirror(vault, Box::new(mirror));
 
-        Ok(Self::init(AccessPoint::new(access_point), event_log))
+        Ok(Self::init(
+            AccessPoint::new(access_point),
+            FolderEventLog::FileSystem(event_log),
+        ))
     }
 
     /// Create a new folder from a database table.

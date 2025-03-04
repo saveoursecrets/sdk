@@ -3,8 +3,8 @@ use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_backend::{
-    extract_vault, AccountEventLog, BackendEventLog, BackendTarget,
-    DeviceEventLog, FolderEventLog, VaultWriter,
+    extract_vault, AccountEventLog, BackendTarget, DeviceEventLog,
+    FolderEventLog, VaultWriter,
 };
 use sos_core::{
     decode,

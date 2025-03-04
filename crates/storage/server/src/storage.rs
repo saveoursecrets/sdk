@@ -73,16 +73,14 @@ impl ServerStorage {
         account_id: &AccountId,
     ) -> Result<Self> {
         debug_assert!(matches!(target, BackendTarget::FileSystem(_)));
-        let BackendTarget::FileSystem(paths) = &target else {
-            panic!("filesystem backend expected");
-        };
-        debug_assert!(paths.is_server());
-
-        let mut event_log =
-            FolderEventLog::new_fs_folder(paths.identity_events()).await?;
-        event_log.load_tree().await?;
+        debug_assert!(target.paths().is_server());
 
         let target = target.with_account_id(account_id);
+        let mut event_log =
+            FolderEventLog::new_login_folder(target.clone(), account_id)
+                .await?;
+        event_log.load_tree().await?;
+
         Ok(Self::FileSystem(SyncImpl::new(
             ServerFileStorage::new(
                 target,

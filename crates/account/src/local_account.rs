@@ -647,7 +647,7 @@ impl Account for LocalAccount {
     }
 
     fn paths(&self) -> Arc<Paths> {
-        Arc::clone(&self.paths)
+        self.paths.clone()
     }
 
     async fn backend_target(&self) -> BackendTarget {
