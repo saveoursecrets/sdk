@@ -156,7 +156,6 @@ pub trait RemoteSyncHandler {
 
                 // Compute which external files need to be downloaded
                 // and add to the transfers queue
-
                 #[cfg(feature = "files")]
                 if !outcome.external_files.is_empty() {
                     use sos_account::Account;
@@ -164,11 +163,7 @@ pub trait RemoteSyncHandler {
                     // let mut writer = self.transfers.write().await;
 
                     for file in outcome.external_files.drain(..) {
-                        let file_path = paths.file_location(
-                            file.vault_id(),
-                            file.secret_id(),
-                            file.file_name().to_string(),
-                        );
+                        let file_path = paths.into_file_path(&file);
                         if !vfs::try_exists(file_path).await? {
                             tracing::debug!(
                                 file = ?file,

@@ -164,6 +164,12 @@ where
         ) -> Result<LocalRequest> {
             let mut chunks: Vec<LocalRequest> = Vec::new();
             while let Some(Ok(buffer)) = stdin.next().await {
+                /*
+                tracing::debug!(
+                    "buffer: {}",
+                    std::str::from_utf8(&buffer).unwrap()
+                );
+                */
                 let req = serde_json::from_slice::<LocalRequest>(&buffer)?;
                 let chunks_len = req.chunks_len();
                 chunks.push(req);
@@ -181,20 +187,27 @@ where
                 result = read_chunked_request(&mut stdin) => {
                     match result {
                         Ok(request) => {
-                          let client = self.client.clone();
-                          if let Err(e) = handle_request(
+                            tracing::trace!(
+                                request= ?request,
+                                "sos_extension_helper::request",
+                            );
+                            let client = self.client.clone();
+                            if let Err(e) = handle_request(
                             client, channel.clone(), request).await {
                             self.internal_error(
                               StatusCode::INTERNAL_SERVER_ERROR,
                               e,
                               &mut channel);
-                          }
+                            }
                         }
                         Err(e) => {
-                          self.internal_error(
-                            StatusCode::BAD_REQUEST,
-                            e,
-                            &mut channel);
+                            tracing::warn!(
+                                error = %e,
+                                "sos_extension_helper::read_request_error");
+                            self.internal_error(
+                                StatusCode::BAD_REQUEST,
+                                e,
+                                &mut channel);
                         }
                     }
                 }
@@ -268,11 +281,6 @@ async fn handle_request(
     request: LocalRequest,
 ) -> Result<()> {
     let task = tokio::task::spawn(async move {
-        tracing::trace!(
-            request = ?request,
-            "sos_extension_helper::request",
-        );
-
         let request_id = request.request_id();
         let response = client.send(request).await;
 

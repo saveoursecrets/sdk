@@ -7,6 +7,7 @@ use std::{fmt, str::FromStr};
 /// Public account identity information.
 #[typeshare::typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[serde(rename_all = "camelCase")]
 pub struct PublicIdentity {
     /// Account identifier.
     account_id: AccountId,

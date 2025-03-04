@@ -177,7 +177,7 @@ where
 ///
 /// If a platform authenticator or platform keyring is not supported
 /// this will return `StatusCode::UNAUTHORIZED` and the user will
-/// need to supply their password and
+/// need to supply their password.
 pub async fn sign_in<A, R, E>(
     req: Request<Incoming>,
     accounts: WebAccounts<A, R, E>,

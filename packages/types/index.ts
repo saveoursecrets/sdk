@@ -413,13 +413,8 @@ export interface LocalResponse {
 
 /** Public account identity information. */
 export interface PublicIdentity {
-	/**
-	 * Address identifier for the account.
-	 *
-	 * This corresponds to the address of the signing key
-	 * for the account.
-	 */
-	address: string;
+	/** Account identifier. */
+	accountId: string;
 	/**
 	 * Label for the account.
 	 *
