@@ -35,8 +35,7 @@ CREATE TABLE IF NOT EXISTS account_login_folder
     FOREIGN KEY (account_id)
       REFERENCES accounts (account_id) ON DELETE CASCADE,
     FOREIGN KEY (folder_id)
-      REFERENCES folders (folder_id) ON DELETE CASCADE,
-    FOREIGN KEY (folder_id) REFERENCES folders (folder_id)
+      REFERENCES folders (folder_id) ON DELETE CASCADE
 );
 
 -- Account device folder
@@ -51,8 +50,7 @@ CREATE TABLE IF NOT EXISTS account_device_folder
     FOREIGN KEY (account_id)
       REFERENCES accounts (account_id) ON DELETE CASCADE,
     FOREIGN KEY (folder_id)
-      REFERENCES folders (folder_id) ON DELETE CASCADE,
-    FOREIGN KEY (folder_id) REFERENCES folders (folder_id)
+      REFERENCES folders (folder_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS folders
