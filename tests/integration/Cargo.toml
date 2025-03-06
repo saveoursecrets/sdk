@@ -39,6 +39,7 @@ sos-vfs.workspace = true
 sos-sdk = { workspace = true, features = ["full"] }
 sos-test-utils.workspace = true
 
+tempfile = "3.5"
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 http.workspace = true
 anyhow.workspace = true
@@ -76,7 +77,6 @@ urn.workspace = true
 
 copy_dir = "0.1"
 maplit2 = "1"
-tempfile = "3.5"
 pretty_assertions = "1.4"
 
 [[bin]]
@@ -86,3 +86,7 @@ path = "src/test_extension_helper.rs"
 [[bin]]
 name = "test-preferences-concurrency"
 path = "src/test_preferences_concurrency.rs"
+
+[[bin]]
+name = "make-v3-backup-fixtures"
+path = "src/make_v3_backup_fixtures.rs"

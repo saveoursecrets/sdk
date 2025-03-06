@@ -95,7 +95,7 @@ pub struct ClientFileSystemStorage {
 
 impl ClientFileSystemStorage {
     /// Create a new file system account.
-    pub async fn new_account(
+    pub(crate) async fn new_account(
         target: BackendTarget,
         account_id: &AccountId,
         account_name: String,

@@ -410,12 +410,11 @@ where
         &self,
         account_id: &AccountId,
     ) -> std::result::Result<(), SqlError> {
-        let account_row = self.find_one(account_id)?;
         let query = sql::Delete::new()
             .delete_from("accounts")
-            .where_clause("account_id = ?1");
+            .where_clause("identifier = ?1");
         self.conn
-            .execute(&query.as_string(), [account_row.row_id])?;
+            .execute(&query.as_string(), [account_id.to_string()])?;
         Ok(())
     }
 }

@@ -799,19 +799,20 @@ impl DelegatedAccess for IdentityFolder {
         folder_id: &VaultId,
     ) -> Result<Option<AccessKey>> {
         let urn = Vault::vault_urn(folder_id)?;
-        let folder_id = self.folder.id().await;
+        let login_folder_id = self.folder.id().await;
 
         tracing::debug!(
-            folder = %folder_id,
+            login_folder_id = %login_folder_id,
+            folder_id = %folder_id,
             urn = %urn,
             "find_folder_password");
 
-        if let Some(id) = self.index.get(&(folder_id, urn.clone())) {
+        if let Some(id) = self.index.get(&(login_folder_id, urn.clone())) {
             let (_, secret, _) = self
                 .folder
                 .read_secret(id)
                 .await?
-                .ok_or_else(|| Error::NoSecretId(folder_id, *id))?;
+                .ok_or_else(|| Error::NoSecretId(login_folder_id, *id))?;
 
             let key = match secret {
                 Secret::Password { password, .. } => {

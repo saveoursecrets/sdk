@@ -109,10 +109,10 @@ impl DeviceEnrollment {
     /// Fetch the account data for this enrollment.
     pub async fn fetch_account(&mut self) -> Result<()> {
         // Fetch the account from the server
-        let change_set = self.client.fetch_account().await?;
+        let create_set = self.client.fetch_account().await?;
 
         // Create the account data in storage
-        self.storage.import_account(&change_set).await?;
+        self.storage.import_account(&create_set).await?;
 
         // Create the device vault containing the private
         // key for this new device

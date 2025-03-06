@@ -103,7 +103,7 @@ pub struct ClientDatabaseStorage {
 
 impl ClientDatabaseStorage {
     /// Create a new database account.
-    pub async fn new_account(
+    pub(crate) async fn new_account(
         target: BackendTarget,
         account_id: &AccountId,
         account_name: String,
@@ -597,9 +597,14 @@ impl ClientAccountStorage for ClientDatabaseStorage {
     async fn delete_account(&self) -> Result<Event> {
         let account_id = self.account_id;
         self.client
-            .conn(move |conn| {
-                let entity = AccountEntity::new(&conn);
-                entity.delete_account(&account_id)
+            .conn_mut(move |conn| {
+                conn.execute("PRAGMA foreign_keys = ON", [])?;
+
+                let tx = conn.transaction()?;
+                let entity = AccountEntity::new(&tx);
+                entity.delete_account(&account_id)?;
+                tx.commit()?;
+                Ok(())
             })
             .await
             .map_err(sos_database::Error::from)?;

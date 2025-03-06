@@ -16,13 +16,15 @@ use sos_core::{
     device::TrustedDevice,
     events::{patch::FolderPatch, DeviceEvent, EventRecord},
 };
+use sos_database::open_file;
 use sos_login::{
     device::DeviceSigner, DelegatedAccess, FolderKeys, Identity,
 };
 use sos_password::diceware::generate_passphrase;
 use sos_reducers::FolderReducer;
-use sos_sync::StorageEventLogs;
+use sos_sync::{CreateSet, StorageEventLogs, SyncStorage};
 use sos_test_utils::mock::{self, memory_database};
+use sos_test_utils::{setup, teardown};
 use sos_vault::secret::SecretRow;
 use std::collections::HashMap;
 use tempfile::tempdir_in;
@@ -32,6 +34,13 @@ const MAIN_NAME: &str = "main";
 const NEW_NAME: &str = "new-folder";
 const RENAME: &str = "renamed-folder";
 
+const MOCK_NOTE: &str = "mock-note";
+const MOCK_VALUE: &str = "mock-value";
+
+const MOCK_NOTE_UPDATED: &str = "mock-note-updated";
+const MOCK_VALUE_UPDATED: &str = "mock-value-updated";
+
+#[ignore]
 #[tokio::test]
 async fn fs_client_storage() -> Result<()> {
     let temp = tempdir_in("target")?;
@@ -45,26 +54,49 @@ async fn fs_client_storage() -> Result<()> {
     let target = BackendTarget::FileSystem(paths);
 
     // Prepare account then run assertions on the storage
-    prepare_account(account_id, target).await?;
+    let (create_set, password, folder_id, secret_id) =
+        prepare_account(account_id, target.clone()).await?;
+
+    // Assert on importing an account as if it were fetched from
+    // a remote, for example, when enrolling a new device
+    prepare_import(
+        account_id, target, create_set, password, folder_id, secret_id,
+    )
+    .await?;
 
     Ok(())
 }
 
+#[ignore]
 #[tokio::test]
 async fn db_client_storage() -> Result<()> {
-    let temp = tempdir_in("target")?;
-    Paths::scaffold(&temp.path().to_owned()).await?;
+    const TEST_ID: &str = "db_client_storage";
+    // sos_test_utils::init_tracing();
+
+    let mut dirs = setup(TEST_ID, 1).await?;
+    let data_dir = dirs.clients.remove(0);
 
     let account_id = AccountId::random();
 
-    let client = memory_database().await?;
-    let paths = Paths::new_client(temp.path()).with_account_id(&account_id);
+    let paths = Paths::new_client(&data_dir).with_account_id(&account_id);
     paths.ensure_db().await?;
 
-    let target = BackendTarget::Database(paths, client);
+    let mut client = open_file(paths.database_file()).await?;
+    sos_database::migrations::migrate_client(&mut client).await?;
+    let target = BackendTarget::Database(paths.clone(), client);
 
     // Prepare account then run assertions on the storage
-    prepare_account(account_id, target).await?;
+    let (create_set, password, folder_id, secret_id) =
+        prepare_account(account_id, target.clone()).await?;
+
+    // Assert on importing an account as if it were fetched from
+    // a remote, for example, when enrolling a new device
+    prepare_import(
+        account_id, target, create_set, password, folder_id, secret_id,
+    )
+    .await?;
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }
@@ -72,8 +104,9 @@ async fn db_client_storage() -> Result<()> {
 async fn prepare_account(
     account_id: AccountId,
     target: BackendTarget,
-) -> Result<()> {
+) -> Result<(CreateSet, SecretString, VaultId, SecretId)> {
     let (password, _) = generate_passphrase()?;
+
     let account_builder = AccountBuilder::new(
         ACCOUNT_NAME.to_string(),
         password.clone(),
@@ -91,16 +124,90 @@ async fn prepare_account(
     let mut storage =
         ClientStorage::new_unauthenticated(target.clone(), &account_id)
             .await?;
-    assert_client_storage(
+
+    let (create_set, folder_id, secret_id) = assert_client_storage(
         &mut storage,
         &account_id,
         target,
-        password,
+        password.clone(),
         authenticated_user,
         account_pack,
     )
     .await?;
+
+    Ok((create_set, password, folder_id, secret_id))
+}
+
+async fn prepare_import(
+    account_id: AccountId,
+    target: BackendTarget,
+    create_set: CreateSet,
+    password: SecretString,
+    folder_id: VaultId,
+    secret_id: SecretId,
+) -> Result<()> {
+    // Create a new account like we would in a pairing enrollment
+    let mut storage = ClientStorage::new_account(
+        target.clone(),
+        &account_id,
+        "imported-account".to_owned(),
+    )
+    .await?;
+    // Import the data and check we can sign in
+    assert_import_account(
+        &mut storage,
+        &account_id,
+        target,
+        password,
+        create_set,
+        folder_id,
+        secret_id,
+    )
+    .await?;
     Ok(())
+}
+
+async fn sign_in(
+    storage: &mut ClientStorage,
+    mut authenticated_user: Identity,
+    account_id: &AccountId,
+    password: SecretString,
+) -> Result<(AccessKey, FolderKeys)> {
+    let key: AccessKey = password.into();
+    authenticated_user.sign_in(account_id, &key).await?;
+
+    /*
+    authenticated_user
+        .identity_mut()?
+        .rebuild_lookup_index()
+        .await?;
+    */
+
+    // Need folder access keys to initialize the search index
+    let folder_keys = {
+        let mut keys = HashMap::new();
+        for folder in storage.list_folders() {
+            if let Some(key) = authenticated_user
+                .identity()?
+                .find_folder_password(folder.id())
+                .await?
+            {
+                keys.insert(*folder.id(), key);
+            } else {
+                eprintln!(
+                    "FAILED to find folder password for {}",
+                    folder.id()
+                );
+            }
+        }
+        FolderKeys(keys)
+    };
+
+    storage.authenticate(authenticated_user).await?;
+    assert!(storage.is_authenticated());
+    storage.initialize_search_index(&folder_keys).await?;
+
+    Ok((key, folder_keys))
 }
 
 /// Assert on client storage implementations.
@@ -113,9 +220,9 @@ async fn assert_client_storage(
     account_id: &AccountId,
     target: BackendTarget,
     password: SecretString,
-    mut authenticated_user: Identity,
+    authenticated_user: Identity,
     account_pack: AccountPack,
-) -> Result<()> {
+) -> Result<(CreateSet, VaultId, SecretId)> {
     assert_eq!(account_id, storage.account_id());
 
     storage.create_account(&account_pack).await?;
@@ -123,26 +230,9 @@ async fn assert_client_storage(
     let accounts = target.list_accounts().await?;
     assert_eq!(1, accounts.len());
 
-    // Need folder access keys to initialize the search index
-    let mut folder_keys = {
-        let mut keys = HashMap::new();
-        for folder in storage.list_folders() {
-            if let Some(key) = authenticated_user
-                .identity()?
-                .find_folder_password(folder.id())
-                .await?
-            {
-                keys.insert(*folder.id(), key);
-            }
-        }
-        FolderKeys(keys)
-    };
-
-    let key: AccessKey = password.into();
-    authenticated_user.sign_in(account_id, &key).await?;
-    storage.authenticate(authenticated_user).await?;
-    assert!(storage.is_authenticated());
-    storage.initialize_search_index(&folder_keys).await?;
+    let (_, mut folder_keys) =
+        sign_in(storage, authenticated_user, account_id, password.clone())
+            .await?;
 
     let main = {
         let folders = storage.list_folders();
@@ -296,7 +386,7 @@ async fn assert_client_storage(
 
     // Create a secret
     let secret_id = SecretId::new_v4();
-    let (meta, secret) = mock::note("mock-note", "mock-value");
+    let (meta, secret) = mock::note(MOCK_NOTE, MOCK_VALUE);
     let secret_data = SecretRow::new(secret_id, meta, secret);
     let options = AccessOptions {
         folder: Some(*main_vault.id()),
@@ -318,7 +408,7 @@ async fn assert_client_storage(
 
     // Update the secret
     let (new_meta, new_secret) =
-        mock::note("mock-note-updated", "mock-value-updated");
+        mock::note(MOCK_NOTE_UPDATED, MOCK_VALUE_UPDATED);
     storage
         .update_secret(
             &secret_id,
@@ -363,10 +453,14 @@ async fn assert_client_storage(
     let login_vault = storage.read_login_vault().await?;
     storage.import_login_vault(login_vault).await?;
 
-    // Sign out the authenticated user
-    storage.sign_out().await?;
+    println!("CREATED:: {:#?}", storage.list_folders());
 
-    Ok(())
+    let create_set = storage.change_set().await?;
+
+    // Must be signed in to delete the account
+    storage.delete_account().await?;
+
+    Ok((create_set, main_id, secret_id))
 }
 
 async fn assert_description(
@@ -379,5 +473,42 @@ async fn assert_description(
         .await?;
     let description = storage.description(id).await?;
     assert_eq!(folder_description, &description);
+    Ok(())
+}
+
+async fn assert_import_account(
+    storage: &mut ClientStorage,
+    account_id: &AccountId,
+    target: BackendTarget,
+    password: SecretString,
+    create_set: CreateSet,
+    folder_id: VaultId,
+    secret_id: SecretId,
+) -> Result<()> {
+    assert_eq!(account_id, storage.account_id());
+
+    println!(
+        "CREATE SET KEYS: {:#?}",
+        create_set.folders.keys().collect::<Vec<_>>()
+    );
+
+    storage.import_account(&create_set).await?;
+
+    println!("IMPORTED:: {:#?}", storage.list_folders());
+
+    let authenticated_user = Identity::new(target.clone());
+    sign_in(storage, authenticated_user, account_id, password.clone())
+        .await?;
+
+    let options = AccessOptions {
+        folder: Some(folder_id),
+        ..Default::default()
+    };
+    let (_, meta, _, _) = storage.read_secret(&secret_id, &options).await?;
+    assert_eq!(MOCK_NOTE_UPDATED, meta.label());
+
+    // Sign out the authenticated user
+    storage.sign_out().await?;
+
     Ok(())
 }

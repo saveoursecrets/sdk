@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS account_login_folder
 (
     account_id          INTEGER             NOT NULL,
     folder_id           INTEGER             NOT NULL,
-
+    
     FOREIGN KEY (account_id)
       REFERENCES accounts (account_id) ON DELETE CASCADE,
     FOREIGN KEY (folder_id)
@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS account_login_folder
 --
 -- Device folders only exist on the client storage so there 
 -- won't be a join on the server storage.
+--
+-- But servers do contain the device event logs in `device_events` 
+-- to determine which device public keys are authorized.
 CREATE TABLE IF NOT EXISTS account_device_folder
 (
     account_id          INTEGER             NOT NULL,

@@ -57,24 +57,7 @@ pub async fn file_integrity(
 
     let paths: Vec<_> = external_files
         .into_iter()
-        .map(|file| {
-            (
-                file,
-                if paths.is_using_db() {
-                    paths.blob_location(
-                        file.vault_id(),
-                        file.secret_id(),
-                        file.file_name().to_string(),
-                    )
-                } else {
-                    paths.file_location(
-                        file.vault_id(),
-                        file.secret_id(),
-                        file.file_name().to_string(),
-                    )
-                },
-            )
-        })
+        .map(|file| (file, paths.into_file_path(&file)))
         .collect();
     let num_files = paths.len();
     let semaphore = Arc::new(Semaphore::new(concurrency));
