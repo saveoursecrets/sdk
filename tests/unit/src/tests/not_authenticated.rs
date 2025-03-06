@@ -3,10 +3,11 @@ use sos_account::{Account, LocalAccount};
 use sos_core::{
     commit::CommitHash,
     crypto::{AccessKey, Cipher, KeyDerivation},
-    ErrorExt, Paths, VaultId,
+    ErrorExt, ExternalFileName, Paths, SecretId, VaultId,
 };
 use sos_net::NetworkAccount;
 use sos_password::diceware::generate_passphrase;
+use sos_search::QueryFilter;
 use sos_test_utils::{make_client_backend, setup, teardown};
 
 /// Check that API methods on LocalAccount return an
@@ -77,6 +78,12 @@ async fn assert_account(account: &mut impl Account) -> Result<()> {
         .unwrap()
         .is_forbidden());
     assert!(account.current_device().await.err().unwrap().is_forbidden());
+    assert!(account
+        .trusted_devices()
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
     assert!(account
         .public_identity()
         .await
@@ -220,14 +227,38 @@ async fn assert_account(account: &mut impl Account) -> Result<()> {
         .unwrap()
         .is_forbidden());
 
-    /*
+    assert!(account.search_index().await.err().unwrap().is_forbidden());
     assert!(account
-        .trusted_devices()
+        .query_view(&[], None)
         .await
         .err()
         .unwrap()
         .is_forbidden());
-        */
+
+    assert!(account
+        .query_map("", QueryFilter::default())
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account.document_count().await.err().unwrap().is_forbidden());
+    assert!(account
+        .document_exists(&folder_id, "", None)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+    {
+        let secret_id = SecretId::new_v4();
+        let file_name = ExternalFileName::from([0u8; 32]);
+        assert!(account
+            .download_file(&folder_id, &secret_id, &file_name)
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
 
     Ok(())
 }

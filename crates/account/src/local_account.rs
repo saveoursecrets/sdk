@@ -747,6 +747,7 @@ impl Account for LocalAccount {
     }
 
     async fn trusted_devices(&self) -> Result<IndexSet<TrustedDevice>> {
+        self.ensure_authenticated()?;
         Ok(self.storage.devices().clone())
     }
 
