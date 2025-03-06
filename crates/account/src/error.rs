@@ -181,6 +181,13 @@ impl ErrorExt for Error {
         )
     }
 
+    fn is_forbidden(&self) -> bool {
+        matches!(
+            self,
+            Error::Authentication(AuthenticationError::NotAuthenticated)
+        )
+    }
+
     fn is_permission_denied(&self) -> bool {
         matches!(
             self,

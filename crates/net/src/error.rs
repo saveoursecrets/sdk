@@ -172,6 +172,15 @@ impl ErrorExt for Error {
         )
     }
 
+    fn is_forbidden(&self) -> bool {
+        matches!(
+            self,
+            Error::Account(sos_account::Error::Authentication(
+                AuthenticationError::NotAuthenticated
+            ))
+        )
+    }
+
     fn is_permission_denied(&self) -> bool {
         matches!(
             self,

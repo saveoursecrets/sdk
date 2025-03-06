@@ -131,19 +131,19 @@ impl LocalAccount {
     }
 
     /// Create a new account with the given
-    /// name, passphrase and provider.
+    /// name, password and backend target.
     ///
     /// Uses standard flags for the account builder for
     /// more control of the created account use
-    /// `new_account_with_builder()`.
+    /// [LocalAccount::new_account_with_builder].
     pub async fn new_account(
         account_name: String,
-        passphrase: SecretString,
+        password: SecretString,
         target: BackendTarget,
     ) -> Result<Self> {
         Self::new_account_with_builder(
             account_name,
-            passphrase,
+            password,
             target,
             |builder| builder.create_file_password(true),
         )
@@ -151,11 +151,11 @@ impl LocalAccount {
     }
 
     /// Create a new account with the given
-    /// name, passphrase and provider and modify the
+    /// name, password and backend target modifying the
     /// account builder.
     pub async fn new_account_with_builder(
         account_name: String,
-        passphrase: SecretString,
+        password: SecretString,
         mut target: BackendTarget,
         builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
@@ -166,7 +166,7 @@ impl LocalAccount {
 
         let account_builder = builder(AccountBuilder::new(
             account_name,
-            passphrase.clone(),
+            password.clone(),
             target.clone(),
         ));
         let new_account = account_builder.finish().await?;
@@ -175,21 +175,17 @@ impl LocalAccount {
 
         tracing::debug!(
           account_id = %new_account.account_id,
-          "new_account::created",
+          "new_account::prepared",
         );
 
         let account_id = new_account.account_id;
-
-        let (authenticated_user, public_account) = new_account.into();
-
+        let (_authenticated_user, public_account) = new_account.into();
         let mut storage =
             ClientStorage::new_unauthenticated(target.clone(), &account_id)
                 .await?;
-        storage.authenticate(authenticated_user).await?;
+        // storage.authenticate(authenticated_user).await?;
 
         tracing::debug!("new_account::storage_provider");
-
-        // Must import the new account before signing in
         storage.create_account(&public_account).await?;
         tracing::debug!("new_account::created");
 
@@ -207,47 +203,6 @@ impl LocalAccount {
             return Err(AuthenticationError::NotAuthenticated.into());
         }
         Ok(())
-    }
-
-    /// Private login implementation so we can support the backwards
-    /// compatible sign_in() and also the newer sign_in_with_options().
-    async fn login(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
-        let account_id = &self.account_id;
-        // let data_dir = self.paths().documents_dir().clone();
-
-        tracing::debug!(account_id = %account_id, "sign_in");
-
-        // Ensure all paths before sign_in
-        let paths = self.paths().with_account_id(account_id);
-        paths.ensure().await?;
-
-        tracing::debug!(data_dir = ?paths.documents_dir(), "sign_in");
-
-        let mut user = Identity::new(self.target.clone());
-        user.sign_in(self.account_id(), key).await?;
-        tracing::debug!("sign_in success");
-
-        self.storage.authenticate(user).await?;
-
-        self.paths = self.storage.paths();
-
-        self.initialize_account_log().await?;
-
-        // Load vaults into memory and initialize folder
-        // event log commit trees
-        let folders = self.load_folders().await?;
-
-        // Unlock all the storage vaults
-        {
-            let folder_keys = self.folder_keys().await?;
-            self.storage.unlock(&folder_keys).await?;
-        }
-
-        if let Some(default_folder) = self.default_folder().await {
-            self.open_folder(default_folder.id()).await?;
-        }
-
-        Ok(folders)
     }
 
     async fn initialize_account_log(&self) -> Result<()> {
@@ -746,13 +701,13 @@ impl Account for LocalAccount {
     async fn new_device_vault(
         &mut self,
     ) -> Result<(DeviceSigner, DeviceManager)> {
-        let signer = DeviceSigner::new_random();
-
-        let target = self.target.clone();
         let authenticated_user = self
             .storage
             .authenticated_user_mut()
             .ok_or(AuthenticationError::NotAuthenticated)?;
+
+        let signer = DeviceSigner::new_random();
+        let target = self.target.clone();
         let manager = authenticated_user
             .identity_mut()?
             .new_device_manager(&target, signer.clone())
@@ -987,7 +942,43 @@ impl Account for LocalAccount {
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
-        self.login(key).await
+        let account_id = &self.account_id;
+
+        // Ensure all paths before sign_in
+        let paths = self.paths().with_account_id(account_id);
+        paths.ensure().await?;
+
+        tracing::debug!(
+            account_id = %account_id,
+            data_dir = ?paths.documents_dir(),
+            "sign_in",
+        );
+
+        let mut user = Identity::new(self.target.clone());
+        user.sign_in(self.account_id(), key).await?;
+        tracing::debug!("sign_in::success");
+
+        self.storage.authenticate(user).await?;
+
+        self.paths = self.storage.paths();
+
+        self.initialize_account_log().await?;
+
+        // Load vaults into memory and initialize folder
+        // event log commit trees
+        let folders = self.load_folders().await?;
+
+        // Unlock all the storage vaults
+        {
+            let folder_keys = self.folder_keys().await?;
+            self.storage.unlock(&folder_keys).await?;
+        }
+
+        if let Some(default_folder) = self.default_folder().await {
+            self.open_folder(default_folder.id()).await?;
+        }
+
+        Ok(folders)
     }
 
     async fn verify(&self, key: &AccessKey) -> bool {

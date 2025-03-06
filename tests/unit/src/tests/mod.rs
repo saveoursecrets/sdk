@@ -13,6 +13,7 @@ mod folder;
 mod identity;
 mod keychain;
 mod migrate;
+mod not_authenticated;
 mod pairing_share_url;
 mod password;
 mod preferences;

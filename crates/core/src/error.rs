@@ -153,6 +153,9 @@ pub trait ErrorExt {
 
     /// Whether this is a permission denied error.
     fn is_permission_denied(&self) -> bool;
+
+    /// Whether authentication is required.
+    fn is_forbidden(&self) -> bool;
 }
 
 /// Storage error shared between the client and server.

@@ -12,7 +12,8 @@ use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DevicePublicKey, TrustedDevice},
     events::{AccountEvent, DeviceEvent, EventRecord, ReadEvent, WriteEvent},
-    AccountId, FolderRef, Paths, SecretId, UtcDateTime, VaultCommit, VaultId,
+    AccountId, ErrorExt, FolderRef, Paths, SecretId, UtcDateTime,
+    VaultCommit, VaultId,
 };
 use sos_login::{
     device::{DeviceManager, DeviceSigner},
@@ -46,7 +47,7 @@ use {crate::ClipboardCopyRequest, xclipboard::Clipboard};
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait Account {
     /// Errors for this account.
-    type Error: std::error::Error + std::fmt::Debug + From<Error>;
+    type Error: std::error::Error + std::fmt::Debug + From<Error> + ErrorExt;
 
     /// Result type for network-aware implementations.
     type NetworkResult: std::fmt::Debug;
