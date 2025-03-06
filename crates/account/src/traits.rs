@@ -140,16 +140,6 @@ pub trait Account {
         description: impl AsRef<str> + Send + Sync,
     ) -> std::result::Result<FolderChange<Self::NetworkResult>, Self::Error>;
 
-    /// Load the buffer of the encrypted vault for this account.
-    ///
-    /// Used when a client needs to enroll other devices;
-    /// it sends the encrypted identity vault and if the vault
-    /// can be unlocked then we have verified that the other
-    /// device knows the primary password for this account.
-    async fn identity_vault_buffer(
-        &self,
-    ) -> std::result::Result<Vec<u8>, Self::Error>;
-
     /// Summary of the identity folder for the account.
     async fn identity_folder_summary(
         &self,

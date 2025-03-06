@@ -794,11 +794,6 @@ impl Account for NetworkAccount {
         Ok(result)
     }
 
-    async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
-        let account = self.account.lock().await;
-        Ok(account.identity_vault_buffer().await?)
-    }
-
     async fn identity_folder_summary(&self) -> Result<Summary> {
         let account = self.account.lock().await;
         Ok(account.identity_folder_summary().await?)

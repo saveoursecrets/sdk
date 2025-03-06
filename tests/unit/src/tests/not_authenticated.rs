@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
-use sos_core::{ErrorExt, Paths};
+use sos_core::{ErrorExt, Paths, VaultId};
 use sos_net::NetworkAccount;
 use sos_password::diceware::generate_passphrase;
 use sos_test_utils::{make_client_backend, setup, teardown};
@@ -52,6 +52,8 @@ async fn not_authenticated_network_account() -> Result<()> {
 }
 
 async fn assert_account(account: &mut impl Account) -> Result<()> {
+    let folder_id = VaultId::new_v4();
+
     assert!(!account.is_authenticated().await);
     assert!(account.device_signer().await.err().unwrap().is_forbidden());
     assert!(account
@@ -74,6 +76,19 @@ async fn assert_account(account: &mut impl Account) -> Result<()> {
         .unwrap()
         .is_forbidden());
     assert!(account.account_name().await.err().unwrap().is_forbidden());
+
+    assert!(account
+        .folder_description(&folder_id)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+    assert!(account
+        .set_folder_description(&folder_id, String::new())
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
 
     /*
     assert!(account

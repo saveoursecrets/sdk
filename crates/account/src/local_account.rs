@@ -800,11 +800,6 @@ impl Account for LocalAccount {
         })
     }
 
-    async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
-        let vault = self.storage.read_login_vault().await?;
-        Ok(encode(&vault).await?)
-    }
-
     async fn identity_folder_summary(&self) -> Result<Summary> {
         let authenticated_user = self
             .storage
