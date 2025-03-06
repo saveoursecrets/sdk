@@ -872,12 +872,12 @@ impl Account for LinkedAccount {
         Ok(result)
     }
 
-    async fn import_identity_folder(
+    async fn import_login_folder(
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {
         let mut account = self.account.lock().await;
-        Ok(account.import_identity_folder(vault).await?)
+        Ok(account.import_login_folder(vault).await?)
     }
 
     async fn export_folder(

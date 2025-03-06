@@ -1,16 +1,16 @@
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
-use sos_client_storage::AccessOptions;
+use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::{
     commit::CommitHash,
     crypto::{AccessKey, Cipher, KeyDerivation},
-    ErrorExt, ExternalFileName, Paths, SecretId, VaultId,
+    ErrorExt, ExternalFileName, Paths, SecretId, VaultFlags, VaultId,
 };
 use sos_net::NetworkAccount;
 use sos_password::diceware::generate_passphrase;
 use sos_search::QueryFilter;
 use sos_test_utils::{make_client_backend, mock, setup, teardown};
-use sos_vault::secret::SecretType;
+use sos_vault::{secret::SecretType, Vault};
 
 /// Check that API methods on LocalAccount return an
 /// AuthenticationError when not authenticated.
@@ -350,6 +350,55 @@ async fn assert_account(account: &mut impl Account) -> Result<()> {
 
     assert!(account
         .unarchive(&secret_id, &SecretType::Note, AccessOptions::default())
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    {
+        let (meta, _) = mock::note("mock", "mock");
+        assert!(account
+            .update_file(&secret_id, meta, "", AccessOptions::default())
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
+
+    assert!(account
+        .create_folder(NewFolderOptions::new("folder-name".to_string()))
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .rename_folder(&folder_id, "folder-name".to_string())
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .update_folder_flags(&folder_id, VaultFlags::DEFAULT)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    {
+        let (password, _) = generate_passphrase()?;
+        let key: AccessKey = password.into();
+        assert!(account
+            .import_folder("", key, false)
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
+
+    assert!(account
+        .import_login_folder(Vault::default())
         .await
         .err()
         .unwrap()

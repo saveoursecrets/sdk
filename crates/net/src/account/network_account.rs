@@ -36,7 +36,6 @@ use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow, SecretType},
     Summary, Vault, VaultCommit, VaultFlags,
 };
-use sos_vfs as vfs;
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
@@ -1610,16 +1609,29 @@ impl Account for NetworkAccount {
         key: AccessKey,
         overwrite: bool,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
-        let buffer = vfs::read(path.as_ref()).await?;
-        self.import_folder_buffer(&buffer, key, overwrite).await
+        let _ = self.sync_lock.lock().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.import_folder(path.as_ref(), key, overwrite).await?
+        };
+
+        let result = FolderCreate {
+            folder: result.folder,
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_result: self.sync().await,
+        };
+
+        Ok(result)
     }
 
-    async fn import_identity_folder(
+    async fn import_login_folder(
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {
         let mut account = self.account.lock().await;
-        Ok(account.import_identity_folder(vault).await?)
+        Ok(account.import_login_folder(vault).await?)
     }
 
     async fn import_folder_buffer(

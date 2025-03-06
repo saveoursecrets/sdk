@@ -106,7 +106,7 @@ impl LocalAccount {
                 )
                 .await?;
 
-            self.import_identity_folder(vault).await?;
+            self.import_login_folder(vault).await?;
         };
 
         Ok(())

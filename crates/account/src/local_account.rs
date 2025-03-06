@@ -923,7 +923,7 @@ impl Account for LocalAccount {
             }
         }
 
-        self.import_identity_folder(output.into()).await?;
+        self.import_login_folder(output.into()).await?;
 
         // Login again so in-memory data is up to date
         {
@@ -1710,11 +1710,6 @@ impl Account for LocalAccount {
         let (buffer, _, summary, account_event) =
             self.storage.create_folder(options).await?;
 
-        /*
-        // Must save the password before getting the secure access key
-        self.save_folder_password(summary.id(), key).await?;
-        */
-
         let options = AccessOptions {
             folder: Some(*summary.id()),
             ..Default::default()
@@ -1738,6 +1733,7 @@ impl Account for LocalAccount {
         folder_id: &VaultId,
         name: String,
     ) -> Result<FolderChange<Self::NetworkResult>> {
+        self.ensure_authenticated()?;
         let options = AccessOptions {
             folder: Some(*folder_id),
             ..Default::default()
@@ -1759,6 +1755,7 @@ impl Account for LocalAccount {
         folder_id: &VaultId,
         flags: VaultFlags,
     ) -> Result<FolderChange<Self::NetworkResult>> {
+        self.ensure_authenticated()?;
         let options = AccessOptions {
             folder: Some(*folder_id),
             ..Default::default()
@@ -1801,7 +1798,7 @@ impl Account for LocalAccount {
         vault.verify(&key).await?;
 
         tracing::debug!(
-          id = %vault.id(),
+          folder_id = %vault.id(),
           name = %vault.name(),
           "import_folder");
 
@@ -1902,10 +1899,11 @@ impl Account for LocalAccount {
         })
     }
 
-    async fn import_identity_folder(
+    async fn import_login_folder(
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {
+        self.ensure_authenticated()?;
         let event = self.import_identity_vault(vault).await?;
         let event_log = self.account_log().await?;
         let mut event_log = event_log.write().await;
@@ -1920,6 +1918,7 @@ impl Account for LocalAccount {
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<()> {
+        self.ensure_authenticated()?;
         let buffer = self
             .export_folder_buffer(folder_id, new_key, save_key)
             .await?;

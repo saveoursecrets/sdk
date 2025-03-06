@@ -546,7 +546,7 @@ pub trait Account {
     ///
     /// This is used for destructive operations that rewrite the identity
     /// folder such as changing the cipher or account password.
-    async fn import_identity_folder(
+    async fn import_login_folder(
         &mut self,
         vault: Vault,
     ) -> std::result::Result<AccountEvent, Self::Error>;
