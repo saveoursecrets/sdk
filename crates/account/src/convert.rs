@@ -45,7 +45,7 @@ impl LocalAccount {
         kdf: Option<KeyDerivation>,
     ) -> Result<CipherComparison> {
         let kdf = kdf.unwrap_or_default();
-        let identity = self.identity_folder_summary().await?;
+        let identity = self.login_folder_summary().await?;
 
         let folders = self
             .storage

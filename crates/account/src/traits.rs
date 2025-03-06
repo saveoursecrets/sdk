@@ -142,7 +142,7 @@ pub trait Account {
     ) -> std::result::Result<FolderChange<Self::NetworkResult>, Self::Error>;
 
     /// Summary of the identity folder for the account.
-    async fn identity_folder_summary(
+    async fn login_folder_summary(
         &self,
     ) -> std::result::Result<Summary, Self::Error>;
 
@@ -150,7 +150,7 @@ pub trait Account {
     ///
     /// Can be used when changes to the identity folder
     /// have been made by external processes.
-    async fn reload_identity_folder(
+    async fn reload_login_folder(
         &mut self,
     ) -> std::result::Result<(), Self::Error>;
 

@@ -245,14 +245,14 @@ impl Account for LinkedAccount {
         Ok(result)
     }
 
-    async fn identity_folder_summary(&self) -> Result<Summary> {
+    async fn login_folder_summary(&self) -> Result<Summary> {
         let account = self.account.lock().await;
-        Ok(account.identity_folder_summary().await?)
+        Ok(account.login_folder_summary().await?)
     }
 
-    async fn reload_identity_folder(&mut self) -> Result<()> {
+    async fn reload_login_folder(&mut self) -> Result<()> {
         let mut account = self.account.lock().await;
-        Ok(account.reload_identity_folder().await?)
+        Ok(account.reload_login_folder().await?)
     }
 
     async fn change_cipher(

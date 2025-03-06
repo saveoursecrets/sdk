@@ -445,9 +445,9 @@ where
                 .find(|a| a.account_id() == &account_id)
                 .ok_or(FileEventError::NoAccount(account_id))?;
 
-            // Reload the identity folder
+            // Reload the login folder
             {
-                account.reload_identity_folder().await.map_err(|e| {
+                account.reload_login_folder().await.map_err(|e| {
                     FileEventError::ReloadIdentityFolder(e.to_string())
                 })?;
             }

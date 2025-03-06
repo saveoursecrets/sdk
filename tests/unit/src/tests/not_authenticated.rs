@@ -1,16 +1,20 @@
 use anyhow::Result;
-use sos_account::{Account, LocalAccount};
+use sos_account::{Account, ClipboardCopyRequest, LocalAccount};
 use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::{
     commit::CommitHash,
     crypto::{AccessKey, Cipher, KeyDerivation},
-    ErrorExt, ExternalFileName, Paths, SecretId, VaultFlags, VaultId,
+    ErrorExt, ExternalFileName, Paths, SecretId, SecretPath, VaultFlags,
+    VaultId,
 };
+use sos_login::DelegatedAccess;
+use sos_migrate::import::{ImportFormat, ImportTarget};
 use sos_net::NetworkAccount;
 use sos_password::diceware::generate_passphrase;
 use sos_search::QueryFilter;
 use sos_test_utils::{make_client_backend, mock, setup, teardown};
 use sos_vault::{secret::SecretType, Vault};
+use std::path::PathBuf;
 
 /// Check that API methods on LocalAccount return an
 /// AuthenticationError when not authenticated.
@@ -28,7 +32,7 @@ async fn not_authenticated_local_account() -> Result<()> {
         LocalAccount::new_account(TEST_ID.to_string(), password, target)
             .await?;
 
-    assert_account(&mut account).await?;
+    assert_account::<sos_account::Error>(&mut account).await?;
 
     teardown(TEST_ID).await;
 
@@ -55,14 +59,16 @@ async fn not_authenticated_network_account() -> Result<()> {
     )
     .await?;
 
-    assert_account(&mut account).await?;
+    assert_account::<sos_net::Error>(&mut account).await?;
 
     teardown(TEST_ID).await;
 
     Ok(())
 }
 
-async fn assert_account(account: &mut impl Account) -> Result<()> {
+async fn assert_account<E: ErrorExt>(
+    account: &mut (impl Account + DelegatedAccess<Error = E>),
+) -> Result<()> {
     let folder_id = VaultId::new_v4();
     let secret_id = SecretId::new_v4();
 
@@ -108,13 +114,13 @@ async fn assert_account(account: &mut impl Account) -> Result<()> {
         .unwrap()
         .is_forbidden());
     assert!(account
-        .identity_folder_summary()
+        .login_folder_summary()
         .await
         .err()
         .unwrap()
         .is_forbidden());
     assert!(account
-        .reload_identity_folder()
+        .reload_login_folder()
         .await
         .err()
         .unwrap()
@@ -403,6 +409,106 @@ async fn assert_account(account: &mut impl Account) -> Result<()> {
         .err()
         .unwrap()
         .is_forbidden());
+
+    assert!(account
+        .delete_folder(&folder_id)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .forget_folder(&folder_id)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .load_avatar(&secret_id, Some(&folder_id))
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .export_contact("", &secret_id, None)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .export_all_contacts("")
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .import_contacts("", |_| {})
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .export_unsafe_archive("")
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    {
+        let import_target = ImportTarget {
+            format: ImportFormat::OnePasswordCsv,
+            path: PathBuf::from(""),
+            folder_name: String::new(),
+        };
+        assert!(account
+            .import_file(import_target)
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
+
+    {
+        let clipboard = xclipboard::Clipboard::new()?;
+        let target = SecretPath(folder_id, secret_id);
+        let request = ClipboardCopyRequest::default();
+        assert!(account
+            .copy_clipboard(&clipboard, &target, &request)
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
+
+    assert!(account
+        .find_folder_password(&folder_id)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .remove_folder_password(&folder_id)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    {
+        let (password, _) = generate_passphrase()?;
+        let key: AccessKey = password.into();
+        assert!(account
+            .save_folder_password(&folder_id, key)
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
 
     Ok(())
 }

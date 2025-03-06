@@ -22,7 +22,7 @@ async fn network_sync_change_cipher() -> Result<()> {
     let key: AccessKey = device1.password.clone().into();
     let default_folder = device1.default_folder.clone();
     let original_folders = device1.folders.clone();
-    let identity_summary = device1.owner.identity_folder_summary().await?;
+    let identity_summary = device1.owner.login_folder_summary().await?;
     let cipher = identity_summary.cipher();
     assert_eq!(cipher, &Cipher::default());
 
@@ -65,7 +65,7 @@ async fn network_sync_change_cipher() -> Result<()> {
     assert_eq!(&secret, secret_data.secret());
 
     // Check the in-memory identity summary is correct cipher/kdf
-    let identity_summary = device1.owner.identity_folder_summary().await?;
+    let identity_summary = device1.owner.login_folder_summary().await?;
     assert_eq!(&target_cipher, identity_summary.cipher());
     assert_eq!(&target_kdf, identity_summary.kdf());
 

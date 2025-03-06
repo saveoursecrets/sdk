@@ -801,7 +801,7 @@ impl Account for LocalAccount {
         })
     }
 
-    async fn identity_folder_summary(&self) -> Result<Summary> {
+    async fn login_folder_summary(&self) -> Result<Summary> {
         let authenticated_user = self
             .storage
             .authenticated_user()
@@ -809,7 +809,7 @@ impl Account for LocalAccount {
         Ok(authenticated_user.identity()?.summary().await)
     }
 
-    async fn reload_identity_folder(&mut self) -> Result<()> {
+    async fn reload_login_folder(&mut self) -> Result<()> {
         let authenticated_user = self
             .storage
             .authenticated_user_mut()
@@ -890,7 +890,7 @@ impl Account for LocalAccount {
             (meta, seed, keys)
         };
 
-        let summary = self.identity_folder_summary().await?;
+        let summary = self.login_folder_summary().await?;
         let vault = VaultBuilder::new()
             .id(*summary.id())
             .public_name(summary.name().to_owned())
@@ -1165,7 +1165,7 @@ impl Account for LocalAccount {
             output.insert(folder, result);
         }
 
-        let identity = self.identity_folder_summary().await?;
+        let identity = self.login_folder_summary().await?;
         let vault = {
             let event_log = self.identity_log().await?;
             let mut log_file = event_log.write().await;
@@ -1693,7 +1693,7 @@ impl Account for LocalAccount {
             passphrase.into()
         };
 
-        let identity_folder = self.identity_folder_summary().await?;
+        let identity_folder = self.login_folder_summary().await?;
         let cipher = options
             .cipher
             .take()
@@ -1992,6 +1992,7 @@ impl Account for LocalAccount {
         &mut self,
         folder_id: &VaultId,
     ) -> Result<FolderDelete<Self::NetworkResult>> {
+        self.ensure_authenticated()?;
         let options = AccessOptions {
             folder: Some(*folder_id),
             ..Default::default()
@@ -2008,6 +2009,7 @@ impl Account for LocalAccount {
     }
 
     async fn forget_folder(&mut self, folder_id: &VaultId) -> Result<bool> {
+        self.ensure_authenticated()?;
         Ok(self.storage.remove_folder(folder_id).await?)
     }
 
@@ -2040,14 +2042,7 @@ impl Account for LocalAccount {
         secret_id: &SecretId,
         folder: Option<&VaultId>,
     ) -> Result<()> {
-        /*
-        let folder = if let Some(folder_id) = folder {
-            self.find(|s| s.id() == folder_id).await
-        } else {
-            self.storage.current_folder()
-        };
-        let folder = folder.ok_or(Error::NoOpenFolder)?;
-        */
+        self.ensure_authenticated()?;
 
         let options = folder.into();
 
@@ -2079,6 +2074,8 @@ impl Account for LocalAccount {
         &self,
         path: impl AsRef<Path> + Send + Sync,
     ) -> Result<()> {
+        self.ensure_authenticated()?;
+
         let contacts = self
             .contacts_folder()
             .await
@@ -2124,6 +2121,8 @@ impl Account for LocalAccount {
         content: &str,
         progress: impl Fn(ContactImportProgress) + Send + Sync,
     ) -> Result<Vec<SecretId>> {
+        self.ensure_authenticated()?;
+
         use vcard4::parse;
 
         let mut ids = Vec::new();
@@ -2185,6 +2184,8 @@ impl Account for LocalAccount {
         &self,
         path: impl AsRef<Path> + Send + Sync,
     ) -> crate::Result<()> {
+        self.ensure_authenticated()?;
+
         use std::io::Cursor;
 
         let account_identity = self.public_identity().await?;
@@ -2237,6 +2238,8 @@ impl Account for LocalAccount {
         &mut self,
         target: ImportTarget,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
+        self.ensure_authenticated()?;
+
         let result = match target.format {
             ImportFormat::OnePasswordCsv => {
                 self.import_csv(
@@ -2347,6 +2350,8 @@ impl Account for LocalAccount {
         target: &SecretPath,
         request: &ClipboardCopyRequest,
     ) -> Result<bool> {
+        self.ensure_authenticated()?;
+
         use serde_json::Value;
         let target_folder = self.find(|f| f.id() == target.folder_id()).await;
         if let Some(folder) = target_folder {
