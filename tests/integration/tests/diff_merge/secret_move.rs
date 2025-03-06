@@ -69,7 +69,12 @@ async fn diff_merge_secret_move() -> Result<()> {
 
     // Move the secret
     let SecretMove { id: new_id, .. } = local
-        .move_secret(&id, &default_folder, &summary, Default::default())
+        .move_secret(
+            &id,
+            default_folder.id(),
+            summary.id(),
+            Default::default(),
+        )
         .await?;
 
     assert_ne!(local.sync_status().await?, remote.sync_status().await?);

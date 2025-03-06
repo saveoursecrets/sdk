@@ -47,7 +47,12 @@ async fn local_move_secret() -> Result<()> {
 
     // Move to the new folder
     account
-        .move_secret(&id, &default_folder, &folder, Default::default())
+        .move_secret(
+            &id,
+            default_folder.id(),
+            folder.id(),
+            Default::default(),
+        )
         .await?;
 
     let statistics = account.statistics().await;

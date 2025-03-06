@@ -1387,8 +1387,8 @@ impl Account for NetworkAccount {
     async fn move_secret(
         &mut self,
         secret_id: &SecretId,
-        from: &Summary,
-        to: &Summary,
+        from: &VaultId,
+        to: &VaultId,
         options: AccessOptions,
     ) -> Result<SecretMove<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;

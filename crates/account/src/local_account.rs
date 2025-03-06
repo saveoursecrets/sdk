@@ -406,14 +406,14 @@ impl LocalAccount {
     async fn mv_secret(
         &mut self,
         secret_id: &SecretId,
-        from: &Summary,
-        to: &Summary,
+        from: &VaultId,
+        to: &VaultId,
         #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<SecretMove<<LocalAccount as Account>::NetworkResult>> {
-        self.open_vault(from.id(), false).await?;
+        self.open_vault(from, false).await?;
 
-        options.folder = Some(*from.id());
-        options.destination = Some(*to.id());
+        options.folder = Some(*from);
+        options.destination = Some(*to);
 
         let (_, secret_data, read_event) =
             self.get_secret(secret_id, &options, false).await?;
@@ -424,7 +424,7 @@ impl LocalAccount {
         #[cfg(feature = "files")]
         let mut file_events = Vec::new();
 
-        self.open_vault(to.id(), false).await?;
+        self.open_vault(to, false).await?;
         let (_, meta, secret) = secret_data.into();
         let (new_id, create_event, _) = self
             .add_secret(
@@ -437,7 +437,7 @@ impl LocalAccount {
             )
             .await?;
 
-        self.open_vault(from.id(), false).await?;
+        self.open_vault(from, false).await?;
 
         // Note that we call `remove_secret()` and not `delete_secret()`
         // as we need the original external files for the
@@ -453,8 +453,8 @@ impl LocalAccount {
                 .ok_or_else(|| AuthenticationError::NotAuthenticated)?
                 .move_files(
                     &move_secret_data,
-                    from.id(),
-                    to.id(),
+                    from,
+                    to,
                     secret_id,
                     &new_id,
                     None,
@@ -481,8 +481,8 @@ impl LocalAccount {
                 EventKind::MoveSecret,
                 *self.account_id(),
                 Some(AuditData::MoveSecret {
-                    from_vault_id: *from.id(),
-                    to_vault_id: *to.id(),
+                    from_vault_id: *from,
+                    to_vault_id: *to,
                     from_secret_id: *secret_id,
                     to_secret_id: new_id,
                 }),
@@ -1424,6 +1424,8 @@ impl Account for LocalAccount {
         secret: Secret,
         options: AccessOptions,
     ) -> Result<SecretChange<Self::NetworkResult>> {
+        self.ensure_authenticated()?;
+
         let (folder, commit_state) =
             self.compute_folder_state(&options).await?;
 
@@ -1456,10 +1458,13 @@ impl Account for LocalAccount {
         &mut self,
         secrets: Vec<(SecretMeta, Secret)>,
     ) -> Result<SecretInsert<Self::NetworkResult>> {
+        self.ensure_authenticated()?;
+
         let mut results = Vec::new();
         for (meta, secret) in secrets {
             results.push(
-                self.create_secret(meta, secret, Default::default()).await?,
+                self.create_secret(meta, secret, AccessOptions::default())
+                    .await?,
             );
         }
         Ok(SecretInsert {
@@ -1475,6 +1480,8 @@ impl Account for LocalAccount {
         secret: Option<Secret>,
         options: AccessOptions,
     ) -> Result<SecretChange<()>> {
+        self.ensure_authenticated()?;
+
         let (folder, commit_state) =
             self.compute_folder_state(&options).await?;
 
@@ -1497,20 +1504,24 @@ impl Account for LocalAccount {
         let mut file_events = result.file_events;
 
         let id = if let Some(destination_id) = options.destination.as_ref() {
-            let to = self
-                .storage
-                .find(|f| f.id() == destination_id)
-                .cloned()
-                .ok_or_else(|| {
-                    StorageError::FolderNotFound(*destination_id)
-                })?;
+            // let to = self
+            //     .storage
+            //     .find(|f| f.id() == destination_id)
+            //     .cloned()
+            //     .ok_or_else(|| {
+            //         StorageError::FolderNotFound(*destination_id)
+            //     })?;
+            //
+            let destination_id = *destination_id;
 
             let SecretMove {
                 id,
                 #[cfg(feature = "files")]
                     file_events: mut move_file_events,
                 ..
-            } = self.mv_secret(secret_id, &folder, &to, options).await?;
+            } = self
+                .mv_secret(secret_id, folder.id(), &destination_id, options)
+                .await?;
 
             #[cfg(feature = "files")]
             file_events.append(&mut move_file_events);
@@ -1539,10 +1550,11 @@ impl Account for LocalAccount {
     async fn move_secret(
         &mut self,
         secret_id: &SecretId,
-        from: &Summary,
-        to: &Summary,
+        from: &VaultId,
+        to: &VaultId,
         options: AccessOptions,
     ) -> Result<SecretMove<Self::NetworkResult>> {
+        self.ensure_authenticated()?;
         self.mv_secret(secret_id, from, to, options).await
     }
 
@@ -1551,6 +1563,7 @@ impl Account for LocalAccount {
         secret_id: &SecretId,
         folder: Option<&VaultId>,
     ) -> Result<(SecretRow, ReadEvent)> {
+        self.ensure_authenticated()?;
         let options = folder.into();
         let (_, row, event) =
             self.get_secret(secret_id, &options, true).await?;
@@ -1608,7 +1621,8 @@ impl Account for LocalAccount {
             .archive_folder()
             .await
             .ok_or_else(|| Error::NoArchive)?;
-        self.move_secret(secret_id, from, &to, options).await
+        self.move_secret(secret_id, from.id(), to.id(), options)
+            .await
     }
 
     async fn unarchive(
@@ -1639,7 +1653,9 @@ impl Account for LocalAccount {
         {
             to = contacts.unwrap();
         }
-        let result = self.move_secret(secret_id, &from, &to, options).await?;
+        let result = self
+            .move_secret(secret_id, from.id(), to.id(), options)
+            .await?;
         Ok((result, to))
     }
 

@@ -153,8 +153,8 @@ async fn file_transfers_multi_move() -> Result<()> {
         .owner
         .move_secret(
             &secret_id,
-            &default_folder,
-            &destination,
+            default_folder.id(),
+            destination.id(),
             Default::default(),
         )
         .await?;

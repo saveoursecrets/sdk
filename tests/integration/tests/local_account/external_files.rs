@@ -305,8 +305,8 @@ async fn assert_move_file_secret(
     let SecretMove { id: new_id, .. } = account
         .move_secret(
             id,
-            default_folder,
-            &destination,
+            default_folder.id(),
+            destination.id(),
             AccessOptions {
                 folder: None,
                 file_progress: Some(progress_tx),

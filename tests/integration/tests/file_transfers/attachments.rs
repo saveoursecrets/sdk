@@ -183,8 +183,8 @@ async fn file_transfers_attach_move() -> Result<()> {
         .owner
         .move_secret(
             &secret_id,
-            &default_folder,
-            &destination,
+            default_folder.id(),
+            destination.id(),
             Default::default(),
         )
         .await?;

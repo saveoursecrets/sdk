@@ -53,7 +53,12 @@ async fn event_log_file() -> Result<()> {
 
     // Move the secret to move the associated file
     let SecretMove { id, .. } = account
-        .move_secret(&id, &default_folder, &folder, Default::default())
+        .move_secret(
+            &id,
+            default_folder.id(),
+            folder.id(),
+            Default::default(),
+        )
         .await?;
 
     // Read secret so we can update the data with a file attachment

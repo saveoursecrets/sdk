@@ -1,5 +1,6 @@
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
+use sos_client_storage::AccessOptions;
 use sos_core::{
     commit::CommitHash,
     crypto::{AccessKey, Cipher, KeyDerivation},
@@ -8,7 +9,7 @@ use sos_core::{
 use sos_net::NetworkAccount;
 use sos_password::diceware::generate_passphrase;
 use sos_search::QueryFilter;
-use sos_test_utils::{make_client_backend, setup, teardown};
+use sos_test_utils::{make_client_backend, mock, setup, teardown};
 
 /// Check that API methods on LocalAccount return an
 /// AuthenticationError when not authenticated.
@@ -254,6 +255,39 @@ async fn assert_account(account: &mut impl Account) -> Result<()> {
         let file_name = ExternalFileName::from([0u8; 32]);
         assert!(account
             .download_file(&folder_id, &secret_id, &file_name)
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
+
+    {
+        let (meta, secret) = mock::note("mock", "mock");
+        assert!(account
+            .create_secret(meta, secret, AccessOptions::default())
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
+
+    assert!(account
+        .insert_secrets(vec![])
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    {
+        let secret_id = SecretId::new_v4();
+        let (meta, secret) = mock::note("mock", "mock");
+        assert!(account
+            .update_secret(
+                &secret_id,
+                meta,
+                Some(secret),
+                AccessOptions::default()
+            )
             .await
             .err()
             .unwrap()

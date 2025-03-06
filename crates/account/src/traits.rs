@@ -431,8 +431,8 @@ pub trait Account {
     async fn move_secret(
         &mut self,
         secret_id: &SecretId,
-        from: &Summary,
-        to: &Summary,
+        from: &VaultId,
+        to: &VaultId,
         options: AccessOptions,
     ) -> std::result::Result<SecretMove<Self::NetworkResult>, Self::Error>;
 

@@ -1072,8 +1072,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                 owner
                     .move_secret(
                         &resolved.secret_id,
-                        &resolved.summary,
-                        &to,
+                        resolved.summary.id(),
+                        to.id(),
                         Default::default(),
                     )
                     .await?;
