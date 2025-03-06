@@ -985,10 +985,12 @@ impl Account for LocalAccount {
     }
 
     async fn open_folder(&self, folder_id: &VaultId) -> Result<()> {
+        self.ensure_authenticated()?;
         self.open_vault(folder_id, true).await
     }
 
     async fn current_folder(&self) -> Result<Option<Summary>> {
+        self.ensure_authenticated()?;
         Ok(self.storage.current_folder())
     }
 
@@ -996,6 +998,7 @@ impl Account for LocalAccount {
         &self,
         folder_id: &VaultId,
     ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>> {
+        self.ensure_authenticated()?;
         Ok(self.storage.history(folder_id).await?)
     }
 
@@ -1004,12 +1007,12 @@ impl Account for LocalAccount {
 
         // Lock all the storage vaults
         {
-            tracing::debug!("lock storage vaults");
+            tracing::debug!("sign_out::lock_storage");
             self.storage.lock().await;
 
             #[cfg(feature = "search")]
             {
-                tracing::debug!("clear search index");
+                tracing::debug!("sign_out::clear_search_index");
                 // Remove the search index
                 self.storage
                     .search_index_mut()
@@ -1093,16 +1096,19 @@ impl Account for LocalAccount {
         &self,
         folder_id: &VaultId,
     ) -> Result<Vec<SecretId>> {
+        self.ensure_authenticated()?;
         Ok(self.storage.list_secret_ids(folder_id).await?)
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {
+        self.ensure_authenticated()?;
         let mut folders = self.storage.load_folders().await?.to_vec();
         folders.sort_by(|a, b| a.name().cmp(b.name()));
         Ok(folders)
     }
 
     async fn list_folders(&self) -> Result<Vec<Summary>> {
+        self.ensure_authenticated()?;
         let mut folders = self.storage.list_folders().to_vec();
         folders.sort_by(|a, b| a.name().cmp(b.name()));
         Ok(folders)
@@ -1150,8 +1156,8 @@ impl Account for LocalAccount {
     async fn compact_account(
         &mut self,
     ) -> Result<HashMap<Summary, AccountEvent>> {
-        let mut output = HashMap::new();
         let folders = self.list_folders().await?;
+        let mut output = HashMap::new();
 
         for folder in folders {
             let result = self.compact_folder(folder.id()).await?;
@@ -1217,8 +1223,6 @@ impl Account for LocalAccount {
         folder_id: &VaultId,
         new_key: AccessKey,
     ) -> Result<()> {
-        self.ensure_authenticated()?;
-
         let current_key = self
             .find_folder_password(folder_id)
             .await?
@@ -1239,8 +1243,6 @@ impl Account for LocalAccount {
         folder_id: &VaultId,
         commit: CommitHash,
     ) -> Result<DetachedView> {
-        let search_index = Arc::new(RwLock::new(SearchIndex::new()));
-
         let key = self
             .find_folder_password(folder_id)
             .await?
@@ -1263,14 +1265,12 @@ impl Account for LocalAccount {
         let mut keeper = AccessPoint::new_vault(vault);
         keeper.unlock(&key).await?;
 
-        {
-            let mut index = search_index.write().await;
-            index.add_folder(&keeper).await?;
-        }
+        let mut search_index = SearchIndex::new();
+        search_index.add_folder(&keeper).await?;
 
         Ok(DetachedView {
             keeper,
-            index: search_index,
+            index: Arc::new(RwLock::new(search_index)),
         })
     }
 

@@ -1,10 +1,16 @@
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
-use sos_core::{ErrorExt, Paths, VaultId};
+use sos_core::{
+    commit::CommitHash,
+    crypto::{AccessKey, Cipher, KeyDerivation},
+    ErrorExt, Paths, VaultId,
+};
 use sos_net::NetworkAccount;
 use sos_password::diceware::generate_passphrase;
 use sos_test_utils::{make_client_backend, setup, teardown};
 
+/// Check that API methods on LocalAccount return an
+/// AuthenticationError when not authenticated.
 #[tokio::test]
 async fn not_authenticated_local_account() -> Result<()> {
     const TEST_ID: &str = "not_authenticated_local_account";
@@ -26,6 +32,8 @@ async fn not_authenticated_local_account() -> Result<()> {
     Ok(())
 }
 
+/// Check that API methods on NetworkAccount return an
+/// AuthenticationError when not authenticated.
 #[tokio::test]
 async fn not_authenticated_network_account() -> Result<()> {
     const TEST_ID: &str = "not_authenticated_network_account";
@@ -89,6 +97,128 @@ async fn assert_account(account: &mut impl Account) -> Result<()> {
         .err()
         .unwrap()
         .is_forbidden());
+    assert!(account
+        .identity_folder_summary()
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+    assert!(account
+        .reload_identity_folder()
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    {
+        let (password, _) = generate_passphrase()?;
+        let account_key: AccessKey = password.into();
+        let cipher = Cipher::AesGcm256;
+        let kdf = KeyDerivation::Argon2Id;
+
+        assert!(account
+            .change_cipher(&account_key, &cipher, Some(kdf))
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
+
+    {
+        let (password, _) = generate_passphrase()?;
+        assert!(account
+            .change_account_password(password)
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
+
+    assert!(account
+        .open_folder(&folder_id)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account.current_folder().await.err().unwrap().is_forbidden());
+
+    assert!(account
+        .history(&folder_id)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .rename_account(String::new())
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .set_account_name(String::new())
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account.delete_account().await.err().unwrap().is_forbidden());
+    assert!(account
+        .list_secret_ids(&folder_id)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account.load_folders().await.err().unwrap().is_forbidden());
+    assert!(account.list_folders().await.err().unwrap().is_forbidden());
+    assert!(account.account_data().await.err().unwrap().is_forbidden());
+    assert!(account
+        .compact_account()
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+    assert!(account
+        .compact_folder(&folder_id)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .restore_folder(&folder_id, vec![])
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    {
+        let (password, _) = generate_passphrase()?;
+        let new_key: AccessKey = password.into();
+        assert!(account
+            .change_folder_password(&folder_id, new_key)
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
+
+    assert!(account
+        .detached_view(&folder_id, CommitHash::default())
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .initialize_search_index()
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
 
     /*
     assert!(account
@@ -98,5 +228,6 @@ async fn assert_account(account: &mut impl Account) -> Result<()> {
         .unwrap()
         .is_forbidden());
         */
+
     Ok(())
 }
