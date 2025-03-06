@@ -498,7 +498,8 @@ pub trait ClientFolderStorage:
 
             self.folders_mut().insert(folder_id, folder);
             let summary = vault.summary().to_owned();
-            self.add_summary(summary.clone(), Internal);
+            self.remove_summary(summary.id(), Internal);
+            self.add_summary(summary, Internal);
         }
         Ok(())
     }

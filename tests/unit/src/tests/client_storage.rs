@@ -40,7 +40,6 @@ const MOCK_VALUE: &str = "mock-value";
 const MOCK_NOTE_UPDATED: &str = "mock-note-updated";
 const MOCK_VALUE_UPDATED: &str = "mock-value-updated";
 
-#[ignore]
 #[tokio::test]
 async fn fs_client_storage() -> Result<()> {
     let temp = tempdir_in("target")?;
@@ -67,7 +66,6 @@ async fn fs_client_storage() -> Result<()> {
     Ok(())
 }
 
-#[ignore]
 #[tokio::test]
 async fn db_client_storage() -> Result<()> {
     const TEST_ID: &str = "db_client_storage";
@@ -448,6 +446,8 @@ async fn assert_client_storage(
     let mut patches = HashMap::new();
     patches.insert(main_id, patch);
     storage.import_folder_patches(patches).await?;
+
+    assert_eq!(2, storage.list_folders().len());
 
     // Check we can import a login vault
     let login_vault = storage.read_login_vault().await?;
