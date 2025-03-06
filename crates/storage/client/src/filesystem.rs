@@ -17,7 +17,7 @@ use sos_core::{
     device::TrustedDevice,
     encode,
     events::{DeviceEvent, Event, EventLog, ReadEvent},
-    AccountId, Paths, VaultFlags, VaultId,
+    AccountId, Paths, SecretId, VaultFlags, VaultId,
 };
 use sos_filesystem::write_exclusive;
 use sos_login::Identity;
@@ -441,6 +441,14 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         }
 
         Ok(())
+    }
+
+    async fn list_secret_ids(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Vec<SecretId>> {
+        let vault: Vault = self.read_vault(folder_id).await?;
+        Ok(vault.keys().cloned().collect())
     }
 
     async fn create_device_vault(

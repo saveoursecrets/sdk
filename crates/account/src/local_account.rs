@@ -1103,9 +1103,11 @@ impl Account for LocalAccount {
         self.storage.find_folder(vault).cloned()
     }
 
-    async fn secret_ids(&self, folder_id: &VaultId) -> Result<Vec<SecretId>> {
-        let vault: Vault = self.storage.read_vault(folder_id).await?;
-        Ok(vault.keys().cloned().collect())
+    async fn list_secret_ids(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Vec<SecretId>> {
+        Ok(self.storage.list_secret_ids(folder_id).await?)
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {

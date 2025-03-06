@@ -355,9 +355,12 @@ impl Account for LinkedAccount {
         Ok(account.delete_account().await?)
     }
 
-    async fn secret_ids(&self, folder_id: &VaultId) -> Result<Vec<SecretId>> {
+    async fn list_secret_ids(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Vec<SecretId>> {
         let account = self.account.lock().await;
-        Ok(account.secret_ids(folder_id).await?)
+        Ok(account.list_secret_ids(folder_id).await?)
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {

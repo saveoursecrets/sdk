@@ -16,7 +16,7 @@ use sos_core::{
     device::TrustedDevice,
     encode,
     events::{DeviceEvent, Event, EventLog, ReadEvent},
-    AccountId, Paths, VaultFlags, VaultId,
+    AccountId, Paths, SecretId, VaultFlags, VaultId,
 };
 use sos_database::{
     async_sqlite::Client,
@@ -568,6 +568,22 @@ impl ClientAccountStorage for ClientDatabaseStorage {
         }
 
         Ok(())
+    }
+
+    async fn list_secret_ids(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Vec<SecretId>> {
+        let folder_id = *folder_id;
+        let secret_ids = self
+            .client
+            .conn_and_then(move |conn| {
+                let folder_entity = FolderEntity::new(&conn);
+                folder_entity.list_secret_ids(&folder_id)
+            })
+            .await?;
+
+        Ok(secret_ids)
     }
 
     async fn create_device_vault(

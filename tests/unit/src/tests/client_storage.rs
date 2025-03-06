@@ -427,6 +427,9 @@ async fn assert_client_storage(
         .create_secret(secret_data.clone(), options.clone())
         .await?;
 
+    let ids = storage.list_secret_ids(main.id()).await?;
+    assert_eq!(1, ids.len());
+
     // Device patch and revoke
     let device_signer = DeviceSigner::new_random();
     let device_public_key = device_signer.public_key();

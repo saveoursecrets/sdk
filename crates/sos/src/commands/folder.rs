@@ -263,7 +263,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 owner.open_folder(summary.id()).await?;
             }
 
-            let ids = owner.secret_ids(summary.id()).await?;
+            let ids = owner.list_secret_ids(summary.id()).await?;
             for id in ids {
                 println!("{}", id);
             }

@@ -18,7 +18,7 @@ use sos_core::{
         patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
         Event, ReadEvent, WriteEvent,
     },
-    AccountId, AuthenticationError, Paths, VaultId,
+    AccountId, AuthenticationError, Paths, SecretId, VaultId,
 };
 use sos_login::Identity;
 use sos_sync::{
@@ -79,6 +79,9 @@ impl ClientStorage {
     }
 
     /// Create new account in client storage.
+    ///
+    /// Only to be used when fetching account data from a
+    /// remote. If this is used when
     pub async fn new_account(
         target: BackendTarget,
         account_id: &AccountId,
@@ -342,6 +345,20 @@ impl ClientAccountStorage for ClientStorage {
             }
             ClientStorage::Database(db) => {
                 db.import_account(account_data).await
+            }
+        }
+    }
+
+    async fn list_secret_ids(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Vec<SecretId>> {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.list_secret_ids(folder_id).await
+            }
+            ClientStorage::Database(db) => {
+                db.list_secret_ids(folder_id).await
             }
         }
     }

@@ -263,7 +263,7 @@ pub trait Account {
     ) -> std::result::Result<(), Self::Error>;
 
     /// Read the secret identifiers in a folder.
-    async fn secret_ids(
+    async fn list_secret_ids(
         &self,
         folder_id: &VaultId,
     ) -> std::result::Result<Vec<SecretId>, Self::Error>;

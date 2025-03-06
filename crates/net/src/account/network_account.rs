@@ -1012,9 +1012,12 @@ impl Account for NetworkAccount {
         Ok(account.list_folders().await?)
     }
 
-    async fn secret_ids(&self, folder_id: &VaultId) -> Result<Vec<SecretId>> {
+    async fn list_secret_ids(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Vec<SecretId>> {
         let account = self.account.lock().await;
-        Ok(account.secret_ids(folder_id).await?)
+        Ok(account.list_secret_ids(folder_id).await?)
     }
 
     async fn account_data(&self) -> Result<AccountData> {

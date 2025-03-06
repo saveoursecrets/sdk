@@ -800,6 +800,12 @@ pub trait ClientAccountStorage:
         account_data: &CreateSet,
     ) -> Result<()>;
 
+    /// List the secret ids for a folder.
+    async fn list_secret_ids(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Vec<SecretId>>;
+
     /// Create a device vault from a buffer.
     ///
     /// Used during pairing enrollment to initialize

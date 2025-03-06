@@ -844,6 +844,33 @@ where
         Ok(secrets)
     }
 
+    /// List secret ids.
+    pub fn list_secret_ids(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Vec<SecretId>> {
+        let folder = self.find_one(folder_id)?;
+        let query = sql::Select::new()
+            .select("identifier")
+            .from("folder_secrets")
+            .where_clause("folder_id=?1");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
+
+        fn convert_row(row: &Row<'_>) -> Result<SecretId> {
+            let id: String = row.get(0)?;
+            Ok(id.parse()?)
+        }
+
+        let rows = stmt.query_and_then([folder.row_id], |row| {
+            Ok::<_, crate::Error>(convert_row(row)?)
+        })?;
+        let mut secrets = Vec::new();
+        for row in rows {
+            secrets.push(row?);
+        }
+        Ok(secrets)
+    }
+
     /// Delete a folder.
     pub fn delete_folder(
         &self,
