@@ -157,7 +157,7 @@ async fn local_search_view_query() -> Result<()> {
 
     // Move a secret to the archive
     account
-        .archive(&default_folder, &card_id, Default::default())
+        .archive(default_folder.id(), &card_id, Default::default())
         .await?;
 
     // Query all documents but ignore items

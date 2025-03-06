@@ -20,6 +20,7 @@ use sos_login::{
     PublicIdentity,
 };
 use sos_sync::CreateSet;
+use sos_vault::secret::SecretType;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretPath, SecretRow},
     Summary, Vault, VaultFlags,
@@ -465,7 +466,7 @@ pub trait Account {
     /// An archive folder must exist.
     async fn archive(
         &mut self,
-        from: &Summary,
+        folder_id: &VaultId,
         secret_id: &SecretId,
         options: AccessOptions,
     ) -> std::result::Result<SecretMove<Self::NetworkResult>, Self::Error>;
@@ -484,7 +485,7 @@ pub trait Account {
     async fn unarchive(
         &mut self,
         secret_id: &SecretId,
-        secret_meta: &SecretMeta,
+        secret_kind: &SecretType,
         options: AccessOptions,
     ) -> std::result::Result<
         (SecretMove<Self::NetworkResult>, Summary),

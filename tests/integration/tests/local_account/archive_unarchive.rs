@@ -40,7 +40,7 @@ async fn local_archive_unarchive() -> Result<()> {
 
     // Archive the secret and get the new identifier
     let SecretMove { id, .. } = account
-        .archive(&default_folder, &id, Default::default())
+        .archive(default_folder.id(), &id, Default::default())
         .await?;
 
     let statistics = account.statistics().await;
@@ -48,7 +48,9 @@ async fn local_archive_unarchive() -> Result<()> {
     assert!(statistics.folders.contains(&(archive_folder.clone(), 1)));
 
     // Move from the archive back to the default folder
-    account.unarchive(&id, &meta, Default::default()).await?;
+    account
+        .unarchive(&id, meta.kind(), Default::default())
+        .await?;
 
     let statistics = account.statistics().await;
     assert!(statistics.folders.contains(&(default_folder.clone(), 1)));

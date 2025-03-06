@@ -10,6 +10,7 @@ use sos_net::NetworkAccount;
 use sos_password::diceware::generate_passphrase;
 use sos_search::QueryFilter;
 use sos_test_utils::{make_client_backend, mock, setup, teardown};
+use sos_vault::secret::SecretType;
 
 /// Check that API methods on LocalAccount return an
 /// AuthenticationError when not authenticated.
@@ -63,6 +64,7 @@ async fn not_authenticated_network_account() -> Result<()> {
 
 async fn assert_account(account: &mut impl Account) -> Result<()> {
     let folder_id = VaultId::new_v4();
+    let secret_id = SecretId::new_v4();
 
     assert!(!account.is_authenticated().await);
     assert!(account.device_signer().await.err().unwrap().is_forbidden());
@@ -293,6 +295,65 @@ async fn assert_account(account: &mut impl Account) -> Result<()> {
             .unwrap()
             .is_forbidden());
     }
+
+    assert!(account
+        .move_secret(
+            &secret_id,
+            &folder_id,
+            &folder_id,
+            AccessOptions::default()
+        )
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .move_secret(
+            &secret_id,
+            &folder_id,
+            &folder_id,
+            AccessOptions::default()
+        )
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .read_secret(&secret_id, None)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .raw_secret(&folder_id, &secret_id)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .delete_secret(&secret_id, AccessOptions::default())
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .archive(&folder_id, &secret_id, AccessOptions::default())
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .unarchive(&secret_id, &SecretType::Note, AccessOptions::default())
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
 
     Ok(())
 }

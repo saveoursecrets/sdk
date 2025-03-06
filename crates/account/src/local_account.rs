@@ -1504,14 +1504,6 @@ impl Account for LocalAccount {
         let mut file_events = result.file_events;
 
         let id = if let Some(destination_id) = options.destination.as_ref() {
-            // let to = self
-            //     .storage
-            //     .find(|f| f.id() == destination_id)
-            //     .cloned()
-            //     .ok_or_else(|| {
-            //         StorageError::FolderNotFound(*destination_id)
-            //     })?;
-            //
             let destination_id = *destination_id;
 
             let SecretMove {
@@ -1575,6 +1567,7 @@ impl Account for LocalAccount {
         folder_id: &VaultId,
         secret_id: &SecretId,
     ) -> Result<Option<(VaultCommit, ReadEvent)>> {
+        self.ensure_authenticated()?;
         Ok(self.storage.raw_secret(folder_id, secret_id).await?)
     }
 
@@ -1583,6 +1576,7 @@ impl Account for LocalAccount {
         secret_id: &SecretId,
         options: AccessOptions,
     ) -> Result<SecretDelete<Self::NetworkResult>> {
+        self.ensure_authenticated()?;
         let (folder, commit_state) =
             self.compute_folder_state(&options).await?;
 
@@ -1609,10 +1603,18 @@ impl Account for LocalAccount {
 
     async fn archive(
         &mut self,
-        from: &Summary,
+        folder_id: &VaultId,
         secret_id: &SecretId,
         options: AccessOptions,
     ) -> Result<SecretMove<Self::NetworkResult>> {
+        self.ensure_authenticated()?;
+
+        let from = self
+            .storage
+            .find(|s| s.id() == folder_id)
+            .cloned()
+            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
+
         if from.flags().is_archive() {
             return Err(Error::AlreadyArchived);
         }
@@ -1628,9 +1630,10 @@ impl Account for LocalAccount {
     async fn unarchive(
         &mut self,
         secret_id: &SecretId,
-        secret_meta: &SecretMeta,
+        secret_kind: &SecretType,
         options: AccessOptions,
     ) -> Result<(SecretMove<Self::NetworkResult>, Summary)> {
+        self.ensure_authenticated()?;
         let from = self
             .archive_folder()
             .await
@@ -1639,20 +1642,24 @@ impl Account for LocalAccount {
             return Err(Error::NotArchived);
         }
         self.open_folder(from.id()).await?;
-        let mut to = self
-            .default_folder()
-            .await
-            .ok_or_else(|| Error::NoDefaultFolder)?;
-        let authenticator = self.authenticator_folder().await;
-        let contacts = self.contacts_folder().await;
-        if secret_meta.kind() == &SecretType::Totp && authenticator.is_some()
-        {
-            to = authenticator.unwrap();
-        } else if secret_meta.kind() == &SecretType::Contact
-            && contacts.is_some()
-        {
-            to = contacts.unwrap();
-        }
+        let to = match secret_kind {
+            SecretType::Totp => self.authenticator_folder().await,
+            SecretType::Contact => self.contacts_folder().await,
+            _ => Some(
+                self.default_folder()
+                    .await
+                    .ok_or_else(|| Error::NoDefaultFolder)?,
+            ),
+        };
+
+        let to = if let Some(to) = to {
+            to
+        } else {
+            self.default_folder()
+                .await
+                .ok_or_else(|| Error::NoDefaultFolder)?
+        };
+
         let result = self
             .move_secret(secret_id, from.id(), to.id(), options)
             .await?;

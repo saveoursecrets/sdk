@@ -1217,7 +1217,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     .ok_or(Error::NoSelectedAccount)?;
                 owner
                     .archive(
-                        &resolved.summary,
+                        resolved.summary.id(),
                         &resolved.secret_id,
                         Default::default(),
                     )
@@ -1263,7 +1263,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 owner
                     .unarchive(
                         &resolved.secret_id,
-                        &resolved.meta,
+                        resolved.meta.kind(),
                         Default::default(),
                     )
                     .await?;

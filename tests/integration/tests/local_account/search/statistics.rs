@@ -107,12 +107,14 @@ async fn local_search_statistics() -> Result<()> {
     assert_eq!(2, *count.vaults().get(default_folder.id()).unwrap());
     assert_eq!(1, *count.kinds().get(&SecretType::Account.into()).unwrap());
     let SecretMove { id, .. } = account
-        .archive(&default_folder, &id, Default::default())
+        .archive(default_folder.id(), &id, Default::default())
         .await?;
     let count = account.document_count().await?;
     assert_eq!(1, *count.vaults().get(default_folder.id()).unwrap());
     assert_eq!(1, *count.vaults().get(archive_folder.id()).unwrap());
-    account.unarchive(&id, &meta, Default::default()).await?;
+    account
+        .unarchive(&id, meta.kind(), Default::default())
+        .await?;
     let count = account.document_count().await?;
     assert_eq!(2, *count.vaults().get(default_folder.id()).unwrap());
     assert_eq!(0, *count.vaults().get(archive_folder.id()).unwrap());

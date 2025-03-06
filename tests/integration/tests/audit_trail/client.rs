@@ -158,7 +158,7 @@ async fn simulate_session(
         .await?;
     // Archive the secret to generate move event
     account
-        .archive(default_folder, &id, Default::default())
+        .archive(default_folder.id(), &id, Default::default())
         .await?;
     // Create a new folder
     let FolderCreate {

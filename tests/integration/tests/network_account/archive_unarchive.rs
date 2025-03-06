@@ -42,7 +42,7 @@ async fn network_sync_archive_unarchive() -> Result<()> {
     // Move to the archive
     let SecretMove { id: secret_id, .. } = device1
         .owner
-        .archive(&default_folder, &secret_id, Default::default())
+        .archive(default_folder.id(), &secret_id, Default::default())
         .await?;
 
     // First client is now ahead in both folders
@@ -71,7 +71,7 @@ async fn network_sync_archive_unarchive() -> Result<()> {
     // Unarchive the secret
     device1
         .owner
-        .unarchive(&secret_id, data.meta(), Default::default())
+        .unarchive(&secret_id, data.meta().kind(), Default::default())
         .await?;
 
     // First client is now ahead in both folders

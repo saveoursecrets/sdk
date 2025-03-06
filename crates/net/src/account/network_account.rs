@@ -33,7 +33,7 @@ use sos_protocol::{
 use sos_remote_sync::RemoteSyncHandler;
 use sos_sync::{CreateSet, StorageEventLogs, UpdateSet};
 use sos_vault::{
-    secret::{Secret, SecretMeta, SecretRow},
+    secret::{Secret, SecretMeta, SecretRow, SecretType},
     Summary, Vault, VaultCommit, VaultFlags,
 };
 use sos_vfs as vfs;
@@ -1460,14 +1460,14 @@ impl Account for NetworkAccount {
 
     async fn archive(
         &mut self,
-        from: &Summary,
+        folder_id: &VaultId,
         secret_id: &SecretId,
         options: AccessOptions,
     ) -> Result<SecretMove<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.archive(from, secret_id, options).await?
+            account.archive(folder_id, secret_id, options).await?
         };
 
         let result = SecretMove {
@@ -1487,14 +1487,14 @@ impl Account for NetworkAccount {
     async fn unarchive(
         &mut self,
         secret_id: &SecretId,
-        secret_meta: &SecretMeta,
+        secret_kind: &SecretType,
         options: AccessOptions,
     ) -> Result<(SecretMove<Self::NetworkResult>, Summary)> {
         let _ = self.sync_lock.lock().await;
 
         let (result, to) = {
             let mut account = self.account.lock().await;
-            account.unarchive(secret_id, secret_meta, options).await?
+            account.unarchive(secret_id, secret_kind, options).await?
         };
 
         let result = SecretMove {
