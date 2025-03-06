@@ -120,9 +120,8 @@ pub trait Account {
         &self,
     ) -> std::result::Result<PublicIdentity, Self::Error>;
 
-    /// Label of this account.
-    async fn account_label(&self)
-        -> std::result::Result<String, Self::Error>;
+    /// Name of this account.
+    async fn account_name(&self) -> std::result::Result<String, Self::Error>;
 
     /// Get the description of a folder.
     ///

@@ -378,7 +378,7 @@ async fn account_delete(account: Option<AccountRef>) -> Result<bool> {
 
     let prompt = format!(
         r#"Delete account "{}" (y/n)? "#,
-        owner.account_label().await?,
+        owner.account_name().await?,
     );
     let result = if read_flag(Some(&prompt))? {
         owner.delete_account().await?;
@@ -405,7 +405,7 @@ async fn migrate_export(
 
     let prompt = format!(
         r#"Export UNENCRYPTED account "{}" (y/n)? "#,
-        owner.account_label().await?,
+        owner.account_name().await?,
     );
 
     let result = if read_flag(Some(&prompt))? {

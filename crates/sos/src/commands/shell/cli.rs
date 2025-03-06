@@ -92,7 +92,7 @@ pub async fn run(
                 let owner = owner
                     .selected_account()
                     .ok_or(Error::NoSelectedAccount)?;
-                let account_name = owner.account_label().await?;
+                let account_name = owner.account_name().await?;
                 if let Some(current) = owner.current_folder().await? {
                     format!("{}@{}> ", account_name, current.name())
                 } else {

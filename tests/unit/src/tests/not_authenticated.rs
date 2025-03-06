@@ -73,7 +73,7 @@ async fn assert_account(account: &mut impl Account) -> Result<()> {
         .err()
         .unwrap()
         .is_forbidden());
-    assert!(account.account_label().await.err().unwrap().is_forbidden());
+    assert!(account.account_name().await.err().unwrap().is_forbidden());
 
     /*
     assert!(account

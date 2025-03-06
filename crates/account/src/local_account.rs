@@ -758,7 +758,7 @@ impl Account for LocalAccount {
         Ok(authenticated_user.account()?.clone())
     }
 
-    async fn account_label(&self) -> Result<String> {
+    async fn account_name(&self) -> Result<String> {
         let authenticated_user = self
             .storage
             .authenticated_user()

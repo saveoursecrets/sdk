@@ -290,7 +290,7 @@ async fn exec_program(program: Shell) -> Result<()> {
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             println!(
                 "{} {}",
-                owner.account_label().await?,
+                owner.account_name().await?,
                 owner.account_id()
             );
             Ok(())

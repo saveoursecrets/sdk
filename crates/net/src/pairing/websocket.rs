@@ -377,7 +377,7 @@ impl<'a> OfferPairing<'a> {
                         self.account.new_device_vault().await?;
                     let device_vault = manager.into_vault_buffer().await?;
                     let servers = self.account.servers().await;
-                    let account_name = self.account.account_label().await?;
+                    let account_name = self.account.account_name().await?;
 
                     self.register_device(device_signer.public_key(), device)
                         .await?;

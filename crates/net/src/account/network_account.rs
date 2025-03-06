@@ -759,9 +759,9 @@ impl Account for NetworkAccount {
         Ok(account.public_identity().await?)
     }
 
-    async fn account_label(&self) -> Result<String> {
+    async fn account_name(&self) -> Result<String> {
         let account = self.account.lock().await;
-        Ok(account.account_label().await?)
+        Ok(account.account_name().await?)
     }
 
     async fn folder_description(
