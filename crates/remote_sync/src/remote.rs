@@ -75,7 +75,7 @@ pub trait RemoteSyncHandler {
         {
             let account = self.account();
             let account = account.lock().await;
-            let public_account = account.change_set().await?;
+            let public_account = account.create_set().await?;
             self.client().create_account(public_account).await?;
         }
 

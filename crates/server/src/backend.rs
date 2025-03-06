@@ -236,9 +236,7 @@ impl Backend {
             .ok_or(Error::NoAccount(*account_id))?;
 
         let reader = account.read().await;
-        let change_set = reader.change_set().await?;
-
-        Ok(change_set)
+        Ok(reader.create_set().await?)
     }
 
     /// Verify a device is allowed to access an account.

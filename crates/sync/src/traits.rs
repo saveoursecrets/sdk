@@ -556,11 +556,11 @@ pub trait SyncStorage: ForceMerge {
         })
     }
 
-    /// Change set of all event logs.
+    /// Set of all event logs.
     ///
     /// Used by network aware implementations to transfer
     /// entire accounts.
-    async fn change_set(
+    async fn create_set(
         &self,
     ) -> std::result::Result<CreateSet, Self::Error> {
         let identity = {
@@ -595,7 +595,7 @@ pub trait SyncStorage: ForceMerge {
             if folder.flags().is_sync_disabled() {
                 tracing::debug!(
                     folder_id = %folder.id(),
-                    "change_set::ignore::no_sync_flag");
+                    "create_set::ignore::no_sync_flag");
                 continue;
             }
             let event_log = self.folder_log(folder.id()).await?;

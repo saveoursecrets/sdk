@@ -457,7 +457,7 @@ async fn assert_client_storage(
     let login_vault = storage.read_login_vault().await?;
     storage.import_login_vault(login_vault).await?;
 
-    let create_set = storage.change_set().await?;
+    let create_set = storage.create_set().await?;
 
     // debug_login_vault(storage, &password).await?;
 
