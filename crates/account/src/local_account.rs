@@ -1326,7 +1326,7 @@ impl Account for LocalAccount {
     }
 
     #[cfg(feature = "search")]
-    async fn index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
+    async fn search_index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
         Ok(self
             .storage
             .search_index()

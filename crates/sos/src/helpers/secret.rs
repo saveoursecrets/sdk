@@ -43,7 +43,7 @@ pub async fn resolve_secret(
 ) -> Result<Option<(SecretId, SecretMeta)>> {
     let owner = user.read().await;
     let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-    let search = owner.index().await?;
+    let search = owner.search_index().await?;
     let index_reader = search.read().await;
     if let Some(Document {
         secret_id, meta, ..

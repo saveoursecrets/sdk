@@ -357,7 +357,7 @@ pub trait Account {
 
     /// Search index for the account.
     #[cfg(feature = "search")]
-    async fn index(
+    async fn search_index(
         &self,
     ) -> std::result::Result<Arc<RwLock<SearchIndex>>, Self::Error>;
 

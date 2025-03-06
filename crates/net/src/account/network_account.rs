@@ -1227,9 +1227,9 @@ impl Account for NetworkAccount {
     }
 
     #[cfg(feature = "search")]
-    async fn index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
+    async fn search_index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
         let account = self.account.lock().await;
-        Ok(account.index().await?)
+        Ok(account.search_index().await?)
     }
 
     #[cfg(feature = "search")]

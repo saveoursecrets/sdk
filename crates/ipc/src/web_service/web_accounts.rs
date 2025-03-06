@@ -277,7 +277,7 @@ where
         + 'static,
 {
     let paths = account.paths();
-    let index = account.index().await?;
+    let index = account.search_index().await?;
 
     let folder_ids = match records {
         ChangeRecords::Account(events) => {
