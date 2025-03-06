@@ -23,8 +23,7 @@ use sos_login::{
 use sos_password::diceware::generate_passphrase;
 use sos_reducers::FolderReducer;
 use sos_sync::{CreateSet, StorageEventLogs, SyncStorage};
-use sos_test_utils::mock::{self, memory_database};
-use sos_test_utils::{setup, teardown};
+use sos_test_utils::{mock, setup, teardown};
 use sos_vault::secret::SecretRow;
 use std::collections::HashMap;
 use tempfile::tempdir_in;
@@ -104,6 +103,7 @@ async fn prepare_account(
     target: BackendTarget,
 ) -> Result<(CreateSet, SecretString, VaultId, SecretId)> {
     let (password, _) = generate_passphrase()?;
+    let (new_folder_password, _) = generate_passphrase()?;
 
     let account_builder = AccountBuilder::new(
         ACCOUNT_NAME.to_string(),
@@ -128,6 +128,7 @@ async fn prepare_account(
         &account_id,
         target,
         password.clone(),
+        new_folder_password,
         authenticated_user,
         account_pack,
     )
@@ -174,13 +175,6 @@ async fn sign_in(
     let key: AccessKey = password.into();
     authenticated_user.sign_in(account_id, &key).await?;
 
-    /*
-    authenticated_user
-        .identity_mut()?
-        .rebuild_lookup_index()
-        .await?;
-    */
-
     // Need folder access keys to initialize the search index
     let folder_keys = {
         let mut keys = HashMap::new();
@@ -192,10 +186,7 @@ async fn sign_in(
             {
                 keys.insert(*folder.id(), key);
             } else {
-                eprintln!(
-                    "FAILED to find folder password for {}",
-                    folder.id()
-                );
+                panic!("no folder password for {}", folder.id());
             }
         }
         FolderKeys(keys)
@@ -218,6 +209,7 @@ async fn assert_client_storage(
     account_id: &AccountId,
     target: BackendTarget,
     password: SecretString,
+    new_password: SecretString,
     authenticated_user: Identity,
     account_pack: AccountPack,
 ) -> Result<(CreateSet, VaultId, SecretId)> {
@@ -368,11 +360,11 @@ async fn assert_client_storage(
     assert_description(storage, main_vault.id(), "main-folder-after-load")
         .await?;
 
-    let (password, _) = generate_passphrase()?;
-    let new_key: AccessKey = password.into();
+    let new_key: AccessKey = new_password.clone().into();
     storage
         .change_password(&main_vault, main_key, new_key.clone())
         .await?;
+
     // Must save so we can unlock later
     folder_keys
         .save_folder_password(main_vault.id(), new_key)
@@ -423,6 +415,18 @@ async fn assert_client_storage(
     // Delete the secret
     storage.delete_secret(&secret_id, options).await?;
 
+    // Recreate the secret so we can assert after
+    // importing the account data
+    let (meta, secret) = mock::note(MOCK_NOTE, MOCK_VALUE);
+    let secret_data = SecretRow::new(secret_id, meta, secret);
+    let options = AccessOptions {
+        folder: Some(*main_vault.id()),
+        ..Default::default()
+    };
+    storage
+        .create_secret(secret_data.clone(), options.clone())
+        .await?;
+
     // Device patch and revoke
     let device_signer = DeviceSigner::new_random();
     let device_public_key = device_signer.public_key();
@@ -453,9 +457,9 @@ async fn assert_client_storage(
     let login_vault = storage.read_login_vault().await?;
     storage.import_login_vault(login_vault).await?;
 
-    println!("CREATED:: {:#?}", storage.list_folders());
-
     let create_set = storage.change_set().await?;
+
+    // debug_login_vault(storage, &password).await?;
 
     // Must be signed in to delete the account
     storage.delete_account().await?;
@@ -487,14 +491,9 @@ async fn assert_import_account(
 ) -> Result<()> {
     assert_eq!(account_id, storage.account_id());
 
-    println!(
-        "CREATE SET KEYS: {:#?}",
-        create_set.folders.keys().collect::<Vec<_>>()
-    );
-
     storage.import_account(&create_set).await?;
 
-    println!("IMPORTED:: {:#?}", storage.list_folders());
+    // debug_login_vault(storage, &password).await?;
 
     let authenticated_user = Identity::new(target.clone());
     sign_in(storage, authenticated_user, account_id, password.clone())
@@ -504,11 +503,32 @@ async fn assert_import_account(
         folder: Some(folder_id),
         ..Default::default()
     };
+
     let (_, meta, _, _) = storage.read_secret(&secret_id, &options).await?;
-    assert_eq!(MOCK_NOTE_UPDATED, meta.label());
+    assert_eq!(MOCK_NOTE, meta.label());
 
     // Sign out the authenticated user
     storage.sign_out().await?;
 
     Ok(())
 }
+
+/*
+async fn debug_login_vault(
+    storage: &mut ClientStorage,
+    password: &SecretString,
+) -> Result<()> {
+    use sos_backend::AccessPoint;
+    use sos_vault::SecretAccess;
+    let login_vault = storage.read_login_vault().await?;
+    println!("--- LOGIN ({}) ---", login_vault.len());
+    let mut access_point = AccessPoint::new_vault(login_vault);
+    let key: AccessKey = password.clone().into();
+    access_point.unlock(&key).await?;
+    for id in access_point.vault().keys() {
+        let (meta, _, _) = access_point.read_secret(id).await?.unwrap();
+        println!("urn: {:#?}", meta.urn());
+    }
+    Ok(())
+}
+*/

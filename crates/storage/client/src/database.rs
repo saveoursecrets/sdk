@@ -522,6 +522,8 @@ impl ClientAccountStorage for ClientDatabaseStorage {
 
         for (id, folder) in &account_data.folders {
             if let Some(vault) = extract_vault(folder.records()).await? {
+                debug_assert_eq!(id, vault.id());
+
                 // Prepare the folder relationship for the event log
                 let folder_row = FolderRow::new_insert(&vault).await?;
                 self.client

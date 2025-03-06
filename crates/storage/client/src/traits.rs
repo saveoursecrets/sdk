@@ -23,7 +23,7 @@ use sos_core::{
     AccountId, AuthenticationError, FolderRef, Paths, SecretId, StorageError,
     UtcDateTime, VaultCommit, VaultFlags, VaultId,
 };
-use sos_login::{FolderKeys, Identity};
+use sos_login::{DelegatedAccess, FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, StorageEventLogs};
@@ -649,43 +649,6 @@ pub trait ClientFolderStorage:
             .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
         Ok(folder.set_description(description).await?)
     }
-
-    /// Change the password for a vault.
-    ///
-    /// If the target vault is the currently selected vault
-    /// the currently selected vault is unlocked with the new
-    /// passphrase on success.
-    async fn change_password(
-        &mut self,
-        vault: &Vault,
-        current_key: AccessKey,
-        new_key: AccessKey,
-    ) -> Result<AccessKey> {
-        let (new_key, new_vault, event_log_events) =
-            ChangePassword::new(vault, current_key, new_key, None)
-                .build()
-                .await?;
-
-        let buffer = self.update_vault(&new_vault, event_log_events).await?;
-
-        let account_event =
-            AccountEvent::ChangeFolderPassword(*vault.id(), buffer);
-
-        // Refresh the in-memory and disc-based mirror
-        self.refresh_vault(vault.id(), &new_key, Internal).await?;
-
-        if let Some(folder) = self.folders_mut().get_mut(vault.id()) {
-            let access_point = folder.access_point();
-            let mut access_point = access_point.lock().await;
-            access_point.unlock(&new_key).await?;
-        }
-
-        let account_log = self.account_log().await?;
-        let mut account_log = account_log.write().await;
-        account_log.apply(&[account_event]).await?;
-
-        Ok(new_key)
-    }
 }
 
 /// Secret management for client storage.
@@ -898,6 +861,50 @@ pub trait ClientAccountStorage:
     /// Set the authenticated user.
     #[doc(hidden)]
     fn set_authenticated_user(&mut self, user: Option<Identity>, _: Internal);
+
+    /// Change the password for a folder.
+    ///
+    /// If the target folder is the currently selected folder
+    /// the currently selected vault is unlocked with the new
+    /// passphrase on success.
+    async fn change_password(
+        &mut self,
+        vault: &Vault,
+        current_key: AccessKey,
+        new_key: AccessKey,
+    ) -> Result<()> {
+        let folder_id = vault.id();
+        let (new_key, new_vault, event_log_events) =
+            ChangePassword::new(vault, current_key, new_key, None)
+                .build()
+                .await?;
+
+        let buffer = self.update_vault(&new_vault, event_log_events).await?;
+
+        let account_event =
+            AccountEvent::ChangeFolderPassword(*folder_id, buffer);
+
+        // Refresh the in-memory and disc-based mirror
+        self.refresh_vault(vault.id(), &new_key, Internal).await?;
+
+        if let Some(folder) = self.folders_mut().get_mut(vault.id()) {
+            let access_point = folder.access_point();
+            let mut access_point = access_point.lock().await;
+            access_point.unlock(&new_key).await?;
+        }
+
+        // Save the new password
+        self.authenticated_user_mut()
+            .ok_or_else(|| AuthenticationError::NotAuthenticated)?
+            .save_folder_password(folder_id, new_key)
+            .await?;
+
+        let account_log = self.account_log().await?;
+        let mut account_log = account_log.write().await;
+        account_log.apply(&[account_event]).await?;
+
+        Ok(())
+    }
 
     /// Sign out the authenticated user.
     async fn sign_out(&mut self) -> Result<()> {
@@ -1112,6 +1119,12 @@ pub trait ClientAccountStorage:
         let mut account_log = account_log.write().await;
         account_log.apply(&[account_event.clone()]).await?;
 
+        // Must save the folder access key
+        self.authenticated_user_mut()
+            .ok_or_else(|| AuthenticationError::NotAuthenticated)?
+            .save_folder_password(summary.id(), key.clone())
+            .await?;
+
         #[cfg(feature = "audit")]
         {
             let audit_event: AuditEvent =
@@ -1157,6 +1170,11 @@ pub trait ClientAccountStorage:
         if let Some(index) = self.search_index_mut() {
             index.remove_folder(folder_id).await;
         }
+
+        self.authenticated_user_mut()
+            .ok_or_else(|| AuthenticationError::NotAuthenticated)?
+            .remove_folder_password(folder_id)
+            .await?;
 
         let account_event = AccountEvent::DeleteFolder(*folder_id);
 

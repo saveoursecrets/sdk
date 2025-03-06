@@ -1242,9 +1242,6 @@ impl Account for LocalAccount {
             .change_password(&vault, current_key, new_key.clone())
             .await?;
 
-        // Save the new password
-        self.save_folder_password(folder_id, new_key).await?;
-
         Ok(())
     }
 
@@ -1701,8 +1698,10 @@ impl Account for LocalAccount {
         let (buffer, _, summary, account_event) =
             self.storage.create_folder(options).await?;
 
+        /*
         // Must save the password before getting the secure access key
         self.save_folder_password(summary.id(), key).await?;
+        */
 
         let options = AccessOptions {
             folder: Some(*summary.id()),
@@ -1989,7 +1988,6 @@ impl Account for LocalAccount {
         let (_, commit_state) = self.compute_folder_state(&options).await?;
 
         let events = self.storage.delete_folder(folder_id, true).await?;
-        self.remove_folder_password(folder_id).await?;
 
         Ok(FolderDelete {
             events,
