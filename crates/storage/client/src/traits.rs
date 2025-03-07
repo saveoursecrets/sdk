@@ -385,7 +385,6 @@ pub trait ClientFolderStorage:
             // Ensure we don't overwrite existing data
             let folder_id = folder.id();
             if self.folders().get(folder_id).is_none() {
-                /*
                 let folder = Folder::new(
                     self.backend_target().clone(),
                     self.account_id(),
@@ -393,10 +392,6 @@ pub trait ClientFolderStorage:
                 )
                 .await?;
                 self.folders_mut().insert(*folder_id, folder);
-                */
-                let vault = self.read_vault(folder_id).await?;
-                self.create_folder_entry(vault, false, None, Internal)
-                    .await?;
             }
         }
         Ok(())
