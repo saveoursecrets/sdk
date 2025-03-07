@@ -19,7 +19,7 @@ use sos_password::diceware::generate_passphrase;
 use sos_search::QueryFilter;
 use sos_test_utils::{make_client_backend, mock, setup, teardown};
 use sos_vault::{secret::SecretType, Vault};
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 /// Check that API methods on LocalAccount return an
 /// AuthenticationError when not authenticated.
@@ -540,12 +540,75 @@ async fn not_authenticated_client_storage() -> Result<()> {
         }
     }
 
+    let folder_id = VaultId::new_v4();
+    let secret_id = SecretId::new_v4();
+
     let mut account =
         ClientStorage::new_unauthenticated(target, &account_id).await?;
 
     assert!(!account.is_authenticated());
     assert!(account
         .patch_devices_unchecked(&[])
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .update_vault(&Vault::default(), vec![])
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .remove_folder(&folder_id)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .import_folder_patches(HashMap::default())
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    {
+        let (password, _) = generate_passphrase()?;
+        let key: AccessKey = password.into();
+        assert!(account
+            .compact_folder(&folder_id, &key)
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
+
+    assert!(account
+        .rename_folder(&folder_id, "")
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .update_folder_flags(&folder_id, VaultFlags::DEFAULT)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .description(&folder_id)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .set_description(&folder_id, "")
         .await
         .err()
         .unwrap()
