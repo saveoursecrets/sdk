@@ -4,6 +4,7 @@ use async_sqlite::rusqlite::{
     Transaction,
 };
 use async_sqlite::Client;
+use sos_core::crypto::Seed;
 use sos_core::{
     commit::CommitHash, crypto::AeadPack, decode, encode, SecretId,
     UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
@@ -24,6 +25,7 @@ fn folder_select_columns(sql: sql::Select) -> sql::Select {
             folders.name,
             folders.salt,
             folders.meta,
+            folders.seed,
             folders.version,
             folders.cipher,
             folders.kdf,
@@ -57,6 +59,7 @@ pub struct FolderRow {
     name: String,
     salt: Option<String>,
     meta: Option<Vec<u8>>,
+    seed: Option<Vec<u8>>,
     version: i64,
     cipher: String,
     kdf: String,
@@ -72,7 +75,8 @@ impl FolderRow {
             None
         };
         let salt = vault.salt().cloned();
-        Self::new_insert_parts(vault.summary(), salt, meta)
+        let seed = vault.seed().map(|s| s.to_vec());
+        Self::new_insert_parts(vault.summary(), salt, meta, seed)
     }
 
     /// Create a new folder row to be inserted from parts.
@@ -80,6 +84,7 @@ impl FolderRow {
         summary: &Summary,
         salt: Option<String>,
         meta: Option<Vec<u8>>,
+        seed: Option<Vec<u8>>,
     ) -> Result<Self> {
         Ok(Self {
             created_at: UtcDateTime::default().to_rfc3339()?,
@@ -88,6 +93,7 @@ impl FolderRow {
             name: summary.name().to_string(),
             salt,
             meta,
+            seed,
             version: *summary.version() as i64,
             cipher: summary.cipher().to_string(),
             kdf: summary.kdf().to_string(),
@@ -105,12 +111,14 @@ impl FolderRow {
             None
         };
         let salt = vault.salt().cloned();
+        let seed = vault.seed().map(|s| s.to_vec());
         Ok(Self {
             modified_at: UtcDateTime::default().to_rfc3339()?,
             identifier: summary.id().to_string(),
             name: summary.name().to_string(),
             salt,
             meta,
+            seed,
             version: *summary.version() as i64,
             cipher: summary.cipher().to_string(),
             kdf: summary.kdf().to_string(),
@@ -131,10 +139,11 @@ impl<'a> TryFrom<&Row<'a>> for FolderRow {
             name: row.get(4)?,
             salt: row.get(5)?,
             meta: row.get(6)?,
-            version: row.get(7)?,
-            cipher: row.get(8)?,
-            kdf: row.get(9)?,
-            flags: row.get(10)?,
+            seed: row.get(7)?,
+            version: row.get(8)?,
+            cipher: row.get(9)?,
+            kdf: row.get(10)?,
+            flags: row.get(11)?,
         })
     }
 }
@@ -152,6 +161,8 @@ pub struct FolderRecord {
     pub salt: Option<String>,
     /// Folder meta data.
     pub meta: Option<AeadPack>,
+    /// Optional seed entropy.
+    pub seed: Option<Seed>,
     /// Folder summary.
     pub summary: Summary,
 }
@@ -182,6 +193,13 @@ impl FolderRecord {
             None
         };
 
+        let seed = if let Some(seed) = value.seed {
+            let seed: [u8; 32] = seed.as_slice().try_into()?;
+            Some(seed)
+        } else {
+            None
+        };
+
         let summary =
             Summary::new(version, folder_id, value.name, cipher, kdf, flags);
 
@@ -191,15 +209,17 @@ impl FolderRecord {
             modified_at,
             salt,
             meta,
+            seed,
             summary,
         })
     }
 
     /// Convert a folder record into a vault.
-    pub fn into_vault(self) -> Result<Vault> {
+    pub fn into_vault(&self) -> Result<Vault> {
         let mut vault: Vault = self.summary.clone().into();
-        vault.header_mut().set_meta(self.meta);
-        vault.header_mut().set_salt(self.salt);
+        vault.header_mut().set_meta(self.meta.clone());
+        vault.header_mut().set_salt(self.salt.clone());
+        vault.header_mut().set_seed(self.seed.clone());
         Ok(vault)
     }
 }
@@ -368,9 +388,10 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
             None
         };
         let salt = vault.salt().cloned();
+        let seed = vault.seed().map(|s| s.to_vec());
 
         let folder_row =
-            FolderRow::new_insert_parts(vault.summary(), salt, meta)?;
+            FolderRow::new_insert_parts(vault.summary(), salt, meta, seed)?;
 
         let mut secret_rows = Vec::new();
         for (secret_id, commit) in vault.iter() {
@@ -641,6 +662,7 @@ where
                     name,
                     salt,
                     meta,
+                    seed,
                     version,
                     cipher,
                     kdf,
@@ -648,7 +670,7 @@ where
                 )
             "#,
             )
-            .values("(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)");
+            .values("(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)");
 
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
@@ -659,6 +681,7 @@ where
             &folder_row.name,
             &folder_row.salt,
             &folder_row.meta,
+            &folder_row.seed,
             &folder_row.version,
             &folder_row.cipher,
             &folder_row.kdf,
@@ -683,13 +706,14 @@ where
                     name = ?3,
                     salt = ?4,
                     meta = ?5,
-                    version = ?6,
-                    cipher = ?7,
-                    kdf = ?8,
-                    flags = ?9
+                    seed = ?6,
+                    version = ?7,
+                    cipher = ?8,
+                    kdf = ?9,
+                    flags = ?10
                  "#,
             )
-            .where_clause("identifier=?10");
+            .where_clause("identifier=?11");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
             &folder_row.modified_at,
@@ -697,6 +721,7 @@ where
             &folder_row.name,
             &folder_row.salt,
             &folder_row.meta,
+            &folder_row.seed,
             &folder_row.version,
             &folder_row.cipher,
             &folder_row.kdf,

@@ -501,10 +501,11 @@ fn create_folder(
     events: Option<Vec<EventRecordRow>>,
 ) -> Result<(i64, HashMap<SecretId, i64>)> {
     let salt = vault.salt().cloned();
+    let seed = vault.seed().map(|s| s.to_vec());
     let folder_entity = FolderEntity::new(tx);
     let folder_id = folder_entity.insert_folder(
         account_id,
-        &FolderRow::new_insert_parts(vault.summary(), salt, meta)?,
+        &FolderRow::new_insert_parts(vault.summary(), salt, meta, seed)?,
     )?;
     let secret_ids =
         folder_entity.insert_folder_secrets(folder_id, rows.as_slice())?;

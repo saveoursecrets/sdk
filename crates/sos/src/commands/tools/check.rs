@@ -11,6 +11,12 @@ use sos_integrity::{event_integrity, vault_integrity};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
+    /// Dump information about the account login folder.
+    Login {
+        /// Account name or identifier.
+        #[clap(short, long)]
+        account: AccountRef,
+    },
     /// Verify vault row checksums.
     Vault {
         /// Print the checksums for each row.
@@ -67,6 +73,17 @@ pub enum Command {
 
 pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
+        Command::Login { account } => {
+            let account_id = resolve_account_address(Some(&account)).await?;
+            let paths = Paths::new_client(Paths::data_dir()?)
+                .with_account_id(&account_id);
+            let target = BackendTarget::from_paths(&paths).await?;
+            let storage =
+                ClientStorage::new_unauthenticated(target, &account_id)
+                    .await?;
+            let login_folder = storage.read_login_vault().await?;
+            println!("{:#?}", login_folder.header());
+        }
         Command::Vault {
             account,
             folder,

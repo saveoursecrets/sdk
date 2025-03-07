@@ -386,6 +386,11 @@ impl Header {
         self.meta = meta;
     }
 
+    /// Set the seed entropy for key derivation.
+    pub fn set_seed(&mut self, seed: Option<Seed>) {
+        self.auth.seed = seed;
+    }
+
     /// Read the content offset for a vault file verifying
     /// the identity bytes first.
     pub async fn read_content_offset<P: AsRef<Path>>(path: P) -> Result<u64> {

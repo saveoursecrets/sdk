@@ -104,7 +104,7 @@ async fn export_account_backup_archive(
     // Legacy file system requires an account identifier
     } else {
         let account = resolve_account(account.as_ref())
-            .await
+            .await?
             .ok_or_else(|| Error::NoAccountFound)?;
 
         let account = find_account(&account)

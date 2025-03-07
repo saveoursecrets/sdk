@@ -88,6 +88,11 @@ CREATE TABLE IF NOT EXISTS folders
     -- Encoded AEAD encrypted folder meta data
     meta                  BLOB,
 
+    -- Additional seed entropy.
+    -- 
+    -- Deprecated but maintained for backwards compatiblity.
+    seed                  TEXT,
+
     -- Encoding version
     version               INTEGER             NOT NULL,
 

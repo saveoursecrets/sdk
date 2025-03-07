@@ -39,7 +39,9 @@ enum AccountPasswordOption {
 
 /// Choose an account.
 pub async fn choose_account() -> Result<Option<PublicIdentity>> {
-    let mut accounts = sos_vault::list_accounts(None).await?;
+    let paths = Paths::new_client(Paths::data_dir()?);
+    let target = BackendTarget::from_paths(&paths).await?;
+    let mut accounts = target.list_accounts().await?;
     if accounts.is_empty() {
         Ok(None)
     } else if accounts.len() == 1 {
@@ -102,7 +104,7 @@ pub async fn resolve_user_with_password(
 ) -> Result<(Owner, SecretString)> {
     let is_shell = *SHELL.lock();
     let account = resolve_account(account)
-        .await
+        .await?
         .ok_or_else(|| Error::NoAccountFound)?;
 
     let password = sign_in(&account).await?;
@@ -129,35 +131,39 @@ pub async fn resolve_user_with_password(
 /// account use it.
 pub async fn resolve_account(
     account: Option<&AccountRef>,
-) -> Option<AccountRef> {
+) -> Result<Option<AccountRef>> {
     let is_shell = *SHELL.lock();
     if account.is_none() {
         if is_shell {
             let owner = USER.read().await;
             if let Some(owner) = owner.selected_account() {
                 if owner.is_authenticated().await {
-                    return Some((&*owner).into());
+                    return Ok(Some((&*owner).into()));
                 }
             }
         }
 
-        if let Ok(mut accounts) = sos_vault::list_accounts(None).await {
+        let paths = Paths::new_client(Paths::data_dir()?);
+        let target = BackendTarget::from_paths(&paths).await?;
+        if let Ok(mut accounts) = target.list_accounts().await {
             if accounts.len() == 1 {
-                return Some(accounts.remove(0).into());
+                return Ok(Some(accounts.remove(0).into()));
             }
         }
     }
-    account.cloned()
+    Ok(account.cloned())
 }
 
 pub async fn resolve_account_address(
     account: Option<&AccountRef>,
 ) -> Result<AccountId> {
     let account = resolve_account(account)
-        .await
+        .await?
         .ok_or_else(|| Error::NoAccountFound)?;
 
-    let accounts = sos_vault::list_accounts(None).await?;
+    let paths = Paths::new_client(Paths::data_dir()?);
+    let target = BackendTarget::from_paths(&paths).await?;
+    let accounts = target.list_accounts().await?;
     for info in accounts {
         match account {
             AccountRef::Name(ref name) => {
@@ -237,7 +243,9 @@ pub async fn verify(user: Owner) -> Result<bool> {
 
 /// List local accounts.
 pub async fn list_accounts(verbose: bool) -> Result<()> {
-    let accounts = sos_vault::list_accounts(None).await?;
+    let paths = Paths::new_client(Paths::data_dir()?);
+    let target = BackendTarget::from_paths(&paths).await?;
+    let accounts = target.list_accounts().await?;
     for account in &accounts {
         if verbose {
             println!("{} {}", account.account_id(), account.label());
@@ -254,7 +262,9 @@ pub async fn list_accounts(verbose: bool) -> Result<()> {
 pub async fn find_account(
     account: &AccountRef,
 ) -> Result<Option<PublicIdentity>> {
-    let accounts = sos_vault::list_accounts(None).await?;
+    let paths = Paths::new_client(Paths::data_dir()?);
+    let target = BackendTarget::from_paths(&paths).await?;
+    let accounts = target.list_accounts().await?;
     match account {
         AccountRef::Id(id) => {
             Ok(accounts.into_iter().find(|a| a.account_id() == id))

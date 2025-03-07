@@ -352,7 +352,7 @@ async fn account_delete(account: Option<AccountRef>) -> Result<bool> {
         account.as_ref().ok_or_else(|| Error::ExplicitAccount)?;
 
         resolve_account(account.as_ref())
-            .await
+            .await?
             .ok_or_else(|| Error::NoAccountFound)?
     } else {
         // Shell users can only delete their own account

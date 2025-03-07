@@ -140,15 +140,7 @@ impl Folder {
             .await
             .map_err(sos_database::Error::from)?;
         let folder_record = FolderRecord::from_row(folder_row).await?;
-
-        let summary = folder_record.summary;
-        let mut vault: Vault = summary.into();
-
-        // Salt and meta so the vault can be unlocked
-        vault.header_mut().set_salt(folder_record.salt);
-        if let Some(meta) = folder_record.meta {
-            vault.set_vault_meta(meta).await?;
-        }
+        let mut vault = folder_record.into_vault()?;
 
         let secrets = client
             .conn_and_then(move |conn| {

@@ -378,14 +378,23 @@ pub trait ClientFolderStorage:
     #[doc(hidden)]
     async fn load_caches(
         &mut self,
-        summaries: &[Summary],
+        folders: &[Summary],
         _: Internal,
     ) -> Result<()> {
-        for summary in summaries {
+        for folder in folders {
             // Ensure we don't overwrite existing data
-            let id = summary.id();
-            let vault = self.read_vault(id).await?;
-            if self.folders().get(id).is_none() {
+            let folder_id = folder.id();
+            if self.folders().get(folder_id).is_none() {
+                /*
+                let folder = Folder::new(
+                    self.backend_target().clone(),
+                    self.account_id(),
+                    folder.id(),
+                )
+                .await?;
+                self.folders_mut().insert(*folder_id, folder);
+                */
+                let vault = self.read_vault(folder_id).await?;
                 self.create_folder_entry(vault, false, None, Internal)
                     .await?;
             }
