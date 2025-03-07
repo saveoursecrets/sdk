@@ -22,9 +22,8 @@ pub type AccountEventLog = BackendEventLog<AccountEvent>;
 pub type DeviceEventLog = BackendEventLog<DeviceEvent>;
 /// Event log for folder events.
 pub type FolderEventLog = BackendEventLog<WriteEvent>;
-
-#[cfg(feature = "files")]
 /// Event log for file events.
+#[cfg(feature = "files")]
 pub type FileEventLog = BackendEventLog<sos_core::events::FileEvent>;
 
 #[cfg(feature = "files")]
@@ -92,7 +91,7 @@ impl BackendEventLog<WriteEvent> {
         })
     }
 
-    /// Create a new login folder.
+    /// Create a new login event log.
     pub async fn new_login_folder(
         target: BackendTarget,
         account_id: &AccountId,

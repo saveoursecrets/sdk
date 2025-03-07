@@ -325,7 +325,7 @@ impl ClientFolderStorage for ClientFileSystemStorage {
 
     async fn new_folder(&self, vault: &Vault, _: Internal) -> Result<Folder> {
         let vault_path = self.paths.vault_path(vault.id());
-        Ok(Folder::new_fs(&vault_path).await?)
+        Ok(Folder::from_path(&vault_path).await?)
     }
 
     async fn read_vault(&self, id: &VaultId) -> Result<Vault> {

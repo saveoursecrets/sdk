@@ -5,11 +5,10 @@ use sos_core::{
     crypto::AccessKey,
     encode,
     events::{EventLog, EventRecord, ReadEvent, WriteEvent},
-    AccountId, Paths, VaultFlags,
+    AccountId, VaultFlags,
 };
 use sos_core::{constants::EVENT_LOG_EXT, decode};
 use sos_database::{
-    async_sqlite::Client,
     entity::{FolderEntity, FolderRecord, SecretRecord},
     VaultDatabaseWriter,
 };
@@ -27,12 +26,14 @@ use tokio::sync::{Mutex, RwLock};
 /// Folder is a combined vault and event log.
 #[derive(Clone)]
 pub struct Folder {
-    pub(crate) access_point: Arc<Mutex<AccessPoint>>,
+    access_point: Arc<Mutex<AccessPoint>>,
     events: Arc<RwLock<FolderEventLog>>,
 }
 
 impl Folder {
     /// Create a new folder.
+    ///
+    /// Changes to the in-memory vault are mirrored to storage.
     pub async fn new(
         target: BackendTarget,
         account_id: &AccountId,
@@ -40,13 +41,64 @@ impl Folder {
     ) -> Result<Self> {
         match target {
             BackendTarget::FileSystem(paths) => {
-                Self::new_fs(
+                Self::from_path(
                     paths.with_account_id(account_id).vault_path(folder_id),
                 )
                 .await
             }
             BackendTarget::Database(paths, client) => {
-                Self::new_db(paths, client, *account_id, *folder_id).await
+                let folder_id = *folder_id;
+                let folder_row = client
+                    .conn(move |conn| {
+                        let folder = FolderEntity::new(&conn);
+                        Ok(folder.find_one(&folder_id)?)
+                    })
+                    .await
+                    .map_err(sos_database::Error::from)?;
+                let folder_record =
+                    FolderRecord::from_row(folder_row).await?;
+                let mut vault = folder_record.into_vault()?;
+
+                let secrets = client
+                    .conn_and_then(move |conn| {
+                        let folder = FolderEntity::new(&conn);
+                        let secrets =
+                            folder.load_secrets(folder_record.row_id)?;
+                        Ok::<_, sos_database::Error>(secrets)
+                    })
+                    .await?;
+
+                for secret in secrets {
+                    let record = SecretRecord::from_row(secret).await?;
+                    let VaultCommit(commit, entry) = record.commit;
+                    vault
+                        .insert_secret(record.secret_id, commit, entry)
+                        .await?;
+                }
+
+                let mut event_log = FolderEventLog::new_folder(
+                    BackendTarget::Database(paths, client.clone()),
+                    &account_id,
+                    &folder_id,
+                )
+                .await?;
+
+                event_log.load_tree().await?;
+
+                if event_log.tree().len() == 0 {
+                    let buffer = encode(&vault).await?;
+                    let event = WriteEvent::CreateVault(buffer);
+                    event_log.apply(&[event]).await?;
+                }
+
+                let mirror =
+                    VaultDatabaseWriter::<Error>::new(client, folder_id);
+                let access_point = VaultAccessPoint::<Error>::new_mirror(
+                    vault,
+                    Box::new(mirror),
+                );
+
+                Ok(Self::init(AccessPoint::new(access_point), event_log))
             }
         }
     }
@@ -74,11 +126,13 @@ impl Folder {
         Ok(Self::init(AccessPoint::new(access_point), event_log))
     }
 
-    /// Create a new folder from a vault file on disc.
+    /// Create a new folder from a vault on disc.
     ///
     /// Changes to the in-memory vault are mirrored to disc and
     /// and if an event log does not exist it is created.
-    pub async fn new_fs(path: impl AsRef<Path>) -> Result<Self> {
+    ///
+    /// If an event log exists the commit tree is loaded into memory.
+    pub async fn from_path(path: impl AsRef<Path>) -> Result<Self> {
         let mut events_path = path.as_ref().to_owned();
         events_path.set_extension(EVENT_LOG_EXT);
 
@@ -121,61 +175,6 @@ impl Folder {
             AccessPoint::new(access_point),
             FolderEventLog::FileSystem(event_log),
         ))
-    }
-
-    /// Create a new folder from a database table.
-    ///
-    /// Changes to the in-memory vault are mirrored to the database.
-    pub async fn new_db(
-        paths: Arc<Paths>,
-        client: Client,
-        account_id: AccountId,
-        folder_id: VaultId,
-    ) -> Result<Self> {
-        let folder_row = client
-            .conn(move |conn| {
-                let folder = FolderEntity::new(&conn);
-                Ok(folder.find_one(&folder_id)?)
-            })
-            .await
-            .map_err(sos_database::Error::from)?;
-        let folder_record = FolderRecord::from_row(folder_row).await?;
-        let mut vault = folder_record.into_vault()?;
-
-        let secrets = client
-            .conn_and_then(move |conn| {
-                let folder = FolderEntity::new(&conn);
-                let secrets = folder.load_secrets(folder_record.row_id)?;
-                Ok::<_, sos_database::Error>(secrets)
-            })
-            .await?;
-
-        for secret in secrets {
-            let record = SecretRecord::from_row(secret).await?;
-            let VaultCommit(commit, entry) = record.commit;
-            vault.insert_secret(record.secret_id, commit, entry).await?;
-        }
-
-        let mut event_log = FolderEventLog::new_folder(
-            BackendTarget::Database(paths, client.clone()),
-            &account_id,
-            &folder_id,
-        )
-        .await?;
-
-        event_log.load_tree().await?;
-
-        if event_log.tree().len() == 0 {
-            let buffer = encode(&vault).await?;
-            let event = WriteEvent::CreateVault(buffer);
-            event_log.apply(&[event]).await?;
-        }
-
-        let mirror = VaultDatabaseWriter::<Error>::new(client, folder_id);
-        let access_point =
-            VaultAccessPoint::<Error>::new_mirror(vault, Box::new(mirror));
-
-        Ok(Self::init(AccessPoint::new(access_point), event_log))
     }
 
     /// Create a new folder.
