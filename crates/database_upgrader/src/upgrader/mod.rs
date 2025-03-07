@@ -73,6 +73,7 @@ impl Default for UpgradeOptions {
 
 /// Result of upgrading to SQLite backend.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpgradeResult {
     /// Global paths for the upgrade.
     pub global_paths: Paths,

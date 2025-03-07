@@ -77,12 +77,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                 info(format!("{} {}", account.account_id(), account.label()));
             }
 
-            let paths = if server {
-                Paths::new_server(&directory)
-            } else {
-                Paths::new_client(&directory)
-            };
-
             let options = UpgradeOptions {
                 dry_run: !apply_changes,
                 paths,
