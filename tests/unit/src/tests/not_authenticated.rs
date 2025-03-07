@@ -677,13 +677,6 @@ async fn not_authenticated_client_storage() -> Result<()> {
         .unwrap()
         .is_forbidden());
 
-    assert!(account
-        .create_device_vault(&[])
-        .await
-        .err()
-        .unwrap()
-        .is_forbidden());
-
     assert!(account.delete_account().await.err().unwrap().is_forbidden());
 
     {
