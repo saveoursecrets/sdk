@@ -1031,6 +1031,10 @@ pub trait ClientAccountStorage:
     }
 
     /// Lock all folders.
+    ///
+    /// # Authentication
+    ///
+    /// Can be called when the storage is not authenticated.
     async fn lock(&mut self) {
         for (_, folder) in self.folders_mut().iter_mut() {
             folder.lock().await;
@@ -1040,23 +1044,25 @@ pub trait ClientAccountStorage:
     /// Unlock a folder.
     async fn unlock_folder(
         &mut self,
-        id: &VaultId,
+        folder_id: &VaultId,
         key: &AccessKey,
     ) -> Result<()> {
         self.guard_authenticated(Internal)?;
 
         let folder = self
             .folders_mut()
-            .get_mut(id)
-            .ok_or(StorageError::FolderNotFound(*id))?;
+            .get_mut(folder_id)
+            .ok_or(StorageError::FolderNotFound(*folder_id))?;
         folder.unlock(key).await?;
         Ok(())
     }
 
     /// Lock a folder.
+    ///
+    /// # Authentication
+    ///
+    /// Can be called when the storage is not authenticated.
     async fn lock_folder(&mut self, id: &VaultId) -> Result<()> {
-        self.guard_authenticated(Internal)?;
-
         let folder = self
             .folders_mut()
             .get_mut(id)
@@ -1337,17 +1343,6 @@ pub trait ClientAccountStorage:
         Ok((exists, event, summary))
     }
 
-    /// Write the vault for a folder without any side effects.
-    ///
-    /// Can be used when repairing a vault from a collection of
-    /// event logs.
-    async fn overwrite_folder_vault(
-        &mut self,
-        vault: &Vault,
-    ) -> Result<Vec<u8>> {
-        self.write_vault(vault, Internal).await
-    }
-
     /// Import a folder into an existing account.
     ///
     /// If a folder with the same identifier already exists
@@ -1435,6 +1430,10 @@ pub trait ClientAccountStorage:
     }
 
     /// Commit state of the identity folder.
+    ///
+    /// # Authentication
+    ///
+    /// Can be called when the account is not authenticated.
     async fn identity_state(&self) -> Result<CommitState> {
         let identity_log = self.identity_log().await?;
         let reader = identity_log.read().await;
@@ -1444,6 +1443,10 @@ pub trait ClientAccountStorage:
     /// Get the commit state for a folder.
     ///
     /// The folder must have at least one commit.
+    ///
+    /// # Authentication
+    ///
+    /// Can be called when the account is not authenticated.
     async fn commit_state(&self, folder_id: &VaultId) -> Result<CommitState> {
         let folder = self
             .folders()
@@ -1523,6 +1526,8 @@ pub trait ClientAccountStorage:
         &mut self,
         keys: &FolderKeys,
     ) -> Result<DocumentCount> {
+        self.guard_authenticated(Internal)?;
+
         use sos_core::AuthenticationError;
 
         {

@@ -207,23 +207,12 @@ pub async fn run(cmd: Command) -> Result<()> {
             if read_flag(Some(&prompt))? {
                 verify_events(account, folder.clone(), false).await?;
 
-                let event_log = FolderEventLog::new_folder(
-                    target.clone(),
+                ClientStorage::rebuild_folder_vault(
+                    target,
                     &account_id,
                     target_folder.id(),
                 )
                 .await?;
-
-                let vault = FolderReducer::new()
-                    .reduce(&event_log)
-                    .await?
-                    .build(true)
-                    .await?;
-
-                let mut storage =
-                    ClientStorage::new_unauthenticated(target, &account_id)
-                        .await?;
-                storage.overwrite_folder_vault(&vault).await?;
 
                 success(format!("Repaired {}", folder));
             }

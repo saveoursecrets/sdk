@@ -21,6 +21,7 @@ use sos_core::{
     AccountId, AuthenticationError, Paths, SecretId, VaultId,
 };
 use sos_login::Identity;
+use sos_reducers::FolderReducer;
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
 };
@@ -78,10 +79,12 @@ impl ClientStorage {
         })
     }
 
-    /// Create new account in client storage.
+    /// Create a new account in client storage.
+    ///
+    /// The account must not already exist.
     ///
     /// Only to be used when fetching account data from a
-    /// remote. If this is used when
+    /// remote during device enrollment.
     pub async fn new_account(
         target: BackendTarget,
         account_id: &AccountId,
@@ -111,6 +114,39 @@ impl ClientStorage {
                 ))
             }
         })
+    }
+
+    /// Rebuild the vault for a folder from event logs.
+    ///
+    /// Can be used to repair a vault from a collection of
+    /// event logs or to convert server-side head-only vaults
+    /// into the client-side representation.
+    ///
+    /// # Authentication
+    ///
+    /// Can be called when the account is not authenticated.
+    pub async fn rebuild_folder_vault(
+        target: BackendTarget,
+        account_id: &AccountId,
+        folder_id: &VaultId,
+    ) -> Result<Vec<u8>> {
+        let storage =
+            ClientStorage::new_unauthenticated(target, account_id).await?;
+
+        let event_log = FolderEventLog::new_folder(
+            storage.backend_target().clone(),
+            &account_id,
+            folder_id,
+        )
+        .await?;
+
+        let vault = FolderReducer::new()
+            .reduce(&event_log)
+            .await?
+            .build(true)
+            .await?;
+
+        storage.write_vault(&vault, Internal).await
     }
 }
 
@@ -346,6 +382,8 @@ impl ClientAccountStorage for ClientStorage {
         &self,
         folder_id: &VaultId,
     ) -> Result<Vec<SecretId>> {
+        self.guard_authenticated(Internal)?;
+
         match self {
             ClientStorage::FileSystem(fs) => {
                 fs.list_secret_ids(folder_id).await
@@ -360,6 +398,8 @@ impl ClientAccountStorage for ClientStorage {
         &mut self,
         device_vault: &[u8],
     ) -> Result<()> {
+        self.guard_authenticated(Internal)?;
+
         match self {
             ClientStorage::FileSystem(fs) => {
                 fs.create_device_vault(device_vault).await
@@ -371,8 +411,7 @@ impl ClientAccountStorage for ClientStorage {
     }
 
     async fn delete_account(&self) -> Result<Event> {
-        self.authenticated_user()
-            .ok_or(AuthenticationError::NotAuthenticated)?;
+        self.guard_authenticated(Internal)?;
 
         match self {
             ClientStorage::FileSystem(fs) => fs.delete_account().await,

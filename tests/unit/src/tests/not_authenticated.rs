@@ -12,7 +12,7 @@ use sos_core::{
     AccountId, ErrorExt, ExternalFileName, Paths, SecretId, SecretPath,
     VaultFlags, VaultId,
 };
-use sos_login::DelegatedAccess;
+use sos_login::{DelegatedAccess, FolderKeys};
 use sos_migrate::import::{ImportFormat, ImportTarget};
 use sos_net::NetworkAccount;
 use sos_password::diceware::generate_passphrase;
@@ -665,6 +665,105 @@ async fn not_authenticated_client_storage() -> Result<()> {
 
     assert!(account
         .remove_secret(&secret_id, &AccessOptions::default())
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .list_secret_ids(&folder_id)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .create_device_vault(&[])
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account.delete_account().await.err().unwrap().is_forbidden());
+
+    {
+        let (password, _) = generate_passphrase()?;
+        let current_key: AccessKey = password.clone().into();
+        let new_key: AccessKey = password.into();
+        assert!(account
+            .change_password(&Vault::default(), current_key, new_key)
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
+
+    assert!(account
+        .import_login_vault(Vault::default())
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .unlock(&FolderKeys(HashMap::default()))
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    {
+        let (password, _) = generate_passphrase()?;
+        let key: AccessKey = password.into();
+        assert!(account
+            .unlock_folder(&folder_id, &key)
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
+
+    assert!(account
+        .create_folder(NewFolderOptions::new("folder-name".to_string()))
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .delete_folder(&folder_id, true)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    {
+        let (password, _) = generate_passphrase()?;
+        let key: AccessKey = password.into();
+        assert!(account
+            .restore_folder(vec![], &key)
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
+
+    assert!(account
+        .history(&folder_id)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .initialize_search_index(&FolderKeys(HashMap::default()))
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .build_search_index(&FolderKeys(HashMap::default()))
         .await
         .err()
         .unwrap()
