@@ -266,6 +266,22 @@ impl ClientBaseStorage for ClientDatabaseStorage {
     fn account_id(&self) -> &AccountId {
         &self.account_id
     }
+
+    fn authenticated_user(&self) -> Option<&Identity> {
+        self.authenticated.as_ref()
+    }
+
+    fn authenticated_user_mut(&mut self) -> Option<&mut Identity> {
+        self.authenticated.as_mut()
+    }
+
+    fn set_authenticated_user(
+        &mut self,
+        user: Option<Identity>,
+        _: Internal,
+    ) {
+        self.authenticated = user;
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -436,22 +452,6 @@ impl ClientDeviceStorage for ClientDatabaseStorage {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ClientAccountStorage for ClientDatabaseStorage {
-    fn authenticated_user(&self) -> Option<&Identity> {
-        self.authenticated.as_ref()
-    }
-
-    fn authenticated_user_mut(&mut self) -> Option<&mut Identity> {
-        self.authenticated.as_mut()
-    }
-
-    fn set_authenticated_user(
-        &mut self,
-        user: Option<Identity>,
-        _: Internal,
-    ) {
-        self.authenticated = user;
-    }
-
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
     }

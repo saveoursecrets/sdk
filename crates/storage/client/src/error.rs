@@ -1,4 +1,4 @@
-use sos_core::{SecretId, VaultId};
+use sos_core::{AuthenticationError, ErrorExt, SecretId, VaultId};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -103,4 +103,26 @@ pub enum Error {
     #[cfg(feature = "files")]
     #[error(transparent)]
     AgeDecrypt(#[from] age::DecryptError),
+}
+
+impl ErrorExt for Error {
+    fn is_secret_not_found(&self) -> bool {
+        matches!(self, Error::SecretNotFound(_))
+    }
+
+    fn is_forbidden(&self) -> bool {
+        matches!(
+            self,
+            Error::Authentication(AuthenticationError::NotAuthenticated)
+        )
+    }
+
+    fn is_permission_denied(&self) -> bool {
+        matches!(
+            self,
+            Error::Vault(sos_vault::Error::Authentication(
+                AuthenticationError::PasswordVerification
+            ))
+        )
+    }
 }

@@ -1,8 +1,9 @@
 //! Blanket implementation of secret storage trait.
 use crate::traits::private::Internal;
 use crate::{
-    AccessOptions, ClientAccountStorage, ClientFolderStorage,
-    ClientSecretStorage, Error, Result, StorageChangeEvent,
+    AccessOptions, ClientAccountStorage, ClientBaseStorage,
+    ClientFolderStorage, ClientSecretStorage, Error, Result,
+    StorageChangeEvent,
 };
 use async_trait::async_trait;
 use sos_backend::StorageError;
@@ -18,13 +19,19 @@ use sos_vault::{
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<T> ClientSecretStorage for T
 where
-    T: ClientAccountStorage + ClientFolderStorage + Send + Sync,
+    T: ClientAccountStorage
+        + ClientFolderStorage
+        + ClientBaseStorage
+        + Send
+        + Sync,
 {
     async fn create_secret(
         &mut self,
         secret_data: SecretRow,
         #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
+        self.guard_authenticated(Internal)?;
+
         let summary = if let Some(folder_id) = &options.folder {
             self.find(|f| f.id() == folder_id)
                 .cloned()
@@ -111,6 +118,8 @@ where
         folder_id: &VaultId,
         secret_id: &SecretId,
     ) -> Result<Option<(VaultCommit, ReadEvent)>> {
+        self.guard_authenticated(Internal)?;
+
         let folder = self
             .folders()
             .get(folder_id)
@@ -123,6 +132,8 @@ where
         id: &SecretId,
         options: &AccessOptions,
     ) -> Result<(Summary, SecretMeta, Secret, ReadEvent)> {
+        self.guard_authenticated(Internal)?;
+
         let summary = if let Some(folder_id) = &options.folder {
             self.find(|f| f.id() == folder_id)
                 .cloned()
@@ -149,6 +160,8 @@ where
         secret: Option<Secret>,
         #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
+        self.guard_authenticated(Internal)?;
+
         let (folder, old_meta, old_secret, _) =
             self.read_secret(secret_id, &options).await?;
         let old_secret_data =
@@ -276,6 +289,8 @@ where
         secret_id: &SecretId,
         #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
+        self.guard_authenticated(Internal)?;
+
         #[cfg(feature = "files")]
         let (folder, secret_data) = {
             let (folder, meta, secret, _) =
@@ -317,6 +332,8 @@ where
         id: &SecretId,
         options: &AccessOptions,
     ) -> Result<WriteEvent> {
+        self.guard_authenticated(Internal)?;
+
         let summary = if let Some(folder_id) = &options.folder {
             self.find(|f| f.id() == folder_id)
                 .cloned()

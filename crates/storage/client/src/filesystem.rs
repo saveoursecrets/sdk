@@ -183,7 +183,7 @@ impl ClientFileSystemStorage {
             let mut file_log =
                 FileEventLog::new_file(target.clone(), account_id).await?;
             file_log.load_tree().await?;
-            Arc::new(RwLock::new(file_log))
+            file_log
         };
 
         let mut storage = Self {
@@ -200,7 +200,7 @@ impl ClientFileSystemStorage {
             device_log: Arc::new(RwLock::new(device_log)),
             devices: Default::default(),
             #[cfg(feature = "files")]
-            file_log: file_log.clone(),
+            file_log: Arc::new(RwLock::new(file_log)),
             #[cfg(feature = "files")]
             external_file_manager: None,
             authenticated: None,
@@ -215,6 +215,22 @@ impl ClientFileSystemStorage {
 impl ClientBaseStorage for ClientFileSystemStorage {
     fn account_id(&self) -> &AccountId {
         &self.account_id
+    }
+
+    fn authenticated_user(&self) -> Option<&Identity> {
+        self.authenticated.as_ref()
+    }
+
+    fn authenticated_user_mut(&mut self) -> Option<&mut Identity> {
+        self.authenticated.as_mut()
+    }
+
+    fn set_authenticated_user(
+        &mut self,
+        user: Option<Identity>,
+        _: Internal,
+    ) {
+        self.authenticated = user;
     }
 }
 
@@ -358,22 +374,6 @@ impl ClientDeviceStorage for ClientFileSystemStorage {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ClientAccountStorage for ClientFileSystemStorage {
-    fn authenticated_user(&self) -> Option<&Identity> {
-        self.authenticated.as_ref()
-    }
-
-    fn authenticated_user_mut(&mut self) -> Option<&mut Identity> {
-        self.authenticated.as_mut()
-    }
-
-    fn set_authenticated_user(
-        &mut self,
-        user: Option<Identity>,
-        _: Internal,
-    ) {
-        self.authenticated = user;
-    }
-
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
     }

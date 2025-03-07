@@ -121,6 +121,35 @@ impl ClientBaseStorage for ClientStorage {
             ClientStorage::Database(db) => db.account_id(),
         }
     }
+
+    fn authenticated_user(&self) -> Option<&Identity> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.authenticated_user(),
+            ClientStorage::Database(db) => db.authenticated_user(),
+        }
+    }
+
+    fn authenticated_user_mut(&mut self) -> Option<&mut Identity> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.authenticated_user_mut(),
+            ClientStorage::Database(db) => db.authenticated_user_mut(),
+        }
+    }
+
+    fn set_authenticated_user(
+        &mut self,
+        user: Option<Identity>,
+        token: Internal,
+    ) {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.set_authenticated_user(user, token)
+            }
+            ClientStorage::Database(db) => {
+                db.set_authenticated_user(user, token)
+            }
+        }
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -285,42 +314,6 @@ impl ClientDeviceStorage for ClientStorage {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ClientAccountStorage for ClientStorage {
-    fn authenticated_user(&self) -> Option<&Identity> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.authenticated_user(),
-            ClientStorage::Database(db) => db.authenticated_user(),
-        }
-    }
-
-    fn authenticated_user_mut(&mut self) -> Option<&mut Identity> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.authenticated_user_mut(),
-            ClientStorage::Database(db) => db.authenticated_user_mut(),
-        }
-    }
-
-    fn is_authenticated(&self) -> bool {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.is_authenticated(),
-            ClientStorage::Database(db) => db.is_authenticated(),
-        }
-    }
-
-    fn set_authenticated_user(
-        &mut self,
-        user: Option<Identity>,
-        token: Internal,
-    ) {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.set_authenticated_user(user, token)
-            }
-            ClientStorage::Database(db) => {
-                db.set_authenticated_user(user, token)
-            }
-        }
-    }
-
     fn paths(&self) -> Arc<Paths> {
         match self {
             ClientStorage::FileSystem(fs) => fs.paths(),

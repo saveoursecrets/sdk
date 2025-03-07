@@ -1,11 +1,16 @@
 use anyhow::Result;
 use sos_account::{Account, ClipboardCopyRequest, LocalAccount};
-use sos_client_storage::{AccessOptions, NewFolderOptions};
+use sos_backend::BackendTarget;
+use sos_client_storage::{
+    AccessOptions, ClientAccountStorage, ClientBaseStorage,
+    ClientDeviceStorage, ClientFolderStorage, ClientStorage,
+    NewFolderOptions,
+};
 use sos_core::{
     commit::CommitHash,
     crypto::{AccessKey, Cipher, KeyDerivation},
-    ErrorExt, ExternalFileName, Paths, SecretId, SecretPath, VaultFlags,
-    VaultId,
+    AccountId, ErrorExt, ExternalFileName, Paths, SecretId, SecretPath,
+    VaultFlags, VaultId,
 };
 use sos_login::DelegatedAccess;
 use sos_migrate::import::{ImportFormat, ImportTarget};
@@ -32,7 +37,7 @@ async fn not_authenticated_local_account() -> Result<()> {
         LocalAccount::new_account(TEST_ID.to_string(), password, target)
             .await?;
 
-    assert_account::<sos_account::Error>(&mut account).await?;
+    assert_account::<<LocalAccount as Account>::Error>(&mut account).await?;
 
     teardown(TEST_ID).await;
 
@@ -59,7 +64,8 @@ async fn not_authenticated_network_account() -> Result<()> {
     )
     .await?;
 
-    assert_account::<sos_net::Error>(&mut account).await?;
+    assert_account::<<NetworkAccount as Account>::Error>(&mut account)
+        .await?;
 
     teardown(TEST_ID).await;
 
@@ -509,6 +515,43 @@ async fn assert_account<E: ErrorExt>(
             .unwrap()
             .is_forbidden());
     }
+
+    Ok(())
+}
+
+/// Check that API methods on ClientStorage return an
+/// AuthenticationError when not authenticated.
+#[tokio::test]
+async fn not_authenticated_client_storage() -> Result<()> {
+    const TEST_ID: &str = "not_authenticated_client_storage";
+
+    let account_id = AccountId::random();
+    let mut dirs = setup(TEST_ID, 1).await?;
+    let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_client(&data_dir).with_account_id(&account_id);
+    let target = make_client_backend(&paths).await?;
+    match &target {
+        BackendTarget::FileSystem(paths) => {
+            Paths::scaffold(&data_dir).await?;
+            paths.ensure().await?;
+        }
+        BackendTarget::Database(paths, _) => {
+            paths.ensure_db().await?;
+        }
+    }
+
+    let mut account =
+        ClientStorage::new_unauthenticated(target, &account_id).await?;
+
+    assert!(!account.is_authenticated());
+    assert!(account
+        .patch_devices_unchecked(&[])
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

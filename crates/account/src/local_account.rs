@@ -12,9 +12,9 @@ use sos_backend::{
     compact::compact_folder, AccessPoint, BackendTarget, Folder, StorageError,
 };
 use sos_client_storage::{
-    AccessOptions, ClientAccountStorage, ClientDeviceStorage,
-    ClientFolderStorage, ClientSecretStorage, ClientStorage,
-    NewFolderOptions,
+    AccessOptions, ClientAccountStorage, ClientBaseStorage,
+    ClientDeviceStorage, ClientFolderStorage, ClientSecretStorage,
+    ClientStorage, NewFolderOptions,
 };
 use sos_core::{
     commit::{CommitHash, CommitState},

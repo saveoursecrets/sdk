@@ -59,6 +59,30 @@ use private::Internal;
 pub trait ClientBaseStorage {
     /// Account identifier.
     fn account_id(&self) -> &AccountId;
+
+    /// Authenticated user information.
+    fn authenticated_user(&self) -> Option<&Identity>;
+
+    /// Mutable authenticated user information.
+    fn authenticated_user_mut(&mut self) -> Option<&mut Identity>;
+
+    /// Determine if the storage is authenticated.
+    fn is_authenticated(&self) -> bool {
+        self.authenticated_user().is_some()
+    }
+
+    /// Set the authenticated user.
+    #[doc(hidden)]
+    fn set_authenticated_user(&mut self, user: Option<Identity>, _: Internal);
+
+    #[doc(hidden)]
+    fn guard_authenticated(&self, _: Internal) -> Result<()> {
+        if self.authenticated_user().is_none() {
+            // panic!("not authenticated");
+            return Err(AuthenticationError::NotAuthenticated.into());
+        }
+        Ok(())
+    }
 }
 
 /// Device management for client storage.
@@ -82,6 +106,8 @@ pub trait ClientDeviceStorage:
         &mut self,
         events: &[DeviceEvent],
     ) -> Result<()> {
+        self.guard_authenticated(Internal)?;
+
         // Update the event log
         let device_log = self.device_log().await?;
         let mut event_log = device_log.write().await;
@@ -393,6 +419,8 @@ pub trait ClientFolderStorage:
         vault: &Vault,
         events: Vec<WriteEvent>,
     ) -> Result<Vec<u8>> {
+        self.guard_authenticated(Internal)?;
+
         let buffer = self.write_vault(vault, Internal).await?;
 
         // Apply events to the event log
@@ -461,6 +489,8 @@ pub trait ClientFolderStorage:
 
     /// Remove a folder from memory.
     async fn remove_folder(&mut self, folder_id: &VaultId) -> Result<bool> {
+        self.guard_authenticated(Internal)?;
+
         Ok(if self.find(|s| s.id() == folder_id).is_some() {
             self.remove_folder_entry(folder_id, Internal)?;
             true
@@ -482,6 +512,8 @@ pub trait ClientFolderStorage:
         &mut self,
         patches: HashMap<VaultId, FolderPatch>,
     ) -> Result<()> {
+        self.guard_authenticated(Internal)?;
+
         for (folder_id, patch) in patches {
             let records: Vec<EventRecord> = patch.into();
             let (folder, vault) =
@@ -510,6 +542,8 @@ pub trait ClientFolderStorage:
         folder_id: &VaultId,
         key: &AccessKey,
     ) -> Result<AccountEvent> {
+        self.guard_authenticated(Internal)?;
+
         {
             let folder = self
                 .folders_mut()
@@ -539,6 +573,8 @@ pub trait ClientFolderStorage:
         folder_id: &VaultId,
         name: impl AsRef<str> + Send,
     ) -> Result<Event> {
+        self.guard_authenticated(Internal)?;
+
         // Update the in-memory name.
         self.set_folder_name(folder_id, name.as_ref(), Internal)?;
 
@@ -572,6 +608,8 @@ pub trait ClientFolderStorage:
         folder_id: &VaultId,
         flags: VaultFlags,
     ) -> Result<Event> {
+        self.guard_authenticated(Internal)?;
+
         // Update the in-memory name.
         self.set_folder_flags(folder_id, flags.clone(), Internal)?;
 
@@ -630,6 +668,8 @@ pub trait ClientFolderStorage:
 
     /// Get the description for a folder.
     async fn description(&self, folder_id: &VaultId) -> Result<String> {
+        self.guard_authenticated(Internal)?;
+
         let folder = self
             .folders()
             .get(folder_id)
@@ -643,6 +683,8 @@ pub trait ClientFolderStorage:
         folder_id: &VaultId,
         description: impl AsRef<str> + Send,
     ) -> Result<WriteEvent> {
+        self.guard_authenticated(Internal)?;
+
         let folder = self
             .folders_mut()
             .get_mut(folder_id)
@@ -769,17 +811,6 @@ pub trait ClientAccountStorage:
     + ClientSecretStorage
     + ClientEventLogStorage
 {
-    /// Authenticated user information.
-    fn authenticated_user(&self) -> Option<&Identity>;
-
-    /// Mutable authenticated user information.
-    fn authenticated_user_mut(&mut self) -> Option<&mut Identity>;
-
-    /// Determine if the storage is authenticated.
-    fn is_authenticated(&self) -> bool {
-        self.authenticated_user().is_some()
-    }
-
     /// Computed storage paths.
     fn paths(&self) -> Arc<Paths>;
 
@@ -864,10 +895,6 @@ pub trait ClientAccountStorage:
         Ok(())
     }
 
-    /// Set the authenticated user.
-    #[doc(hidden)]
-    fn set_authenticated_user(&mut self, user: Option<Identity>, _: Internal);
-
     /// Change the password for a folder.
     ///
     /// If the target folder is the currently selected folder
@@ -879,6 +906,8 @@ pub trait ClientAccountStorage:
         current_key: AccessKey,
         new_key: AccessKey,
     ) -> Result<()> {
+        self.guard_authenticated(Internal)?;
+
         let folder_id = vault.id();
         let (new_key, new_vault, event_log_events) =
             ChangePassword::new(vault, current_key, new_key, None)
@@ -952,6 +981,8 @@ pub trait ClientAccountStorage:
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {
+        self.guard_authenticated(Internal)?;
+
         let user = self
             .authenticated_user()
             .ok_or(AuthenticationError::NotAuthenticated)?;
@@ -980,6 +1011,8 @@ pub trait ClientAccountStorage:
 
     /// Unlock all folders.
     async fn unlock(&mut self, keys: &FolderKeys) -> Result<()> {
+        self.guard_authenticated(Internal)?;
+
         for (id, folder) in self.folders_mut().iter_mut() {
             if let Some(key) = keys.find(id) {
                 folder.unlock(key).await?;
@@ -1006,6 +1039,8 @@ pub trait ClientAccountStorage:
         id: &VaultId,
         key: &AccessKey,
     ) -> Result<()> {
+        self.guard_authenticated(Internal)?;
+
         let folder = self
             .folders_mut()
             .get_mut(id)
@@ -1016,6 +1051,8 @@ pub trait ClientAccountStorage:
 
     /// Lock a folder.
     async fn lock_folder(&mut self, id: &VaultId) -> Result<()> {
+        self.guard_authenticated(Internal)?;
+
         let folder = self
             .folders_mut()
             .get_mut(id)
@@ -1025,6 +1062,10 @@ pub trait ClientAccountStorage:
     }
 
     /// Create the data for a new account.
+    ///
+    /// # Authentication
+    ///
+    /// Can be called when the storage is not authenticated.
     async fn create_account(
         &mut self,
         account: &AccountPack,
@@ -1116,6 +1157,8 @@ pub trait ClientAccountStorage:
         &mut self,
         options: NewFolderOptions,
     ) -> Result<(Vec<u8>, AccessKey, Summary, AccountEvent)> {
+        self.guard_authenticated(Internal)?;
+
         let (buf, key, summary) =
             self.prepare_folder(options, Internal).await?;
 
@@ -1147,6 +1190,8 @@ pub trait ClientAccountStorage:
         folder_id: &VaultId,
         apply_event: bool,
     ) -> Result<Vec<Event>> {
+        self.guard_authenticated(Internal)?;
+
         // Remove the files
         self.remove_vault(folder_id, Internal).await?;
 
@@ -1208,6 +1253,8 @@ pub trait ClientAccountStorage:
         records: Vec<EventRecord>,
         key: &AccessKey,
     ) -> Result<Summary> {
+        self.guard_authenticated(Internal)?;
+
         let (mut folder, vault) =
             self.initialize_folder(records, Internal).await?;
 
@@ -1303,6 +1350,10 @@ pub trait ClientAccountStorage:
     /// it is overwritten.
     ///
     /// Buffer is the encoded representation of the vault.
+    ///
+    /// # Authentication
+    ///
+    /// Can be called when the account is not authenticated.
     async fn import_folder(
         &mut self,
         buffer: impl AsRef<[u8]> + Send,
@@ -1356,6 +1407,8 @@ pub trait ClientAccountStorage:
         &self,
         folder_id: &VaultId,
     ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>> {
+        self.guard_authenticated(Internal)?;
+
         let folder = self
             .folders()
             .get(folder_id)
@@ -1396,40 +1449,6 @@ pub trait ClientAccountStorage:
         let log_file = event_log.read().await;
         Ok(log_file.tree().commit_state()?)
     }
-
-    /*
-    /// Restore vaults from an archive.
-    #[cfg(feature = "archive")]
-    async fn restore_archive(
-        &mut self,
-        vaults: Vec<Vault>,
-        folder_keys: &FolderKeys,
-    ) -> Result<()> {
-        // We may be restoring vaults that do not exist
-        // so we need to update the cache
-        let summaries = vaults
-            .iter()
-            .map(|v| v.summary().clone())
-            .collect::<Vec<_>>();
-        self.load_caches(&summaries, Internal).await?;
-
-        for vault in vaults {
-            // Prepare a fresh log of event log events
-            let (vault, events) =
-                FolderReducer::split::<Error>(vault.clone()).await?;
-
-            self.update_vault(&vault, events).await?;
-
-            // Refresh the in-memory and disc-based mirror
-            let key = folder_keys
-                .find(vault.id())
-                .ok_or(Error::NoFolderPassword(*vault.id()))?;
-            self.refresh_vault(vault.id(), key, Internal).await?;
-        }
-
-        Ok(())
-    }
-    */
 
     /// External file manager.
     #[cfg(feature = "files")]
@@ -1472,6 +1491,8 @@ pub trait ClientAccountStorage:
         &mut self,
         keys: &FolderKeys,
     ) -> Result<(DocumentCount, Vec<Summary>)> {
+        self.guard_authenticated(Internal)?;
+
         // Find the id of an archive folder
         let summaries = {
             let summaries = self.list_folders();
