@@ -24,7 +24,7 @@ members = [
   "crates/platform_authenticator",
   "crates/preferences",
   "crates/protocol",
-  "crates/recovery",
+  # "crates/recovery",
   "crates/reducers",
   "crates/remote_sync", 
   "crates/sdk",
@@ -68,7 +68,7 @@ sos-net = { version = "0.16", path = "crates/net" }
 sos-password = { version = "0.16", path = "crates/password" }
 sos-platform-authenticator = { version = "0.1", path = "crates/platform_authenticator" }
 sos-protocol = { version = "0.16", path = "crates/protocol" }
-sos-recovery = { version = "0.16", path = "crates/recovery" }
+# sos-recovery = { version = "0.16", path = "crates/recovery" }
 sos-reducers = { version = "0.16", path = "crates/reducers" }
 sos-remote-sync = { version = "0.16", path = "crates/remote_sync" }
 sos-search = { version = "0.16", path = "crates/search" }

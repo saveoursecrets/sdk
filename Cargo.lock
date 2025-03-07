@@ -1432,7 +1432,6 @@ dependencies = [
  "ff",
  "generic-array",
  "group",
- "hkdf",
  "pkcs8",
  "rand_core 0.6.4",
  "sec1",
@@ -5633,25 +5632,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sos-recovery"
-version = "0.16.1"
-dependencies = [
- "async-trait",
- "binary-stream",
- "hex",
- "k256",
- "secrecy",
- "serde",
- "serde_with",
- "sos-core",
- "sos-signer",
- "thiserror 2.0.12",
- "tokio",
- "uuid",
- "vsss-rs",
-]
-
-[[package]]
 name = "sos-reducers"
 version = "0.16.1"
 dependencies = [
@@ -5946,7 +5926,6 @@ dependencies = [
  "sos-password",
  "sos-preferences",
  "sos-protocol",
- "sos-recovery",
  "sos-reducers",
  "sos-search",
  "sos-server-storage",
@@ -6241,26 +6220,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.99",
-]
-
-[[package]]
-name = "thiserror-impl-no-std"
-version = "2.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58e6318948b519ba6dc2b442a6d0b904ebfb8d411a3ad3e07843615a72249758"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "thiserror-no-std"
-version = "2.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3ad459d94dd517257cc96add8a43190ee620011bb6e6cdc82dafd97dfafafea"
-dependencies = [
- "thiserror-impl-no-std",
 ]
 
 [[package]]
@@ -6971,22 +6930,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "vsss-rs"
-version = "3.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14d9b5a415d1bbbf1a9c5982babc0d8054fa10effe9c5b7086cd2fdd36be79d9"
-dependencies = [
- "elliptic-curve",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rand_core 0.6.4",
- "serde",
- "subtle",
- "thiserror-no-std",
- "zeroize",
-]
 
 [[package]]
 name = "walkdir"
