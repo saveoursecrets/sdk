@@ -17,7 +17,11 @@ use sos_migrate::import::{ImportFormat, ImportTarget};
 use sos_net::NetworkAccount;
 use sos_password::diceware::generate_passphrase;
 use sos_search::QueryFilter;
-use sos_test_utils::{make_client_backend, mock, setup, teardown};
+use sos_test_utils::{
+    make_client_backend,
+    mock::{self, make_database_account_with_login},
+    setup, teardown,
+};
 use sos_vault::{
     secret::{SecretRow, SecretType},
     Vault,
@@ -531,14 +535,15 @@ async fn not_authenticated_client_storage() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
     let paths = Paths::new_client(&data_dir).with_account_id(&account_id);
-    let target = make_client_backend(&paths).await?;
-    match &target {
+    let mut target = make_client_backend(&paths).await?;
+    match &mut target {
         BackendTarget::FileSystem(paths) => {
             Paths::scaffold(&data_dir).await?;
             paths.ensure().await?;
         }
-        BackendTarget::Database(paths, _) => {
+        BackendTarget::Database(paths, client) => {
             paths.ensure_db().await?;
+            make_database_account_with_login(client, &account_id).await?;
         }
     }
 

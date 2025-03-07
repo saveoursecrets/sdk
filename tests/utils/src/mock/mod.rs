@@ -11,6 +11,7 @@ use sha2::{Digest, Sha256};
 use sos_backend::BackendTarget;
 use sos_backend::FolderEventLog;
 use sos_core::Paths;
+use sos_core::VaultFlags;
 use sos_core::VaultId;
 use sos_core::{
     commit::CommitHash,
@@ -217,7 +218,19 @@ pub async fn memory_database() -> Result<Client> {
 pub async fn insert_database_account(
     client: &mut Client,
 ) -> Result<(AccountId, i64)> {
-    let account_identifier = AccountId::random();
+    let account_id = AccountId::random();
+    Ok((
+        account_id,
+        make_database_account(client, &account_id).await?,
+    ))
+}
+
+/// Make a database account.
+pub async fn make_database_account(
+    client: &mut Client,
+    account_id: &AccountId,
+) -> Result<i64> {
+    let account_identifier = *account_id;
     let account_row = AccountRow::new_insert(
         &account_identifier,
         "mock-account".to_owned(),
@@ -226,7 +239,36 @@ pub async fn insert_database_account(
         .conn_mut(move |conn| {
             let account = AccountEntity::new(&conn);
             let account_id = account.insert(&account_row)?;
-            Ok((account_identifier, account_id))
+            Ok(account_id)
+        })
+        .await?)
+}
+
+/// Make a database account with a login folder.
+pub async fn make_database_account_with_login(
+    client: &mut Client,
+    account_id: &AccountId,
+) -> Result<i64> {
+    let account_identifier = *account_id;
+    let account_row = AccountRow::new_insert(
+        &account_identifier,
+        "mock-account".to_owned(),
+    )?;
+
+    let mut vault = Vault::default();
+    *vault.flags_mut() = VaultFlags::IDENTITY;
+    let folder_row = FolderRow::new_insert(&vault).await?;
+
+    Ok(client
+        .conn_mut(move |conn| {
+            let account = AccountEntity::new(&conn);
+            let folder = FolderEntity::new(&conn);
+
+            let account_id = account.insert(&account_row)?;
+            let folder_id = folder.insert_folder(account_id, &folder_row)?;
+            account.insert_login_folder(account_id, folder_id)?;
+
+            Ok(account_id)
         })
         .await?)
 }
