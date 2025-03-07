@@ -5,7 +5,9 @@ use crate::{
 };
 use sos_account::Account;
 use sos_backend::{BackendTarget, ServerOrigins};
-use sos_client_storage::{ClientAccountStorage, ClientStorage};
+use sos_client_storage::{
+    ClientAccountStorage, ClientBaseStorage, ClientStorage,
+};
 use sos_core::{
     crypto::AccessKey, AccountId, Origin, Paths, PublicIdentity,
     RemoteOrigins,

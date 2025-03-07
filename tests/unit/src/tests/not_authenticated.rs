@@ -3,8 +3,8 @@ use sos_account::{Account, ClipboardCopyRequest, LocalAccount};
 use sos_backend::BackendTarget;
 use sos_client_storage::{
     AccessOptions, ClientAccountStorage, ClientBaseStorage,
-    ClientDeviceStorage, ClientFolderStorage, ClientStorage,
-    NewFolderOptions,
+    ClientDeviceStorage, ClientFolderStorage, ClientSecretStorage,
+    ClientStorage, NewFolderOptions,
 };
 use sos_core::{
     commit::CommitHash,
@@ -18,7 +18,10 @@ use sos_net::NetworkAccount;
 use sos_password::diceware::generate_passphrase;
 use sos_search::QueryFilter;
 use sos_test_utils::{make_client_backend, mock, setup, teardown};
-use sos_vault::{secret::SecretType, Vault};
+use sos_vault::{
+    secret::{SecretRow, SecretType},
+    Vault,
+};
 use std::{collections::HashMap, path::PathBuf};
 
 /// Check that API methods on LocalAccount return an
@@ -293,7 +296,6 @@ async fn assert_account<E: ErrorExt>(
         .is_forbidden());
 
     {
-        let secret_id = SecretId::new_v4();
         let (meta, secret) = mock::note("mock", "mock");
         assert!(account
             .update_secret(
@@ -609,6 +611,60 @@ async fn not_authenticated_client_storage() -> Result<()> {
 
     assert!(account
         .set_description(&folder_id, "")
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    {
+        let (meta, secret) = mock::note("mock", "mock");
+        let row = SecretRow::new(secret_id, meta, secret);
+        assert!(account
+            .create_secret(row, AccessOptions::default())
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
+
+    assert!(account
+        .raw_secret(&folder_id, &secret_id)
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .read_secret(&secret_id, &AccessOptions::default())
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    {
+        let (meta, secret) = mock::note("mock", "mock");
+        assert!(account
+            .update_secret(
+                &secret_id,
+                meta,
+                Some(secret),
+                AccessOptions::default()
+            )
+            .await
+            .err()
+            .unwrap()
+            .is_forbidden());
+    }
+
+    assert!(account
+        .delete_secret(&secret_id, AccessOptions::default())
+        .await
+        .err()
+        .unwrap()
+        .is_forbidden());
+
+    assert!(account
+        .remove_secret(&secret_id, &AccessOptions::default())
         .await
         .err()
         .unwrap()

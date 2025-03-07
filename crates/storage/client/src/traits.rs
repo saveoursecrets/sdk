@@ -71,6 +71,12 @@ pub trait ClientBaseStorage {
         self.authenticated_user().is_some()
     }
 
+    /// Computed storage paths.
+    fn paths(&self) -> Arc<Paths>;
+
+    /// Backend target.
+    fn backend_target(&self) -> &BackendTarget;
+
     /// Set the authenticated user.
     #[doc(hidden)]
     fn set_authenticated_user(&mut self, user: Option<Identity>, _: Internal);
@@ -811,12 +817,6 @@ pub trait ClientAccountStorage:
     + ClientSecretStorage
     + ClientEventLogStorage
 {
-    /// Computed storage paths.
-    fn paths(&self) -> Arc<Paths>;
-
-    /// Backend target.
-    fn backend_target(&self) -> &BackendTarget;
-
     /*
     /// Rename the account.
     async fn rename_account(&self, name: &str) -> Result<()>;
@@ -826,6 +826,10 @@ pub trait ClientAccountStorage:
     ///
     /// Intended to be used during pairing to create a new
     /// account from a collection of patches.
+    ///
+    /// # Authentication
+    ///
+    /// Can be called when the storage is not authenticated.
     async fn import_account(
         &mut self,
         account_data: &CreateSet,

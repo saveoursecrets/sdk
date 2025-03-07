@@ -136,6 +136,20 @@ impl ClientBaseStorage for ClientStorage {
         }
     }
 
+    fn paths(&self) -> Arc<Paths> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.paths(),
+            ClientStorage::Database(db) => db.paths(),
+        }
+    }
+
+    fn backend_target(&self) -> &BackendTarget {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.backend_target(),
+            ClientStorage::Database(db) => db.backend_target(),
+        }
+    }
+
     fn set_authenticated_user(
         &mut self,
         user: Option<Identity>,
@@ -314,20 +328,6 @@ impl ClientDeviceStorage for ClientStorage {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ClientAccountStorage for ClientStorage {
-    fn paths(&self) -> Arc<Paths> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.paths(),
-            ClientStorage::Database(db) => db.paths(),
-        }
-    }
-
-    fn backend_target(&self) -> &BackendTarget {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.backend_target(),
-            ClientStorage::Database(db) => db.backend_target(),
-        }
-    }
-
     async fn import_account(
         &mut self,
         account_data: &CreateSet,

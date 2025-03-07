@@ -275,6 +275,14 @@ impl ClientBaseStorage for ClientDatabaseStorage {
         self.authenticated.as_mut()
     }
 
+    fn paths(&self) -> Arc<Paths> {
+        self.paths.clone()
+    }
+
+    fn backend_target(&self) -> &BackendTarget {
+        &self.target
+    }
+
     fn set_authenticated_user(
         &mut self,
         user: Option<Identity>,
@@ -452,14 +460,6 @@ impl ClientDeviceStorage for ClientDatabaseStorage {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ClientAccountStorage for ClientDatabaseStorage {
-    fn paths(&self) -> Arc<Paths> {
-        self.paths.clone()
-    }
-
-    fn backend_target(&self) -> &BackendTarget {
-        &self.target
-    }
-
     async fn import_account(
         &mut self,
         account_data: &CreateSet,
