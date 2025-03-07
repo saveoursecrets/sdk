@@ -22,9 +22,7 @@ mod vault_writer;
 pub use access_point::BackendAccessPoint as AccessPoint;
 pub use error::{Error, StorageError};
 pub use event_log::{
-    BackendAccountEventLog as AccountEventLog,
-    BackendDeviceEventLog as DeviceEventLog, BackendEventLog,
-    BackendFolderEventLog as FolderEventLog,
+    AccountEventLog, BackendEventLog, DeviceEventLog, FolderEventLog,
 };
 pub use folder::Folder;
 pub use helpers::extract_vault;
@@ -37,7 +35,7 @@ pub use system_messages::SystemMessages;
 pub use vault_writer::VaultWriter;
 
 #[cfg(feature = "files")]
-pub use event_log::BackendFileEventLog as FileEventLog;
+pub use event_log::FileEventLog;
 
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;

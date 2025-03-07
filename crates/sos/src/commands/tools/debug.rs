@@ -3,7 +3,6 @@ use clap::Subcommand;
 use sos_backend::BackendTarget;
 use sos_client_storage::ClientStorage;
 use sos_core::{AccountRef, Paths};
-use sos_database::open_file;
 use sos_sync::SyncStorage;
 
 #[derive(Subcommand, Debug)]

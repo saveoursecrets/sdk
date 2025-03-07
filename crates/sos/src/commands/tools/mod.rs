@@ -8,15 +8,14 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_account::Account;
-use sos_backend::{BackendTarget, FolderEventLog};
-use sos_client_storage::{ClientAccountStorage, ClientStorage};
+use sos_backend::BackendTarget;
+use sos_client_storage::ClientStorage;
 use sos_core::FolderRef;
 use sos_core::{
     constants::EVENT_LOG_EXT,
     crypto::{AccessKey, Cipher, KeyDerivation},
     AccountRef, Paths,
 };
-use sos_reducers::FolderReducer;
 use std::path::PathBuf;
 use terminal_banner::{Banner, Padding};
 

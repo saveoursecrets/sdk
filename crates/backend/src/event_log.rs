@@ -15,18 +15,17 @@ use sos_database::{
     DatabaseEventLog,
 };
 use sos_filesystem::FileSystemEventLog;
-use std::path::Path;
 
 /// Event log for account events.
-pub type BackendAccountEventLog = BackendEventLog<AccountEvent>;
+pub type AccountEventLog = BackendEventLog<AccountEvent>;
 /// Event log for device events.
-pub type BackendDeviceEventLog = BackendEventLog<DeviceEvent>;
+pub type DeviceEventLog = BackendEventLog<DeviceEvent>;
 /// Event log for folder events.
-pub type BackendFolderEventLog = BackendEventLog<WriteEvent>;
+pub type FolderEventLog = BackendEventLog<WriteEvent>;
 
 #[cfg(feature = "files")]
 /// Event log for file events.
-pub type BackendFileEventLog = BackendEventLog<sos_core::events::FileEvent>;
+pub type FileEventLog = BackendEventLog<sos_core::events::FileEvent>;
 
 #[cfg(feature = "files")]
 use sos_core::events::FileEvent;
@@ -128,16 +127,6 @@ impl BackendEventLog<WriteEvent> {
                 )
             }
         })
-    }
-
-    /// Create a file system folder event log.
-    #[deprecated]
-    pub async fn new_fs_folder<P: AsRef<Path>>(
-        path: P,
-    ) -> Result<Self, Error> {
-        Ok(BackendEventLog::FileSystem(
-            FileSystemEventLog::<WriteEvent, Error>::new_folder(path).await?,
-        ))
     }
 }
 

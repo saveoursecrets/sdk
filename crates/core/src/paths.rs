@@ -293,8 +293,7 @@ impl Paths {
     /// # Panics
     ///
     /// If this set of paths are global (no user identifier).
-    #[deprecated(note = "use into_file_path")]
-    pub fn blob_location(
+    pub fn into_blob_file_path(
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
@@ -393,8 +392,7 @@ impl Paths {
     /// # Panics
     ///
     /// If this set of paths are global (no user identifier).
-    #[deprecated(note = "use into_file_path")]
-    pub fn file_location(
+    pub fn into_legacy_file_path(
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,

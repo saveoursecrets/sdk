@@ -393,13 +393,13 @@ async fn copy_file_blobs(
             list_external_files(&account_paths).await?;
 
         for file in source_external_files {
-            let source = account_paths.file_location(
+            let source = account_paths.into_legacy_file_path(
                 file.vault_id(),
                 file.secret_id(),
                 file.file_name().to_string(),
             );
 
-            let dest = account_paths.blob_location(
+            let dest = account_paths.into_blob_file_path(
                 file.vault_id(),
                 file.secret_id(),
                 file.file_name().to_string(),

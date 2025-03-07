@@ -8,7 +8,9 @@ mod stream;
 pub mod mock {
     use anyhow::Result;
     use futures::{pin_mut, StreamExt};
-    use sos_backend::{AccountEventLog, BackendTarget, FolderEventLog};
+    use sos_backend::{
+        AccountEventLog, BackendEventLog, BackendTarget, FolderEventLog,
+    };
     use sos_core::{
         commit::{CommitHash, CommitTree},
         crypto::PrivateKey,
@@ -170,8 +172,9 @@ pub mod mock {
         let (id, data) = mock_secret().await?;
 
         // Create a simple event log
-        let mut event_log =
-            FolderEventLog::new_fs_folder(path.as_ref()).await?;
+        let mut event_log = BackendEventLog::FileSystem(
+            sos_filesystem::FolderEventLog::new_folder(path.as_ref()).await?,
+        );
         event_log
             .apply(&[
                 WriteEvent::CreateVault(vault_buffer),
@@ -204,7 +207,9 @@ pub mod mock {
         let (id, data) = mock_secret().await?;
 
         // Create a simple event log
-        let mut server = FolderEventLog::new_fs_folder(server_file).await?;
+        let mut server = BackendEventLog::FileSystem(
+            sos_filesystem::FolderEventLog::new_folder(server_file).await?,
+        );
         server
             .apply(&[
                 WriteEvent::CreateVault(vault_buffer),
@@ -213,7 +218,9 @@ pub mod mock {
             .await?;
 
         // Duplicate the server events on the client
-        let mut client = FolderEventLog::new_fs_folder(client_file).await?;
+        let mut client = BackendEventLog::FileSystem(
+            sos_filesystem::FolderEventLog::new_folder(client_file).await?,
+        );
         {
             let stream = server.event_stream(false).await;
             pin_mut!(stream);
