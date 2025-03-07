@@ -845,6 +845,10 @@ pub trait ClientAccountStorage:
     ///
     /// Used during pairing enrollment to initialize
     /// a device vault received from the authorizing device.
+    ///
+    /// # Authentication
+    ///
+    /// Can be called when the storage is not authenticated.
     async fn create_device_vault(
         &mut self,
         device_vault: &[u8],

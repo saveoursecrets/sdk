@@ -18,7 +18,7 @@ use sos_core::{
         patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
         Event, ReadEvent, WriteEvent,
     },
-    AccountId, AuthenticationError, Paths, SecretId, VaultId,
+    AccountId, Paths, SecretId, VaultId,
 };
 use sos_login::Identity;
 use sos_reducers::FolderReducer;
@@ -398,8 +398,6 @@ impl ClientAccountStorage for ClientStorage {
         &mut self,
         device_vault: &[u8],
     ) -> Result<()> {
-        self.guard_authenticated(Internal)?;
-
         match self {
             ClientStorage::FileSystem(fs) => {
                 fs.create_device_vault(device_vault).await
