@@ -4956,7 +4956,6 @@ dependencies = [
  "sos-database",
  "sos-database-upgrader",
  "sos-external-files",
- "sos-filesystem",
  "sos-integrity",
  "sos-login",
  "sos-logs",

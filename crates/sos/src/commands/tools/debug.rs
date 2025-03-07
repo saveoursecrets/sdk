@@ -21,12 +21,8 @@ pub async fn run(cmd: Command) -> Result<()> {
             let account_id = resolve_account_address(Some(&account)).await?;
             let paths = Paths::new_client(Paths::data_dir()?)
                 .with_account_id(&account_id);
-            let target = if paths.is_using_db() {
-                let client = open_file(paths.database_file()).await?;
-                BackendTarget::Database(paths, client)
-            } else {
-                BackendTarget::FileSystem(paths)
-            };
+            let target = BackendTarget::from_paths(&paths).await?;
+
             let storage =
                 ClientStorage::new_unauthenticated(target, &account_id)
                     .await?;

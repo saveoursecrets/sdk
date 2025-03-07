@@ -26,7 +26,6 @@ sos-client-storage = { workspace = true, features = ["full"] }
 sos-database = { workspace = true, features = ["full"] }
 sos-database-upgrader = { workspace = true, features = ["full"] }
 sos-external-files.workspace = true
-sos-filesystem = { workspace = true, features = ["full"] }
 sos-integrity.workspace = true
 sos-login = { workspace = true, features = ["full"] }
 sos-logs.workspace = true

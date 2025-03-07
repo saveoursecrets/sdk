@@ -288,9 +288,10 @@ pub async fn sign_in(account: &AccountRef) -> Result<SecretString> {
         .with_account_id(account.account_id());
 
     let passphrase = if !is_authenticated {
+        let target = BackendTarget::from_paths(&paths).await?;
         let mut current_account = NetworkAccount::new_unauthenticated(
             *account.account_id(),
-            BackendTarget::FileSystem(paths),
+            target,
             Default::default(),
         )
         .await?;
@@ -427,11 +428,11 @@ pub async fn new_account(
         }
 
         let paths = Paths::new_client(Paths::data_dir()?);
-
+        let target = BackendTarget::from_paths(&paths).await?;
         let mut owner = NetworkAccount::new_account_with_builder(
             account_name.clone(),
             passphrase.clone(),
-            BackendTarget::FileSystem(paths),
+            target,
             Default::default(),
             |builder| {
                 builder
