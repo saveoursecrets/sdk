@@ -21,7 +21,9 @@ CREATE TABLE IF NOT EXISTS accounts
     account_id            INTEGER             PRIMARY KEY NOT NULL,
     created_at            DATETIME            NOT NULL,
     modified_at           DATETIME            NOT NULL,
-
+    
+    -- Hex-encoded string representation of an account ID.
+    -- Starts with `0x` followed by 20 hex-encoded bytes.
     identifier            TEXT                NOT NULL UNIQUE,
     name                  TEXT                NOT NULL
 );
