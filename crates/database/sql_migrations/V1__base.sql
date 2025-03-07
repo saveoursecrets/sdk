@@ -215,7 +215,7 @@ CREATE INDEX IF NOT EXISTS file_events_commit_hash_idx
 --
 -- When an account_id is not set then the preferences are 
 -- considered to be global (eg: language).
--- Otherwise the preferenes are specific to an account.
+-- Otherwise the preferences are specific to an account.
 CREATE TABLE IF NOT EXISTS preferences
 (
     preference_id         INTEGER             PRIMARY KEY NOT NULL,
