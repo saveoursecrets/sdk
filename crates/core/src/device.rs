@@ -1,12 +1,12 @@
 //! Types for device support.
 use crate::{Error, Result};
-use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     collections::BTreeMap,
     fmt,
     hash::{Hash, Hasher},
+    sync::OnceLock,
 };
 use time::OffsetDateTime;
 
@@ -14,7 +14,17 @@ use time::OffsetDateTime;
 ///
 /// Applications can set this when they boot so that trusted devices
 /// will prefer this meta data.
-pub static DEVICE: OnceCell<DeviceMetaData> = OnceCell::new();
+static DEVICE: OnceLock<DeviceMetaData> = OnceLock::new();
+
+/// Set the default device meta data.
+pub fn set_default_device_meta(meta: DeviceMetaData) {
+    DEVICE.get_or_init(|| meta);
+}
+
+/// Get the default device meta data.
+pub fn get_default_device_meta<'a>() -> Option<&'a DeviceMetaData> {
+    DEVICE.get()
+}
 
 /// Type of a device public key.
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
