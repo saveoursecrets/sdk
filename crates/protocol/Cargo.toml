@@ -1,6 +1,6 @@
 [package]
 name = "sos-protocol"
-version = "0.16.4"
+version = "0.16.5"
 edition = "2021"
 description = "Networking and sync protocol types for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -27,7 +27,7 @@ hashcheck = ["reqwest"]
 network-client = ["reqwest", "bs58", "tokio-util", "tokio-stream"]
 pairing = []
 contacts = []
-files = ["sos-external-files"]
+files = ["sos-external-files/files", "sos-core/files", "sos-sync/files"]
 migrate = []
 search = []
 

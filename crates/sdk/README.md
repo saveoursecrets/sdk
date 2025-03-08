@@ -26,7 +26,7 @@ The file system backend is now considered legacy and may be removed in a future 
 | [sos-artifact](https://docs.rs/sos-artifact/latest/sos_artifact/)                                             | Release artifact types |
 | [sos-audit](https://docs.rs/sos-audit/latest/sos_audit/)                                                      | Audit log types and traits |
 | [sos-backend](https://docs.rs/sos-backend/latest/sos_backend/)                                                | Abstraction for multiple storage backends |
-| [sos-cli-helpers](https://docs.rs/sos-cli-helpers/latest/sos_cli-helpers/)                                    | Helper functions for the CLI tools |
+| [sos-cli-helpers](https://docs.rs/sos-cli-helpers/latest/sos_cli_helpers/)                                    | Helper functions for the CLI tools |
 | [sos-core](https://docs.rs/sos-core/latest/sos_core/)                                                         | Core types and traits; cryptography functions, commit trees and event definitions. |
 | [sos-database](https://docs.rs/sos-database/latest/sos_database/)                                             | SQLite database backend |
 | [sos-database-upgrader](https://docs.rs/sos-database-upgrader/latest/sos_database_upgrader/)                  | Upgrade filesystem backend to database backend |
