@@ -83,7 +83,7 @@ async fn vault_shared_folder_writable() -> Result<()> {
         .await?;
 
     // Owner adds a secret
-    let mut keeper = AccessPoint::new_vault(vault);
+    let mut keeper = AccessPoint::from_vault(vault);
     let key = AccessKey::Identity(owner.clone());
     keeper.unlock(&key).await?;
     let (meta, secret, _, _) =
@@ -100,7 +100,7 @@ async fn vault_shared_folder_writable() -> Result<()> {
     let encoded = encode(&vault).await?;
     let vault: Vault = decode(&encoded).await?;
 
-    let mut keeper_1 = AccessPoint::new_vault(vault);
+    let mut keeper_1 = AccessPoint::from_vault(vault);
     let key = AccessKey::Identity(other_1.clone());
     keeper_1.unlock(&key).await?;
     if let Some((read_meta, read_secret, _)) =
@@ -124,7 +124,7 @@ async fn vault_shared_folder_writable() -> Result<()> {
     let vault: Vault = keeper_1.into();
 
     // Check the owner can see the updated secret
-    let mut keeper = AccessPoint::new_vault(vault);
+    let mut keeper = AccessPoint::from_vault(vault);
     let key = AccessKey::Identity(owner.clone());
     keeper.unlock(&key).await?;
     if let Some((read_meta, read_secret, _)) = keeper.read_secret(&id).await?
@@ -155,7 +155,7 @@ async fn vault_shared_folder_readonly() -> Result<()> {
         .await?;
 
     // Owner adds a secret
-    let mut keeper = AccessPoint::new_vault(vault);
+    let mut keeper = AccessPoint::from_vault(vault);
     let key = AccessKey::Identity(owner.clone());
     keeper.unlock(&key).await?;
     let (meta, secret, _, _) =
@@ -180,7 +180,7 @@ async fn vault_shared_folder_readonly() -> Result<()> {
     let encoded = encode(&vault).await?;
     let vault: Vault = decode(&encoded).await?;
 
-    let mut keeper_1 = AccessPoint::new_vault(vault);
+    let mut keeper_1 = AccessPoint::from_vault(vault);
     let key = AccessKey::Identity(other_1.clone());
     keeper_1.unlock(&key).await?;
 

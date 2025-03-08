@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use crate::{BackendTarget, Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     crypto::{AccessKey, AeadPack, PrivateKey},
@@ -17,23 +17,49 @@ use std::path::Path;
 pub struct BackendAccessPoint(AccessPoint<Error>);
 
 impl BackendAccessPoint {
-    /// Create a new access point.
-    pub fn new(access_point: AccessPoint<Error>) -> Self {
+    /// Wrap an access point.
+    pub fn wrap(access_point: AccessPoint<Error>) -> Self {
         Self(access_point)
     }
 
     /// In-memory access point from a vault.
-    pub fn new_vault(vault: Vault) -> Self {
+    pub fn from_vault(vault: Vault) -> Self {
         Self(AccessPoint::<Error>::new(vault))
     }
 
+    /// Access point from a backend target.
+    ///
+    /// Changes are mirrored to the backend target.
+    pub async fn new(target: BackendTarget, vault: Vault) -> Self {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                let path = paths.vault_path(vault.id());
+                let mirror = VaultFileWriter::<Error>::new(path);
+                Self(AccessPoint::<Error>::new_mirror(
+                    vault,
+                    Box::new(mirror),
+                ))
+            }
+            BackendTarget::Database(_, client) => {
+                let mirror =
+                    VaultDatabaseWriter::<Error>::new(client, *vault.id());
+                Self(AccessPoint::<Error>::new_mirror(
+                    vault,
+                    Box::new(mirror),
+                ))
+            }
+        }
+    }
+
     /// Access point that mirrors to disc.
-    pub fn new_fs<P: AsRef<Path>>(vault: Vault, path: P) -> Self {
+    #[deprecated]
+    pub fn from_path<P: AsRef<Path>>(path: P, vault: Vault) -> Self {
         let mirror = VaultFileWriter::<Error>::new(path);
         Self(AccessPoint::<Error>::new_mirror(vault, Box::new(mirror)))
     }
 
     /// Access point that mirrors to a database table.
+    #[deprecated]
     pub async fn new_db(
         vault: Vault,
         client: Client,

@@ -14,7 +14,7 @@ async fn change_password() -> Result<()> {
         .build(BuilderCredentials::Password(current_key.clone(), None))
         .await?;
 
-    let mut keeper = AccessPoint::new_vault(mock_vault);
+    let mut keeper = AccessPoint::from_vault(mock_vault);
     let key: AccessKey = current_key.clone().into();
     keeper.unlock(&key).await?;
 
@@ -52,7 +52,7 @@ async fn change_password() -> Result<()> {
     .is_err());
 
     // Using a valid current passphrase should succeed
-    let (new_key, new_vault, event_log_events) = ChangePassword::new(
+    let (new_key, from_vault, event_log_events) = ChangePassword::new(
         keeper.vault(),
         AccessKey::Password(current_key),
         AccessKey::Password(new_key),
@@ -62,7 +62,7 @@ async fn change_password() -> Result<()> {
     .await?;
 
     assert_eq!(expected_passphrase, new_key);
-    assert_eq!(expected_len, new_vault.len());
+    assert_eq!(expected_len, from_vault.len());
     assert_eq!(expected_len + 1, event_log_events.len());
 
     Ok(())

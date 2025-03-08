@@ -48,7 +48,7 @@ async fn identity_no_key() -> Result<()> {
         .build(BuilderCredentials::Password(password.clone(), None))
         .await?;
 
-    let mut keeper = AccessPoint::new_vault(vault);
+    let mut keeper = AccessPoint::from_vault(vault);
     let key = password.clone().into();
     keeper.unlock(&key).await?;
 

@@ -98,7 +98,7 @@ impl Folder {
                     Box::new(mirror),
                 );
 
-                Ok(Self::init(AccessPoint::new(access_point), event_log))
+                Ok(Self::init(AccessPoint::wrap(access_point), event_log))
             }
         }
     }
@@ -123,7 +123,7 @@ impl Folder {
                 VaultAccessPoint::<Error>::new_mirror(vault, Box::new(mirror))
             }
         };
-        Ok(Self::init(AccessPoint::new(access_point), event_log))
+        Ok(Self::init(AccessPoint::wrap(access_point), event_log))
     }
 
     /// Create a new folder from a vault on disc.
@@ -172,7 +172,7 @@ impl Folder {
             VaultAccessPoint::<Error>::new_mirror(vault, Box::new(mirror));
 
         Ok(Self::init(
-            AccessPoint::new(access_point),
+            AccessPoint::wrap(access_point),
             FolderEventLog::FileSystem(event_log),
         ))
     }

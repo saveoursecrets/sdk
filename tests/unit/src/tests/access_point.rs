@@ -22,7 +22,7 @@ async fn access_point_secret_note() -> Result<()> {
         .build(BuilderCredentials::Password(passphrase.clone(), None))
         .await?;
 
-    let mut keeper = AccessPoint::new_vault(vault);
+    let mut keeper = AccessPoint::from_vault(vault);
     let key: AccessKey = passphrase.into();
     keeper.unlock(&key).await?;
 
@@ -71,7 +71,7 @@ async fn access_point_secret_account() -> Result<()> {
         .build(BuilderCredentials::Password(passphrase.clone(), None))
         .await?;
 
-    let mut keeper = AccessPoint::new_vault(vault);
+    let mut keeper = AccessPoint::from_vault(vault);
     let key: AccessKey = passphrase.into();
     keeper.unlock(&key).await?;
 

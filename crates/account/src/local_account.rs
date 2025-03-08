@@ -902,7 +902,7 @@ impl Account for LocalAccount {
             .await?;
 
         let account_key: AccessKey = password.into();
-        let mut output = AccessPoint::new_vault(vault);
+        let mut output = AccessPoint::from_vault(vault);
         output.unlock(&account_key).await?;
 
         {
@@ -1263,7 +1263,7 @@ impl Account for LocalAccount {
             .build(true)
             .await?;
 
-        let mut keeper = AccessPoint::new_vault(vault);
+        let mut keeper = AccessPoint::from_vault(vault);
         keeper.unlock(&key).await?;
 
         let mut search_index = SearchIndex::new();
@@ -2086,7 +2086,7 @@ impl Account for LocalAccount {
             .await?
             .ok_or(Error::NoFolderPassword(*contacts.id()))?;
         let vault = self.storage.read_vault(contacts.id()).await?;
-        let mut keeper = AccessPoint::new_vault(vault);
+        let mut keeper = AccessPoint::from_vault(vault);
         let key: AccessKey = contacts_passphrase.into();
         keeper.unlock(&key).await?;
 
@@ -2201,7 +2201,7 @@ impl Account for LocalAccount {
                 .await?
                 .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
-            let mut keeper = AccessPoint::new_vault(vault);
+            let mut keeper = AccessPoint::from_vault(vault);
             keeper.unlock(&vault_passphrase).await?;
 
             // Add the secrets for the vault to the migration

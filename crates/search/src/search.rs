@@ -782,7 +782,7 @@ impl AccountSearch {
         key: &AccessKey,
     ) -> Result<()> {
         let mut index = self.search_index.write().await;
-        let mut keeper = AccessPoint::new_vault(vault);
+        let mut keeper = AccessPoint::from_vault(vault);
         keeper.unlock(key).await?;
         index.add_folder(&keeper).await?;
         keeper.lock();

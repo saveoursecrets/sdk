@@ -19,7 +19,7 @@ async fn create_mock_authenticator(
         .await?;
 
     let key: AccessKey = folder_key.clone().into();
-    let mut keeper = AccessPoint::new_vault(vault);
+    let mut keeper = AccessPoint::from_vault(vault);
     keeper.unlock(&key).await?;
 
     let (meta, secret) = mock::totp("mock@example.com");
@@ -43,7 +43,7 @@ async fn authenticator_export_import() -> Result<()> {
         .await?;
 
     let key: AccessKey = folder_password.into();
-    let mut keeper = AccessPoint::new_vault(vault);
+    let mut keeper = AccessPoint::from_vault(vault);
     keeper.unlock(&key).await?;
 
     import_authenticator(archive.path(), &mut keeper).await?;

@@ -145,7 +145,7 @@ impl Convert for KeychainImport {
         let list = parser.parse()?;
 
         let mut index = SearchIndex::new();
-        let mut keeper = AccessPoint::new_vault(vault);
+        let mut keeper = AccessPoint::from_vault(vault);
         keeper.unlock(&key).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();

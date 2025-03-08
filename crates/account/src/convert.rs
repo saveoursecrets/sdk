@@ -136,7 +136,7 @@ impl LocalAccount {
 
         let seed = vault.seed().cloned();
         let name = vault.name().to_owned();
-        let mut input = AccessPoint::new_vault(vault);
+        let mut input = AccessPoint::from_vault(vault);
         input.unlock(key).await?;
         let meta = input.vault_meta().await?;
 
@@ -162,7 +162,7 @@ impl LocalAccount {
             }
         };
 
-        let mut output = AccessPoint::new_vault(output_vault);
+        let mut output = AccessPoint::from_vault(output_vault);
         output.unlock(key).await?;
 
         for key in input.vault().keys() {

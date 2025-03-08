@@ -302,7 +302,7 @@ impl Convert for GenericCsvConvert {
         key: &AccessKey,
     ) -> crate::Result<Vault> {
         let mut index = SearchIndex::new();
-        let mut keeper = AccessPoint::new_vault(vault);
+        let mut keeper = AccessPoint::from_vault(vault);
         keeper.unlock(key).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();

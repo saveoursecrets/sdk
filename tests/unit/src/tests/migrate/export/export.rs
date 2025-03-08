@@ -22,7 +22,7 @@ async fn create_mock_migration<W: AsyncWrite + AsyncSeek + Unpin>(
 
     let key: AccessKey = passphrase.into();
     let mut migration = PublicExport::new(writer);
-    let mut keeper = AccessPoint::new_vault(vault);
+    let mut keeper = AccessPoint::from_vault(vault);
     keeper.unlock(&key).await?;
 
     let (meta, secret, _, _) =

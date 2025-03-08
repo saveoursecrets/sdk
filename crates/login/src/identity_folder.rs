@@ -177,43 +177,14 @@ impl IdentityFolder {
         account_id: &AccountId,
     ) -> Result<()> {
         let device_vault = target.read_device_vault(account_id).await?;
-        let device_manager = match target {
-            BackendTarget::FileSystem(paths) => {
-                if let Some(vault) = device_vault {
-                    let folder_id = *vault.id();
-                    let device_keeper =
-                        AccessPoint::new_fs(vault, paths.device_file());
-                    Some(
-                        self.read_device_manager(&folder_id, device_keeper)
-                            .await?,
-                    )
-                } else {
-                    None
-                }
-            }
-            BackendTarget::Database(_, client) => {
-                if let Some(vault) = device_vault {
-                    let folder_id = *vault.id();
-                    let device_keeper =
-                        AccessPoint::new_db(vault, client.clone(), folder_id)
-                            .await;
-                    Some(
-                        self.read_device_manager(&folder_id, device_keeper)
-                            .await?,
-                    )
-                } else {
-                    None
-                }
-            }
-        };
-
-        let device_manager = if let Some(device_manager) = device_manager {
-            device_manager
+        let device_manager = if let Some(vault) = device_vault {
+            let folder_id = *vault.id();
+            let device_keeper = AccessPoint::new(target.clone(), vault).await;
+            self.read_device_manager(&folder_id, device_keeper).await?
         } else {
             self.new_device_manager(&target, DeviceSigner::new_random())
                 .await?
         };
-
         self.devices = Some(device_manager);
         Ok(())
     }
@@ -247,7 +218,7 @@ impl IdentityFolder {
         write_exclusive(paths.device_file(), &buffer).await?;
 
         let device_keeper =
-            AccessPoint::new_fs(device_vault, paths.device_file());
+            AccessPoint::from_path(paths.device_file(), device_vault);
 
         self.create_device_manager(
             signer,
@@ -281,9 +252,12 @@ impl IdentityFolder {
             .await
             .map_err(sos_backend::database::Error::from)?;
 
-        let device_keeper =
-            AccessPoint::new_db(device_vault, client.clone(), folder_id)
-                .await;
+        let paths = Paths::new_client("");
+        let device_keeper = AccessPoint::new(
+            BackendTarget::Database(paths, client.clone()),
+            device_vault,
+        )
+        .await;
 
         self.create_device_manager(
             signer,
