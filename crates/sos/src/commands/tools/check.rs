@@ -1,5 +1,5 @@
 use crate::{
-    helpers::{account::resolve_account_address, messages::success},
+    helpers::{account::resolve_account_address, messages::{success, fail}},
     Error, Result,
 };
 use clap::Subcommand;
@@ -11,8 +11,18 @@ use sos_integrity::{event_integrity, vault_integrity};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    /// Print an account login folder.
+    /// Print an account login vault.
     Login {
+        /// Account name or identifier.
+        #[clap(short, long)]
+        account: AccountRef,
+
+        /// Print more information.
+        #[clap(short, long)]
+        verbose: bool,
+    },
+    /// Print an account device vault.
+    Device {
         /// Account name or identifier.
         #[clap(short, long)]
         account: AccountRef,
@@ -85,12 +95,23 @@ pub async fn run(cmd: Command) -> Result<()> {
                 )?;
             }
         }
-        Command::VerifyVault {
-            account,
-            folder,
-            verbose,
-        } => {
-            verify_vault(account, folder, verbose).await?;
+        Command::Device { account, verbose } => {
+            let account_id = resolve_account_address(Some(&account)).await?;
+            let paths = Paths::new_client(Paths::data_dir()?)
+                .with_account_id(&account_id);
+            let target = BackendTarget::from_paths(&paths).await?;
+            if let Some(vault) = target.read_device_vault(&account_id).await? {
+              if verbose {
+                  serde_json::to_writer_pretty(std::io::stdout(), &vault)?;
+              } else {
+                  serde_json::to_writer_pretty(
+                      std::io::stdout(),
+                      vault.header(),
+                  )?;
+              }
+            } else {
+              fail("No device vault");
+            }
         }
         Command::Vault {
             account,
@@ -122,6 +143,13 @@ pub async fn run(cmd: Command) -> Result<()> {
                     vault.header(),
                 )?;
             }
+        }
+        Command::VerifyVault {
+            account,
+            folder,
+            verbose,
+        } => {
+            verify_vault(account, folder, verbose).await?;
         }
         Command::VerifyEvents {
             account,
