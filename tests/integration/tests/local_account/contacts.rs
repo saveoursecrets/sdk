@@ -3,6 +3,7 @@ use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
+use sos_vfs as vfs;
 
 const CONTACT: &str = include_str!("../../../fixtures/contact.vcf");
 const AVATAR: &str = include_str!("../../../fixtures/avatar.vcf");

@@ -4,11 +4,9 @@ use sos_account::{
     Account, FolderCreate, LocalAccount, SecretChange, SecretMove,
 };
 use sos_client_storage::NewFolderOptions;
+use sos_core::{crypto::AccessKey, ErrorExt, Paths};
+use sos_password::diceware::generate_passphrase;
 use sos_protocol::diff;
-use sos_sdk::{
-    prelude::{generate_passphrase, AccessKey, ErrorExt},
-    Paths,
-};
 use sos_sync::{
     Merge, MergeOutcome, SyncStorage, TrackedAccountChange,
     TrackedFolderChange,

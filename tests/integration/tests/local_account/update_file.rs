@@ -2,8 +2,9 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount, SecretChange};
 use sos_core::ExternalFileName;
-use sos_sdk::{prelude::*, vfs};
+use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
+use sos_vfs as vfs;
 
 /// Tests creating a file and updating the secret contents.
 #[tokio::test]

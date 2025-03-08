@@ -9,6 +9,7 @@ use sos_sync::{
     TrackedFolderChange,
 };
 use sos_test_utils::make_client_backend;
+use sos_vfs as vfs;
 
 /// Tests creating a diff and merging an import folder
 /// event without any networking.

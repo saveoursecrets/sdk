@@ -7,6 +7,7 @@ use sos_account::{Account, FolderCreate, FolderDelete};
 use sos_client_storage::NewFolderOptions;
 use sos_core::ExternalFile;
 use sos_sdk::prelude::*;
+use sos_vfs as vfs;
 
 /// Tests sending delete folder events to a remote.
 #[tokio::test]

@@ -6,6 +6,7 @@ use sos_account::{Account, FolderCreate, SecretChange};
 use sos_backend::BackendTarget;
 use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
+use sos_vfs as vfs;
 
 /// Tests recovering a folder from a remote origin after
 /// it has been removed from the local account.

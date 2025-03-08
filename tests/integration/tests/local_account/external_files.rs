@@ -16,6 +16,7 @@ use sos_core::ExternalFileName;
 use sos_external_files::FileProgress;
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
+use sos_vfs as vfs;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 

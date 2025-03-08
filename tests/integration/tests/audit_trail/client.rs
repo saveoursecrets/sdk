@@ -10,6 +10,7 @@ use sos_account::{Account, FolderCreate, LocalAccount, SecretChange};
 use sos_audit::AuditEvent;
 use sos_migrate::import::ImportTarget;
 use sos_sdk::prelude::*;
+use sos_vfs as vfs;
 use std::{path::PathBuf, sync::Arc};
 
 #[tokio::test]

@@ -4,6 +4,7 @@ use sos_account::{Account, FolderCreate, LocalAccount, SecretChange};
 use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
+use sos_vfs as vfs;
 
 /// Tests the basic folder lifecycle; create, write, export,
 /// import and delete.

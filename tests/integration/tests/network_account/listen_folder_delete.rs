@@ -3,6 +3,7 @@ use anyhow::Result;
 use sos_account::{Account, FolderCreate, FolderDelete};
 use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
+use sos_vfs as vfs;
 
 /// Tests syncing delete folder events between two clients
 /// where the second client listens for changes emitted

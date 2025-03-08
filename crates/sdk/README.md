@@ -19,6 +19,8 @@ The file system backend is now considered legacy and may be removed in a future 
 
 ## Crates
 
+This crate exports a prelude of common types for low-level access but we encourage using the appropriate crate directly.
+
 | Crate                                                                                                         | Description     |
 |:------------------                                                                                            |:------------|
 | [sos-account](https://docs.rs/sos-account/latest/sos_account/)                                                | Local account management |

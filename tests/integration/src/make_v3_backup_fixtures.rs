@@ -1,9 +1,10 @@
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_backend::{archive, BackendTarget};
+use sos_core::Paths;
 use sos_database::open_file;
 use sos_database_upgrader::archive::upgrade_backup_archive;
-use sos_sdk::{prelude::generate_passphrase, Paths};
+use sos_password::diceware::generate_passphrase;
 use std::path::PathBuf;
 use tempfile::tempdir_in;
 
