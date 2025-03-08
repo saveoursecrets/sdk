@@ -1,6 +1,6 @@
 [package]
 name = "sos-ipc"
-version = "0.16.7"
+version = "0.16.9"
 edition = "2021"
 description = "Inter-process communication for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"

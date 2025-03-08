@@ -1,6 +1,6 @@
 [package]
 name = "sos-client-storage"
-version = "0.16.2"
+version = "0.16.3"
 edition = "2021"
 description = "Client storage for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -9,7 +9,7 @@ repository = "https://github.com/saveoursecrets/sdk"
 
 [features]
 full = ["audit", "files", "archive", "search"]
-archive = ["sos-filesystem/archive"]
+archive = ["sos-filesystem/archive", "sos-database/archive"]
 audit = ["sos-audit", "sos-backend/audit"]
 files = [
   "sos-external-files",

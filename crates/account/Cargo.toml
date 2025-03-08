@@ -1,6 +1,6 @@
 [package]
 name = "sos-account"
-version = "0.16.1"
+version = "0.16.3"
 edition = "2021"
 description = "Local accounts for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
@@ -24,6 +24,7 @@ full = [
 audit = ["sos-audit", "sos-client-storage/audit"]
 archive = [
   "sos-filesystem/archive",
+  "sos-database/archive",
   "sos-client-storage/archive",
 ]
 clipboard = ["dep:xclipboard", "dep:serde_json_path", "dep:time-tz"]
