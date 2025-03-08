@@ -1,15 +1,24 @@
 [package]
 name = "sos-remote-sync"
-version = "0.16.0"
+version = "0.16.1"
 edition = "2021"
 description = "Sync protocol implementation for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 full = ["files"]
-files = ["sos-protocol/files"]
+files = [
+  "sos-account/files",
+  "sos-backend/files",
+  "sos-protocol/files",
+  "sos-sync/files",
+]
 
 [dependencies]
 sos-account.workspace = true

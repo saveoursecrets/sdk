@@ -5004,7 +5004,7 @@ dependencies = [
 
 [[package]]
 name = "sos-account"
-version = "0.16.3"
+version = "0.16.4"
 dependencies = [
  "async-trait",
  "futures",
@@ -5089,7 +5089,7 @@ dependencies = [
 
 [[package]]
 name = "sos-backend"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5408,7 +5408,7 @@ dependencies = [
 
 [[package]]
 name = "sos-ipc"
-version = "0.16.9"
+version = "0.16.11"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -5492,7 +5492,7 @@ dependencies = [
 
 [[package]]
 name = "sos-migrate"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "async-trait",
  "async_zip",
@@ -5523,7 +5523,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.16.5"
+version = "0.16.9"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -5664,7 +5664,7 @@ dependencies = [
 
 [[package]]
 name = "sos-remote-sync"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "async-trait",
  "indexmap 2.7.1",
@@ -5833,7 +5833,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sync"
-version = "0.16.1"
+version = "0.16.2"
 dependencies = [
  "async-trait",
  "indexmap 2.7.1",

@@ -1,8 +1,8 @@
 [package]
 name = "sos-sync"
-version = "0.16.1"
+version = "0.16.2"
 edition = "2021"
-description = "Core sync types and traits for the Save Our Secrets SDK"
+description = "Sync types and traits for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
@@ -14,6 +14,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 full = ["files"]
 files = [
+  "sos-core/files",
   "sos-backend/files",
   "sos-reducers/files",
 ]

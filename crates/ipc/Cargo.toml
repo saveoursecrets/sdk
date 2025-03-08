@@ -1,6 +1,6 @@
 [package]
 name = "sos-ipc"
-version = "0.16.9"
+version = "0.16.11"
 edition = "2021"
 description = "Inter-process communication for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -8,10 +8,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [package.metadata.docs.rs]
-features = [
-  "local-transport",
-  "extension-helper-server",
-]
+all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -22,7 +19,14 @@ local-transport = [
 memory-http-server = []
 clipboard = ["sos-account/clipboard"]
 contacts = ["sos-protocol/contacts"]
-files = ["sos-protocol/files"]
+files = [
+  "sos-account/files",
+  "sos-core/files",
+  "sos-backend/files",
+  "sos-client-storage/files",
+  "sos-protocol/files",
+  "sos-sync/files",
+]
 migrate = ["sos-account/migrate"]
 search = ["sos-search", "sos-protocol/search"]
 extension-helper-server = [

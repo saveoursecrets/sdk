@@ -2,15 +2,6 @@ Software development kit for a distributed, local-first, encrypted database that
 
 See the [Save Our Secrets](https://saveoursecrets.com) website for the app, more documentation and information.
 
-A higher-level account management API is described in [sos_account::Account](https://docs.rs/sos-account/latest/sos_account/trait.Account.html) which is implemented by [sos_account::LocalAccount](https://docs.rs/sos-account/latest/sos_account/struct.LocalAccount.html). For a network aware account with sync capability use [sos_net::NetworkAccount](https://docs.rs/sos-net/latest/sos_net/struct.NetworkAccount.html).
-
-For lower-level access use the types in the [sos-vault](https://docs.rs/sos-vault/latest/sos_vault/) crate.
-
-## Features
-
-* `contacts` Manage account contacts.
-* `files` Store external encrypted files.
-
 ## Backends
 
 There are two storage backends, a [file system backend](https://docs.rs/sos-filesystem/latest/sos_filesystem/) which uses append-only files for event logs and a newer SQLite [database backend](https://docs.rs/sos-database/latest/sos_database/). The [sos-backend](https://docs.rs/sos-backend/latest/sos_backend/) crate is an abstraction for multiple storage backends and should be used to create a backend target.
@@ -18,6 +9,10 @@ There are two storage backends, a [file system backend](https://docs.rs/sos-file
 The file system backend is now considered legacy and may be removed in a future version.
 
 ## Crates
+
+A higher-level account management API is described in [sos_account::Account](https://docs.rs/sos-account/latest/sos_account/trait.Account.html) which is implemented by [sos_account::LocalAccount](https://docs.rs/sos-account/latest/sos_account/struct.LocalAccount.html). For a network aware account with sync capability use [sos_net::NetworkAccount](https://docs.rs/sos-net/latest/sos_net/struct.NetworkAccount.html).
+
+For lower-level access use the types in the [sos-vault](https://docs.rs/sos-vault/latest/sos_vault/) crate.
 
 This crate exports a prelude of common types for low-level access but we encourage using the appropriate crate directly.
 
@@ -41,7 +36,7 @@ This crate exports a prelude of common types for low-level access but we encoura
 | [sos-migrate](https://docs.rs/sos-migrate/latest/sos_migrate/)                                                | Import from and export to other apps (unencrypted data) |
 | [sos-net](https://docs.rs/sos-net/latest/sos_net/)                                                            | Network-aware accounts with sync capability |
 | [sos-password](https://docs.rs/sos-password/latest/sos_password/)                                             | Strong password generation |
-| [sos-platform-authenticator](https://docs.rs/sos-platform-authenticator/latest/sos_platform_authenticator/)   | Native platform authenticator integration |
+| [sos-platform-authenticator](https://docs.rs/sos-platform-authenticator/latest/sos_platform_authenticator/)   | Native platform authenticator and keyring integration |
 | [sos-preferences](https://docs.rs/sos-preferences/latest/sos_preferences/)                                    | Types and traits for global and account user preferences |
 | [sos-protocol](https://docs.rs/sos-protocol/latest/sos_protocol/)                                             | Network client and protocol |
 | [sos-reducers](https://docs.rs/sos-reducers/latest/sos_reducers/)                                             | Reduce event logs into compact representations |
@@ -65,3 +60,7 @@ The public API is not considered stable and may be changed at any time prior to 
 ## MSRV
 
 We track the latest stable Rust toolchain (currently `1.85.0`) so we can use new features as they are stabilized the code may compile on older versions.
+
+## License
+
+The client code is either MIT or Apache-2.0, you choose; the server is released under the AGPL-3.0 license.

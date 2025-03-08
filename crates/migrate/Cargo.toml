@@ -1,6 +1,6 @@
 [package]
 name = "sos-migrate"
-version = "0.16.2"
+version = "0.16.3"
 edition = "2021"
 description = "Import and export for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
