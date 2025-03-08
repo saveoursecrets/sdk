@@ -51,15 +51,15 @@ pub type VaultId = Uuid;
 pub type SecretId = Uuid;
 
 /// Secret as an encrypted pair of meta and secret data.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Eq, PartialEq)]
 pub struct VaultEntry(pub crypto::AeadPack, pub crypto::AeadPack);
 
 /// Encrypted secret with an associated commit hash.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Eq, PartialEq)]
 pub struct VaultCommit(pub commit::CommitHash, pub VaultEntry);
 
 /// Path to a secret.
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct SecretPath(pub VaultId, pub SecretId);
 
 impl SecretPath {
