@@ -174,8 +174,8 @@ impl IdentityFolder {
     pub(super) async fn ensure_device_vault(
         &mut self,
         target: &BackendTarget,
-        account_id: &AccountId,
     ) -> Result<()> {
+        let account_id = self.private_identity.account_id();
         let device_vault = target.read_device_vault(account_id).await?;
         let device_manager = if let Some(vault) = device_vault {
             let folder_id = *vault.id();
@@ -195,77 +195,48 @@ impl IdentityFolder {
         target: &BackendTarget,
         signer: DeviceSigner,
     ) -> Result<DeviceManager> {
-        match target {
-            BackendTarget::FileSystem(paths) => {
-                self.new_device_manager_fs(paths, signer).await
-            }
-            BackendTarget::Database(_, client) => {
-                self.new_device_manager_db(client, signer).await
-            }
+        let account_id = self.private_identity.account_id();
+        let password = self.generate_folder_password()?;
+        let key = password.into();
+
+        let mut device_manager =
+            DeviceManager::new(target, account_id, signer.clone(), &key)
+                .await?;
+
+        let folder_id = *device_manager.access_point().id();
+        let device_key_urn = self.device_urn()?;
+
+        tracing::debug!(
+            urn = %device_key_urn,
+            "create_device_manager");
+
+        self.save_folder_password(&folder_id, key.clone()).await?;
+
+        // let key: AccessKey = device_password.into();
+        device_manager.access_point_mut().unlock(&key).await?;
+
+        let secret = Secret::Signer {
+            private_key: SecretSigner::SinglePartyEd25519(SecretBox::new(
+                signer.signing_key().to_bytes().into(),
+            )),
+            user_data: Default::default(),
+        };
+        let mut meta =
+            SecretMeta::new("Device Key".to_string(), secret.kind());
+        meta.set_urn(Some(device_key_urn.clone()));
+
+        let id = SecretId::new_v4();
+        let secret_data = SecretRow::new(id, meta, secret);
+        device_manager
+            .access_point_mut()
+            .create_secret(&secret_data)
+            .await?;
+
+        {
+            self.index.insert((folder_id, device_key_urn), id);
         }
-    }
 
-    /// Create a new file system device manager.
-    async fn new_device_manager_fs(
-        &mut self,
-        paths: &Paths,
-        signer: DeviceSigner,
-    ) -> Result<DeviceManager> {
-        let (device_password, device_vault) =
-            self.create_device_vault().await?;
-        let folder_id = *device_vault.id();
-        let buffer = encode(&device_vault).await?;
-        write_exclusive(paths.device_file(), &buffer).await?;
-
-        let device_keeper =
-            AccessPoint::from_path(paths.device_file(), device_vault);
-
-        self.create_device_manager(
-            signer,
-            &folder_id,
-            device_password,
-            device_keeper,
-        )
-        .await
-    }
-
-    /// Create a new database device manager.
-    async fn new_device_manager_db(
-        &mut self,
-        client: &Client,
-        signer: DeviceSigner,
-    ) -> Result<DeviceManager> {
-        let (device_password, device_vault) =
-            self.create_device_vault().await?;
-        let folder_id = *device_vault.id();
-        let account_id = *self.private_identity.account_id();
-        let folder_row = FolderRow::new_insert(&device_vault).await?;
-        client
-            .conn(move |conn| {
-                let account = AccountEntity::new(&conn);
-                let folder = FolderEntity::new(&conn);
-                let account_row = account.find_one(&account_id)?;
-                let folder_id =
-                    folder.insert_folder(account_row.row_id, &folder_row)?;
-                account.insert_device_folder(account_row.row_id, folder_id)
-            })
-            .await
-            .map_err(sos_backend::database::Error::from)?;
-
-        let paths = Paths::new_client("");
-        let device_keeper = AccessPoint::new(
-            BackendTarget::Database(paths, client.clone()),
-            device_vault,
-        )
-        .await;
-
-        self.create_device_manager(
-            signer,
-            &folder_id,
-            device_password,
-            device_keeper,
-        )
-        .await
+        Ok(device_manager)
     }
 
     fn device_urn(&self) -> Result<Urn> {
@@ -315,69 +286,10 @@ impl IdentityFolder {
         {
             let key: ed25519::SingleParty =
                 data.expose_secret().as_slice().try_into()?;
-            Ok(DeviceManager::new(key.into(), device_keeper))
+            Ok(DeviceManager::init(key.into(), device_keeper))
         } else {
             Err(Error::VaultEntryKind(device_key_urn.to_string()))
         }
-    }
-
-    async fn create_device_vault(&self) -> Result<(SecretString, Vault)> {
-        // Prepare the password for the device vault
-        let password = self.generate_folder_password()?;
-
-        // Prepare the device vault
-        let vault = VaultBuilder::new()
-            .public_name("Device".to_string())
-            .flags(
-                VaultFlags::SYSTEM | VaultFlags::DEVICE | VaultFlags::NO_SYNC,
-            )
-            .build(BuilderCredentials::Password(
-                password.clone().into(),
-                None,
-            ))
-            .await?;
-
-        Ok((password, vault))
-    }
-
-    async fn create_device_manager(
-        &mut self,
-        signer: DeviceSigner,
-        folder_id: &VaultId,
-        device_password: SecretString,
-        mut device_keeper: AccessPoint,
-    ) -> Result<DeviceManager> {
-        let device_key_urn = self.device_urn()?;
-
-        tracing::debug!(
-            urn = %device_key_urn,
-            "create_device_manager");
-
-        self.save_folder_password(folder_id, device_password.clone().into())
-            .await?;
-
-        let key: AccessKey = device_password.into();
-        device_keeper.unlock(&key).await?;
-
-        let secret = Secret::Signer {
-            private_key: SecretSigner::SinglePartyEd25519(SecretBox::new(
-                signer.signing_key().to_bytes().into(),
-            )),
-            user_data: Default::default(),
-        };
-        let mut meta =
-            SecretMeta::new("Device Key".to_string(), secret.kind());
-        meta.set_urn(Some(device_key_urn.clone()));
-
-        let id = SecretId::new_v4();
-        let secret_data = SecretRow::new(id, meta, secret);
-        device_keeper.create_secret(&secret_data).await?;
-
-        {
-            self.index.insert((*device_keeper.id(), device_key_urn), id);
-        }
-
-        Ok(DeviceManager::new(signer, device_keeper))
     }
 
     /// Rebuild the index lookup for folder passwords.

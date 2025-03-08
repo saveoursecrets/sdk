@@ -1,12 +1,20 @@
 //! Types for device support.
 use crate::{Error, Result};
-use sos_backend::AccessPoint;
-use sos_core::{
-    device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
-    encode,
+use sos_backend::{
+    database::{
+        async_sqlite::Client,
+        entity::{AccountEntity, FolderEntity, FolderRow},
+    },
+    AccessPoint, BackendTarget,
 };
+use sos_core::{
+    crypto::AccessKey,
+    device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
+    encode, AccountId, Paths, VaultFlags,
+};
+use sos_filesystem::write_exclusive;
 use sos_signer::ed25519::{BoxedEd25519Signer, SingleParty};
-use sos_vault::{SecretAccess, Vault};
+use sos_vault::{BuilderCredentials, SecretAccess, Vault, VaultBuilder};
 
 /// Signing key for a device.
 #[derive(Clone)]
@@ -64,7 +72,7 @@ pub struct DeviceManager {
     signer: DeviceSigner,
     /// Access to the vault that stores the device
     /// signing key.
-    keeper: AccessPoint,
+    access_point: AccessPoint,
 }
 
 impl DeviceManager {
@@ -72,8 +80,123 @@ impl DeviceManager {
     ///
     /// The access point should be unlocked before assigning to a
     /// device manager.
-    pub(super) fn new(signer: DeviceSigner, keeper: AccessPoint) -> Self {
-        Self { signer, keeper }
+    pub(super) fn init(
+        signer: DeviceSigner,
+        access_point: AccessPoint,
+    ) -> Self {
+        Self {
+            signer,
+            access_point,
+        }
+    }
+
+    /// Create a new device manager from a signer.
+    pub async fn new(
+        target: &BackendTarget,
+        account_id: &AccountId,
+        signer: DeviceSigner,
+        password: &AccessKey,
+    ) -> Result<Self> {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                Self::new_device_manager_fs(
+                    paths, account_id, signer, password,
+                )
+                .await
+            }
+            BackendTarget::Database(_, client) => {
+                Self::new_device_manager_db(
+                    client, account_id, signer, password,
+                )
+                .await
+            }
+        }
+    }
+
+    /// Create a device manager from a vault.
+    pub async fn open_vault(
+        target: BackendTarget,
+        vault: Vault,
+    ) -> Result<Self> {
+        let folder_id = *vault.id();
+        let device_keeper = AccessPoint::new(target, vault).await;
+        // self.read_device_manager(&folder_id, device_keeper).await?
+        todo!();
+    }
+
+    async fn create_device_vault(password: &AccessKey) -> Result<Vault> {
+        // Prepare the device vault
+        let vault = VaultBuilder::new()
+            .public_name("Device".to_string())
+            .flags(
+                VaultFlags::SYSTEM | VaultFlags::DEVICE | VaultFlags::NO_SYNC,
+            )
+            .build(BuilderCredentials::Password(
+                password.clone().into(),
+                None,
+            ))
+            .await?;
+
+        Ok(vault)
+    }
+
+    /// Create a new file system device manager.
+    async fn new_device_manager_fs(
+        paths: &Paths,
+        account_id: &AccountId,
+        signer: DeviceSigner,
+        password: &AccessKey,
+    ) -> Result<Self> {
+        let device_vault = Self::create_device_vault(password).await?;
+        let buffer = encode(&device_vault).await?;
+        write_exclusive(paths.device_file(), &buffer).await?;
+
+        let device_keeper =
+            AccessPoint::from_path(paths.device_file(), device_vault);
+
+        Ok(Self::init(signer, device_keeper))
+    }
+
+    /// Create a new database device manager.
+    async fn new_device_manager_db(
+        client: &Client,
+        account_id: &AccountId,
+        signer: DeviceSigner,
+        password: &AccessKey,
+    ) -> Result<Self> {
+        let device_vault = Self::create_device_vault(password).await?;
+        let account_id = *account_id;
+        let folder_row = FolderRow::new_insert(&device_vault).await?;
+        client
+            .conn(move |conn| {
+                let account = AccountEntity::new(&conn);
+                let folder = FolderEntity::new(&conn);
+                let account_row = account.find_one(&account_id)?;
+                let folder_id =
+                    folder.insert_folder(account_row.row_id, &folder_row)?;
+                account.insert_device_folder(account_row.row_id, folder_id)
+            })
+            .await
+            .map_err(sos_backend::database::Error::from)?;
+
+        let paths = Paths::new_client("");
+        let device_keeper = AccessPoint::new(
+            BackendTarget::Database(paths, client.clone()),
+            device_vault,
+        )
+        .await;
+
+        Ok(Self::init(signer, device_keeper))
+    }
+
+    /// Access point for the device vault.
+    pub(crate) fn access_point(&self) -> &AccessPoint {
+        &self.access_point
+    }
+
+    /// Mutable access point for the device vault.
+    pub(crate) fn access_point_mut(&mut self) -> &mut AccessPoint {
+        &mut self.access_point
     }
 
     /// Signing key for this device.
@@ -83,17 +206,9 @@ impl DeviceManager {
 
     /// Consume this device manager into a buffer of the vault.
     pub async fn into_vault_buffer(self) -> Result<Vec<u8>> {
-        let vault: Vault = self.keeper.into();
+        let vault: Vault = self.access_point.into();
         let buffer = encode(&vault).await?;
         Ok(buffer)
-    }
-
-    /// Basic device information.
-    ///
-    /// Most applications will want to use other platform native
-    /// code to get more information about the device hardware.
-    pub fn device_info() -> DeviceMetaData {
-        Default::default()
     }
 
     /// Current device information.
@@ -106,6 +221,6 @@ impl DeviceManager {
 
     /// Sign out locking the device vault.
     pub fn sign_out(&mut self) {
-        self.keeper.lock();
+        self.access_point.lock();
     }
 }

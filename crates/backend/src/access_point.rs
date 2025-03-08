@@ -5,7 +5,7 @@ use sos_core::{
     events::{ReadEvent, WriteEvent},
     SecretId, VaultCommit, VaultFlags, VaultId,
 };
-use sos_database::{async_sqlite::Client, VaultDatabaseWriter};
+use sos_database::VaultDatabaseWriter;
 use sos_filesystem::VaultFileWriter;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
@@ -27,18 +27,14 @@ impl BackendAccessPoint {
         Self(AccessPoint::<Error>::new(vault))
     }
 
-    /// Access point from a backend target.
+    /// Access point for a folder in a backend target.
     ///
     /// Changes are mirrored to the backend target.
     pub async fn new(target: BackendTarget, vault: Vault) -> Self {
         match target {
             BackendTarget::FileSystem(paths) => {
                 let path = paths.vault_path(vault.id());
-                let mirror = VaultFileWriter::<Error>::new(path);
-                Self(AccessPoint::<Error>::new_mirror(
-                    vault,
-                    Box::new(mirror),
-                ))
+                Self::from_path(path, vault)
             }
             BackendTarget::Database(_, client) => {
                 let mirror =
@@ -52,20 +48,8 @@ impl BackendAccessPoint {
     }
 
     /// Access point that mirrors to disc.
-    #[deprecated]
     pub fn from_path<P: AsRef<Path>>(path: P, vault: Vault) -> Self {
         let mirror = VaultFileWriter::<Error>::new(path);
-        Self(AccessPoint::<Error>::new_mirror(vault, Box::new(mirror)))
-    }
-
-    /// Access point that mirrors to a database table.
-    #[deprecated]
-    pub async fn new_db(
-        vault: Vault,
-        client: Client,
-        folder_id: VaultId,
-    ) -> Self {
-        let mirror = VaultDatabaseWriter::<Error>::new(client, folder_id);
         Self(AccessPoint::<Error>::new_mirror(vault, Box::new(mirror)))
     }
 }
