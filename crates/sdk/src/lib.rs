@@ -1,27 +1,7 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-
-//! Software development kit for a
-//! distributed, encrypted database that can be used
-//! to build password managers, cryptocurrency wallets
-//! or other applications that require storing secrets
-//! securely.
-//!
-//! See the [Save Our Secrets](https://saveoursecrets.com) website
-//! for more documentation and information.
-//!
-//! A higher-level account management API is described in [sos_account::Account](https://docs.rs/sos-account/latest/sos_account/trait.Account.html)
-//! which is implemented by [sos_account::LocalAccount](https://docs.rs/sos-account/latest/sos_account/struct.LocalAccount.html). For a network aware
-//! account with sync capability use [sos_net::NetworkAccount](https://docs.rs/sos-net/latest/sos_net/struct.NetworkAccount.html).
-//!
-//! For lower-level access use the types in the [vault] module.
-//!
-//! # Features
-//!
-//! * `contacts` Manage account contacts.
-//! * `files` Store external encrypted files.
-//!
+#![doc = include_str!("../README.md")]
 
 pub mod device;
 pub mod prelude;
