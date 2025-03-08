@@ -228,7 +228,8 @@ async fn file_integrity_cancel() -> Result<()> {
         match event {
             FileIntegrityEvent::OpenFile(_, _) => {
                 canceled = true;
-                cancel_tx.send(()).unwrap();
+                let _ = cancel_tx.send(());
+                break;
             }
             _ => {}
         }
