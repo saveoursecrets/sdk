@@ -247,7 +247,6 @@ async fn account_integrity_corrupted_event() -> Result<()> {
 
 /// Test canceling an account integrity report.
 #[tokio::test]
-#[cfg_attr(windows, ignore = "fails with SendError in CI")]
 async fn account_integrity_cancel() -> Result<()> {
     const TEST_ID: &str = "account_integrity_cancel";
 
@@ -287,7 +286,7 @@ async fn account_integrity_cancel() -> Result<()> {
                 // and the cancel receiver may have already
                 // been dropped which would cause the send()
                 // to fail
-                let _ = cancel_tx.send(());
+                let _ = cancel_tx.send(true);
             }
             _ => {}
         }

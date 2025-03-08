@@ -46,9 +46,9 @@ pub async fn account_integrity(
     account_id: &AccountId,
     folders: Vec<Summary>,
     concurrency: usize,
-) -> Result<(Receiver<FolderIntegrityEvent>, watch::Sender<()>)> {
+) -> Result<(Receiver<FolderIntegrityEvent>, watch::Sender<bool>)> {
     let (mut event_tx, event_rx) = mpsc::channel::<FolderIntegrityEvent>(64);
-    let (cancel_tx, mut cancel_rx) = watch::channel(());
+    let (cancel_tx, mut cancel_rx) = watch::channel(false);
 
     notify_listeners(
         &mut event_tx,
@@ -93,7 +93,7 @@ pub async fn account_integrity(
                     // Signal the shutdown event on the cancel channel
                     // to break out of this loop and cancel any existing
                     // file reader streams
-                    if let Err(error) = cancel_tx.send(()) {
+                    if let Err(error) = cancel_tx.send(true) {
                       tracing::error!(error = ?error);
                     }
                   }
@@ -116,7 +116,7 @@ async fn check_folder(
     account_id: &AccountId,
     folder_id: &VaultId,
     mut integrity_tx: Sender<FolderIntegrityEvent>,
-    mut cancel_rx: watch::Receiver<()>,
+    mut cancel_rx: watch::Receiver<bool>,
 ) -> Result<()> {
     notify_listeners(
         &mut integrity_tx,

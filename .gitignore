@@ -17,4 +17,3 @@ tests/server_public_key.txt
 geiger-report.txt
 .aider*
 node_modules
-/test-n.sh

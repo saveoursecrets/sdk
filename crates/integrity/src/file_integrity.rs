@@ -43,11 +43,11 @@ pub async fn file_integrity(
     target: &BackendTarget,
     external_files: IndexSet<ExternalFile>,
     concurrency: usize,
-) -> Result<(Receiver<FileIntegrityEvent>, watch::Sender<()>)> {
+) -> Result<(Receiver<FileIntegrityEvent>, watch::Sender<bool>)> {
     let paths = target.paths();
 
     let (mut event_tx, event_rx) = mpsc::channel::<FileIntegrityEvent>(64);
-    let (cancel_tx, mut cancel_rx) = watch::channel(());
+    let (cancel_tx, mut cancel_rx) = watch::channel(false);
 
     notify_listeners(
         &mut event_tx,
@@ -86,7 +86,7 @@ pub async fn file_integrity(
                     // Signal the shutdown event on the cancel channel
                     // to break out of this loop and cancel any existing
                     // file reader streams
-                    if let Err(error) = cancel_tx.send(()) {
+                    if let Err(error) = cancel_tx.send(true) {
                       tracing::error!(error = ?error);
                     }
                   }
@@ -108,7 +108,7 @@ async fn check_file(
     file: ExternalFile,
     path: PathBuf,
     tx: &mut Sender<FileIntegrityEvent>,
-    cancel_rx: &mut watch::Receiver<()>,
+    cancel_rx: &mut watch::Receiver<bool>,
 ) -> Result<()> {
     if vfs::try_exists(&path).await? {
         let metadata = vfs::metadata(&path).await?;
@@ -158,7 +158,7 @@ async fn compare_file(
     external_file: &ExternalFile,
     path: PathBuf,
     tx: &mut Sender<FileIntegrityEvent>,
-    cancel_rx: &mut watch::Receiver<()>,
+    cancel_rx: &mut watch::Receiver<bool>,
 ) -> Result<Option<IntegrityFailure>> {
     let mut hasher = Sha256::new();
 
