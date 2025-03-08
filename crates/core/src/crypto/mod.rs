@@ -13,7 +13,7 @@ pub use cipher::Cipher;
 pub(crate) use cipher::{AES_GCM_256, X25519, X_CHACHA20_POLY1305};
 
 #[doc(hidden)]
-pub use key_derivation::{Deriver, SEED_SIZE};
+pub use key_derivation::Deriver;
 pub(crate) use key_derivation::{ARGON_2_ID, BALLOON_HASH};
 
 pub use key_derivation::{KeyDerivation, Seed};

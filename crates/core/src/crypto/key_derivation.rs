@@ -11,6 +11,7 @@ use balloon_hash::Balloon;
 use rand::Rng;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
+use serde_with::{base64::Base64, serde_as};
 use sha2::{Digest, Sha256};
 use std::{convert::AsRef, fmt, str::FromStr};
 
@@ -19,11 +20,21 @@ pub(crate) const ARGON_2_ID: u8 = 1;
 /// Balloon hash key derivation function.
 pub(crate) const BALLOON_HASH: u8 = 2;
 
-/// Number of bytes for the passphrase seed entropy.
-#[doc(hidden)]
-pub const SEED_SIZE: usize = 32;
 /// Type for additional passphrase seed entropy.
-pub type Seed = [u8; SEED_SIZE];
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct Seed(#[serde_as(as = "Base64")] pub [u8; Seed::SIZE]);
+
+impl Seed {
+    /// Number of bytes for seed entropy.
+    pub const SIZE: usize = 32;
+}
+
+impl AsRef<[u8]> for Seed {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
 
 /// Supported key derivation functions.
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
@@ -56,7 +67,8 @@ impl KeyDerivation {
     /// Generate new random seed entropy.
     #[deprecated]
     pub fn generate_seed() -> Seed {
-        csprng().gen()
+        let bytes: [u8; Seed::SIZE] = csprng().gen();
+        Seed(bytes)
     }
 }
 
@@ -128,7 +140,7 @@ pub trait Deriver<D: Digest> {
     ) -> Result<DerivedPrivateKey> {
         let buffer = if let Some(seed) = seed {
             let mut buffer = password.expose_secret().as_bytes().to_vec();
-            buffer.extend_from_slice(seed.as_slice());
+            buffer.extend_from_slice(seed.as_ref());
             buffer
         } else {
             password.expose_secret().as_bytes().to_vec()
