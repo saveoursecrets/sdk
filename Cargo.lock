@@ -4941,7 +4941,7 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "arboard",
  "async-recursion",
@@ -5174,7 +5174,7 @@ dependencies = [
 
 [[package]]
 name = "sos-core"
-version = "0.16.3"
+version = "0.16.5"
 dependencies = [
  "aes-gcm",
  "age",
@@ -5211,7 +5211,7 @@ dependencies = [
 
 [[package]]
 name = "sos-database"
-version = "0.16.5"
+version = "0.16.6"
 dependencies = [
  "async-sqlite",
  "async-trait",
@@ -5245,7 +5245,7 @@ dependencies = [
 
 [[package]]
 name = "sos-database-upgrader"
-version = "0.16.1"
+version = "0.16.2"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5784,7 +5784,7 @@ dependencies = [
 
 [[package]]
 name = "sos-server-storage"
-version = "0.16.1"
+version = "0.16.2"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5967,7 +5967,7 @@ dependencies = [
 
 [[package]]
 name = "sos-vault"
-version = "0.16.3"
+version = "0.16.4"
 dependencies = [
  "age",
  "async-trait",

@@ -10,6 +10,7 @@ pub enum Command {
     /// Print the debug tree for an account.
     Tree {
         /// Account name or identifier.
+        #[clap(short, long)]
         account: AccountRef,
     },
 }

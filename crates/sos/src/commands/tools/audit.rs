@@ -22,7 +22,7 @@ pub enum Command {
         #[clap(short, long)]
         count: Option<usize>,
 
-        /// Filter to events that match the given account identifier.
+        /// Filter to events that match account identifiers.
         #[clap(short, long)]
         account_id: Vec<AccountId>,
 
