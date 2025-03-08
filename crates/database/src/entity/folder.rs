@@ -75,7 +75,7 @@ impl FolderRow {
             None
         };
         let salt = vault.salt().cloned();
-        let seed = vault.seed().map(|s| s.to_vec());
+        let seed = vault.seed().map(|s| s.as_ref().to_vec());
         Self::new_insert_parts(vault.summary(), salt, meta, seed)
     }
 
@@ -111,7 +111,7 @@ impl FolderRow {
             None
         };
         let salt = vault.salt().cloned();
-        let seed = vault.seed().map(|s| s.to_vec());
+        let seed = vault.seed().map(|s| s.as_ref().to_vec());
         Ok(Self {
             modified_at: UtcDateTime::default().to_rfc3339()?,
             identifier: summary.id().to_string(),
@@ -194,8 +194,8 @@ impl FolderRecord {
         };
 
         let seed = if let Some(seed) = value.seed {
-            let seed: [u8; 32] = seed.as_slice().try_into()?;
-            Some(seed)
+            let seed: [u8; Seed::SIZE] = seed.as_slice().try_into()?;
+            Some(Seed(seed))
         } else {
             None
         };
@@ -388,7 +388,7 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
             None
         };
         let salt = vault.salt().cloned();
-        let seed = vault.seed().map(|s| s.to_vec());
+        let seed = vault.seed().map(|s| s.as_ref().to_vec());
 
         let folder_row =
             FolderRow::new_insert_parts(vault.summary(), salt, meta, seed)?;
