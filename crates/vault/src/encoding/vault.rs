@@ -8,7 +8,7 @@ use binary_stream::futures::{
 };
 use sos_core::{
     constants::VAULT_IDENTITY,
-    crypto::{AeadPack, SEED_SIZE},
+    crypto::{AeadPack, Seed},
     encoding::{decode_uuid, encoding_error},
     file_identity::FileIdentity,
     SecretId, UtcDateTime,
@@ -71,14 +71,13 @@ impl Decodable for Auth {
         }
         let has_seed = reader.read_bool().await?;
         if has_seed {
-            self.seed = Some(
-                reader
-                    .read_bytes(SEED_SIZE)
-                    .await?
-                    .as_slice()
-                    .try_into()
-                    .map_err(encoding_error)?,
-            );
+            let bytes: [u8; Seed::SIZE] = reader
+                .read_bytes(Seed::SIZE)
+                .await?
+                .as_slice()
+                .try_into()
+                .map_err(encoding_error)?;
+            self.seed = Some(Seed(bytes));
         }
         Ok(())
     }

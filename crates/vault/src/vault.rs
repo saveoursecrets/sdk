@@ -152,12 +152,15 @@ pub trait EncryptedEntry {
 }
 
 /// Authentication information.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Auth {
-    /// Salt used to derive a secret key from the passphrase.
+    /// Salt used to derive a secret key from the password.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) salt: Option<String>,
-    /// Additional entropy to concatenate with the vault password
+    /// Additional entropy to concatenate with the password
     /// before deriving the secret key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) seed: Option<Seed>,
 }
 
@@ -165,6 +168,7 @@ pub struct Auth {
 /// unique identifier and name.
 #[typeshare]
 #[derive(Serialize, Deserialize, Debug, Hash, Eq, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Summary {
     /// Encoding version.
     pub(crate) version: u16,
@@ -303,16 +307,19 @@ impl From<Summary> for Vault {
 }
 
 /// File header, identifier and version information
-#[derive(Clone, Default, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Header {
     /// Information about the vault.
     pub(crate) summary: Summary,
     /// Encrypted meta data.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) meta: Option<AeadPack>,
     /// Additional authentication information such as
     /// the salt and seed entropy.
     pub(crate) auth: Auth,
     /// Recipients for a shared vault.
+    #[serde(default, skip_serializing_if = "SharedAccess::is_empty")]
     pub(crate) shared_access: SharedAccess,
 }
 
@@ -481,16 +488,18 @@ impl fmt::Display for Header {
 }
 
 /// Access controls for shared vaults.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum SharedAccess {
     /// List of recipients for a shared vault.
     ///
     /// Every recipient is able to write to the shared vault.
+    #[serde(rename = "write")]
     WriteAccess(Vec<String>),
     /// Private list of recipients managed by an owner.
     ///
     /// Only the owner can write to the vault, other recipients
     /// can only read.
+    #[serde(rename = "read")]
     ReadOnly(AeadPack),
 }
 
@@ -501,6 +510,14 @@ impl Default for SharedAccess {
 }
 
 impl SharedAccess {
+    /// Determine if the shared access configuration is empty.
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Self::WriteAccess(recipients) => recipients.is_empty(),
+            Self::ReadOnly(_) => false,
+        }
+    }
+
     fn parse_recipients(access: &Vec<String>) -> Result<Vec<Recipient>> {
         let mut recipients = Vec::new();
         for recipient in access {
@@ -515,13 +532,14 @@ impl SharedAccess {
 
 /// The vault contents
 #[doc(hidden)]
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, Eq, PartialEq)]
 pub struct Contents {
+    #[serde(flatten)]
     pub(crate) data: IndexMap<SecretId, VaultCommit>,
 }
 
 /// Vault file storage.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, Eq, PartialEq)]
 pub struct Vault {
     pub(crate) header: Header,
     pub(crate) contents: Contents,
