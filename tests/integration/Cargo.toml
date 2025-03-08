@@ -90,3 +90,7 @@ path = "src/test_preferences_concurrency.rs"
 [[bin]]
 name = "make-v3-backup-fixtures"
 path = "src/make_v3_backup_fixtures.rs"
+
+[[bin]]
+name = "db-compile-options"
+path = "src/db_compile_options.rs"
