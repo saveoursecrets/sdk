@@ -77,11 +77,6 @@ pub struct Server {}
 
 impl Server {
     /// Create a new server.
-    ///
-    /// Path should be the directory where the backend
-    /// will store account files; if a server is already
-    /// running and has a lock on the directory this will
-    /// block until the lock is released.
     pub async fn new() -> Result<Self> {
         Ok(Self {})
     }
