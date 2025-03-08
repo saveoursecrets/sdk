@@ -1,7 +1,9 @@
 use crate::{Error, Result};
 use clap::Subcommand;
+use colored::Colorize;
 use sos_cli_helpers::messages::{info, success, warn};
 use sos_core::Paths;
+use sos_database::{migrations::migrate_client, open_file};
 use sos_database_upgrader::{
     archive::upgrade_backup_archive, upgrade_accounts, UpgradeOptions,
 };
@@ -37,6 +39,14 @@ pub enum Command {
         input: PathBuf,
         /// Output backup archive ZIP file.
         output: PathBuf,
+    },
+    /// Migrate a database file, create the file when necessary.
+    ///
+    /// If no specific file is given runs migrations on the
+    /// database for the current documents directory.
+    Migrate {
+        /// Database file.
+        database: Option<PathBuf>,
     },
 }
 
@@ -90,6 +100,27 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::UpgradeArchive { input, output } => {
             upgrade_backup_archive(input, output).await?;
             success("Backup archive upgrade completed");
+        }
+        Command::Migrate { database } => {
+            let db = if let Some(database) = database {
+                database
+            } else {
+                let paths = Paths::new_client(Paths::data_dir()?);
+                paths.database_file().to_owned()
+            };
+            let mut client = open_file(&db).await?;
+            let report = migrate_client(&mut client).await?;
+            let migrations = report.applied_migrations();
+            for migration in migrations {
+                println!(
+                    "Migration      {} {}",
+                    migration.name().green(),
+                    format!("v{}", migration.version()).green(),
+                );
+            }
+            if migrations.is_empty() {
+                info("No migrations to apply");
+            }
         }
     }
     Ok(())

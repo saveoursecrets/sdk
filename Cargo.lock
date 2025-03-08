@@ -4947,6 +4947,7 @@ dependencies = [
  "async-recursion",
  "binary-stream",
  "clap",
+ "colored",
  "crossterm",
  "csv-async",
  "ctrlc",
