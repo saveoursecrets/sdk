@@ -1,14 +1,11 @@
-use sos_core::AccountId;
-use sos_core::VaultId;
 use sos_protocol::{AsConflict, ConflictError};
-use std::path::PathBuf;
 use thiserror::Error;
 
 /// Error type for the library.
 #[derive(Error, Debug)]
 pub enum Error {
     /// Errors generated converting file system notify events.
-    #[cfg(any(feature = "extension-helper-server"))]
+    #[cfg(feature = "extension-helper-server")]
     #[error(transparent)]
     FileNotifyEvent(#[from] FileEventError),
 
@@ -100,7 +97,7 @@ impl AsConflict for Error {
     }
 }
 
-#[cfg(any(feature = "extension-helper-server"))]
+#[cfg(feature = "extension-helper-server")]
 /// Error type converting from file system notify events.
 #[derive(Error, Debug)]
 pub enum FileEventError {
@@ -110,15 +107,15 @@ pub enum FileEventError {
 
     /// Error generated when a file system event path does not have a stem.
     #[error("no file stem for event path {0:?}")]
-    EventPathStem(PathBuf),
+    EventPathStem(std::path::PathBuf),
 
     /// Error generated when a file system event does not have a path.
     #[error("no account for {0}")]
-    NoAccount(AccountId),
+    NoAccount(sos_core::AccountId),
 
     /// Error generated when a file system event does not have a path.
     #[error("no folder for {0}")]
-    NoFolder(VaultId),
+    NoFolder(sos_core::VaultId),
 
     /// Error generated updating the search index.
     #[error("failed to update search index, reason: {0}")]
