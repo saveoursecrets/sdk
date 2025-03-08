@@ -90,8 +90,13 @@ async fn export_account_backup_archive(
     output: PathBuf,
     force: bool,
 ) -> Result<()> {
-    if !force && vfs::try_exists(&output).await? {
-        return Err(Error::FileExists(output));
+    let exists = vfs::try_exists(&output).await?;
+    if exists {
+        if !force {
+            return Err(Error::FileExists(output));
+        } else {
+            vfs::remove_file(&output).await?;
+        }
     }
 
     let paths = Paths::new_client(Paths::data_dir()?);

@@ -1,13 +1,15 @@
 use anticipate_runner::{InterpreterOptions, ScriptFile};
 use anyhow::Result;
+use sos_core::Paths;
+use sos_database::{migrations::migrate_client, open_file};
 use std::{
     env::{set_var, var},
     path::Path,
 };
 
-#[test]
-fn command_line() -> Result<()> {
-    prepare_env()?;
+#[tokio::test]
+async fn command_line() -> Result<()> {
+    prepare_env().await?;
 
     let specs = vec![
         "scripts/setup.sh",
@@ -50,16 +52,8 @@ fn run_spec(input_file: impl AsRef<Path>) -> Result<()> {
     Ok(())
 }
 
-fn prepare_env() -> Result<()> {
+async fn prepare_env() -> Result<()> {
     let path = var("PATH").ok().unwrap_or_default();
-
-    /*
-    let prefix = if var("COVER").ok().is_some() {
-        "target/cover/debug"
-    } else {
-        "target/debug"
-    };
-    */
     let prefix = "target/debug";
     set_var("PATH", format!("{}:{}", prefix, path));
 
@@ -67,7 +61,22 @@ fn prepare_env() -> Result<()> {
         .join("../../target/accounts")
         .canonicalize()?;
 
-    println!("PREPARE_ENV: {:#?}", data_dir);
+    println!("prepare_env: {:#?}", data_dir);
+
+    if var("SOS_TEST_CLIENT_DB").ok().is_some() {
+        let paths = Paths::new_client(&data_dir);
+        let db = paths.database_file().to_owned();
+        let mut client = open_file(&db).await?;
+        let report = migrate_client(&mut client).await?;
+        let migrations = report.applied_migrations();
+        for migration in migrations {
+            println!(
+                "Migration      {} {}",
+                migration.name(),
+                format!("v{}", migration.version()),
+            );
+        }
+    }
 
     set_var("BASH_SILENCE_DEPRECATION_WARNING", "1");
     set_var("NO_COLOR", "1");

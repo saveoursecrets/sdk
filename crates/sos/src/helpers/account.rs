@@ -439,6 +439,7 @@ pub async fn new_account(
 
         let paths = Paths::new_client(Paths::data_dir()?);
         let target = BackendTarget::from_paths(&paths).await?;
+
         let mut owner = NetworkAccount::new_account_with_builder(
             account_name.clone(),
             passphrase.clone(),

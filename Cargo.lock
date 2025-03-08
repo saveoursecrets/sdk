@@ -5168,6 +5168,8 @@ version = "0.1.1"
 dependencies = [
  "anticipate-runner",
  "anyhow",
+ "sos-core",
+ "sos-database",
  "sos-test-utils",
  "tokio",
 ]

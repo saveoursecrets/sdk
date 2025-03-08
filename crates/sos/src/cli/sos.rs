@@ -9,6 +9,7 @@ use crate::{
     CommandTree, Result,
 };
 use clap::{CommandFactory, Parser, Subcommand};
+use sos_backend::BackendTarget;
 use sos_core::{AccountRef, FolderRef, Paths};
 use sos_protocol::network_client::set_user_agent;
 use std::path::PathBuf;
@@ -142,8 +143,15 @@ pub async fn run() -> Result<()> {
 
     Paths::scaffold(args.storage.as_ref()).await?;
     let paths = Paths::new_client(Paths::data_dir()?);
-    let provider =
-        sos_backend::audit::new_fs_provider(paths.audit_file().to_owned());
+    let target = BackendTarget::from_paths(&paths).await?;
+    let provider = match target {
+        BackendTarget::FileSystem(paths) => {
+            sos_backend::audit::new_fs_provider(paths.audit_file().to_owned())
+        }
+        BackendTarget::Database(_, client) => {
+            sos_backend::audit::new_db_provider(client)
+        }
+    };
     sos_backend::audit::init_providers(vec![provider]);
 
     let user_agent = format!("sos-cli/{}", env!("CARGO_PKG_VERSION"));
