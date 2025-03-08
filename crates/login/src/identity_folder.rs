@@ -10,18 +10,14 @@ use crate::{
 use async_trait::async_trait;
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use sos_backend::{
-    database::{
-        async_sqlite::Client,
-        entity::{AccountEntity, AccountRow, FolderEntity, FolderRow},
-    },
+    database::entity::{AccountEntity, AccountRow, FolderEntity, FolderRow},
     AccessPoint, BackendTarget, Folder, FolderEventLog,
 };
 use sos_core::{
     constants::LOGIN_AGE_KEY_URN, crypto::AccessKey, encode, AccountId,
-    AuthenticationError, Paths,
+    AuthenticationError,
 };
 use sos_filesystem::write_exclusive;
-use sos_signer::ed25519;
 use sos_vault::Summary;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
@@ -173,14 +169,26 @@ impl IdentityFolder {
     /// information such as the private key used to identify a machine.
     pub(super) async fn ensure_device_vault(
         &mut self,
-        target: &BackendTarget,
+        target: BackendTarget,
     ) -> Result<()> {
         let account_id = self.private_identity.account_id();
         let device_vault = target.read_device_vault(account_id).await?;
         let device_manager = if let Some(vault) = device_vault {
-            let folder_id = *vault.id();
-            let device_keeper = AccessPoint::new(target.clone(), vault).await;
-            self.read_device_manager(&folder_id, device_keeper).await?
+            let device_password = self
+                .find_folder_password(vault.id())
+                .await?
+                .ok_or(Error::NoFolderPassword(*vault.id()))?;
+            let key: AccessKey = device_password.into();
+
+            let (device_manager, id) =
+                DeviceManager::open_vault(target, vault, &key).await?;
+
+            // Add to the URN lookup index
+            let urn = DeviceManager::device_urn()?;
+            self.index
+                .insert((*device_manager.access_point().id(), urn), id);
+
+            device_manager
         } else {
             self.new_device_manager(&target, DeviceSigner::new_random())
                 .await?
@@ -204,7 +212,7 @@ impl IdentityFolder {
                 .await?;
 
         let folder_id = *device_manager.access_point().id();
-        let device_key_urn = self.device_urn()?;
+        let device_key_urn = DeviceManager::device_urn()?;
 
         tracing::debug!(
             urn = %device_key_urn,
@@ -237,59 +245,6 @@ impl IdentityFolder {
         }
 
         Ok(device_manager)
-    }
-
-    fn device_urn(&self) -> Result<Urn> {
-        use sos_core::constants::DEVICE_KEY_URN;
-        Ok(DEVICE_KEY_URN.parse()?)
-    }
-
-    async fn read_device_manager(
-        &mut self,
-        folder_id: &VaultId,
-        mut device_keeper: AccessPoint,
-    ) -> Result<DeviceManager> {
-        let device_key_urn = self.device_urn()?;
-
-        tracing::debug!(
-            urn = %device_key_urn,
-            "read_device_vault");
-
-        let device_password = self
-            .find_folder_password(folder_id)
-            .await?
-            .ok_or(Error::NoFolderPassword(*folder_id))?;
-
-        let key: AccessKey = device_password.into();
-        device_keeper.unlock(&key).await?;
-
-        let mut device_signer_secret: Option<Secret> = None;
-        for id in device_keeper.vault().keys() {
-            if let Some((meta, secret, _)) =
-                device_keeper.read_secret(id).await?
-            {
-                if let Some(urn) = meta.urn() {
-                    if urn == &device_key_urn {
-                        device_signer_secret = Some(secret);
-                    }
-                    // Add to the URN lookup index
-                    self.index
-                        .insert((*device_keeper.id(), urn.clone()), *id);
-                }
-            }
-        }
-
-        if let Some(Secret::Signer {
-            private_key: SecretSigner::SinglePartyEd25519(data),
-            ..
-        }) = device_signer_secret
-        {
-            let key: ed25519::SingleParty =
-                data.expose_secret().as_slice().try_into()?;
-            Ok(DeviceManager::init(key.into(), device_keeper))
-        } else {
-            Err(Error::VaultEntryKind(device_key_urn.to_string()))
-        }
     }
 
     /// Rebuild the index lookup for folder passwords.

@@ -172,7 +172,7 @@ impl Identity {
         let target = self.target.clone().with_account_id(account_id);
         let mut identity =
             IdentityFolder::login(&target, account_id, key).await?;
-        identity.ensure_device_vault(&target).await?;
+        identity.ensure_device_vault(target).await?;
         self.identity = Some(identity);
         Ok(())
     }
