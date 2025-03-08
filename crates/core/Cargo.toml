@@ -1,6 +1,6 @@
 [package]
 name = "sos-core"
-version = "0.16.6"
+version = "0.16.7"
 edition = "2021"
 description = "Core types for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
@@ -30,7 +30,6 @@ futures.workspace = true
 time.workspace = true
 time-tz.workspace = true
 async-trait.workspace = true
-once_cell.workspace = true
 serde_json.workspace = true
 bs58.workspace = true
 bitflags.workspace = true

@@ -1,5 +1,4 @@
-//! File system paths for application level folders
-//! and user-specific account folders.
+//! File system paths for applications.
 use crate::{
     constants::{
         ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, BLOBS_DIR,
@@ -14,16 +13,14 @@ use crate::{
 use etcetera::{
     app_strategy::choose_native_strategy, AppStrategy, AppStrategyArgs,
 };
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use sos_vfs as vfs;
 use std::{
     path::{Path, PathBuf},
-    sync::{Arc, RwLock},
+    sync::{Arc, OnceLock},
 };
 
-static DATA_DIR: Lazy<RwLock<Option<PathBuf>>> =
-    Lazy::new(|| RwLock::new(None));
+static DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 /// File system paths.
 ///
@@ -543,14 +540,7 @@ impl Paths {
     /// Set an explicit data directory used to store all
     /// application files.
     pub fn set_data_dir(path: PathBuf) {
-        let mut writer = DATA_DIR.write().unwrap();
-        *writer = Some(path);
-    }
-
-    /// Clear an explicitly set data directory.
-    pub fn clear_data_dir() {
-        let mut writer = DATA_DIR.write().unwrap();
-        *writer = None;
+        DATA_DIR.get_or_init(|| path);
     }
 
     /// Get the default root directory used for caching application data.
@@ -574,9 +564,8 @@ impl Paths {
         let dir = if let Ok(env_data_dir) = std::env::var("SOS_DATA_DIR") {
             Ok(PathBuf::from(env_data_dir))
         } else {
-            let reader = DATA_DIR.read().unwrap();
-            if let Some(explicit) = reader.as_ref() {
-                Ok(explicit.to_path_buf())
+            if let Some(data_dir) = DATA_DIR.get() {
+                Ok(data_dir.to_owned())
             } else {
                 default_storage_dir()
             }

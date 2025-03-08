@@ -5174,7 +5174,7 @@ dependencies = [
 
 [[package]]
 name = "sos-core"
-version = "0.16.5"
+version = "0.16.7"
 dependencies = [
  "aes-gcm",
  "age",
@@ -5189,7 +5189,6 @@ dependencies = [
  "futures",
  "hex",
  "mime_guess",
- "once_cell",
  "pem",
  "rand 0.8.5",
  "rs_merkle",
