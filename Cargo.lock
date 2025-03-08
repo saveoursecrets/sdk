@@ -5454,7 +5454,7 @@ dependencies = [
 
 [[package]]
 name = "sos-login"
-version = "0.16.3"
+version = "0.16.4"
 dependencies = [
  "age",
  "async-trait",
@@ -5682,7 +5682,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.16.6"
+version = "0.16.8"
 dependencies = [
  "rustc_version",
  "sos-core",

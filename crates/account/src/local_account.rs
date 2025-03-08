@@ -88,11 +88,11 @@ use {
     xclipboard::Clipboard,
 };
 
-/// User account backed by the filesystem.
+/// User account backed by a backend target for storage.
 ///
 /// Many functions require that the account is authenticated and will
-/// return [Error::NotAuthenticated] if the account is not authenticated
-/// to authenticate a user call [Account::sign_in].
+/// error if the account is not authenticated; to authenticate a
+/// user call [Account::sign_in].
 pub struct LocalAccount {
     /// Account identifier.
     account_id: AccountId,

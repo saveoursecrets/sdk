@@ -1,6 +1,6 @@
 [package]
 name = "sos-login"
-version = "0.16.3"
+version = "0.16.4"
 edition = "2021"
 description = "Login authentication for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
@@ -13,7 +13,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 full = ["files"]
-files = []
+files = ["sos-backend/files"]
 
 [dependencies]
 sos-core.workspace = true
