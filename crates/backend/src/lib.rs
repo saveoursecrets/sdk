@@ -40,13 +40,17 @@ pub use event_log::FileEventLog;
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
-use sos_core::{AccountId, Paths, PublicIdentity};
+use sos_core::{decode, AccountId, Paths, PublicIdentity};
 use sos_database::{
     async_sqlite::Client,
-    entity::{AccountEntity, AccountRecord, FolderEntity, FolderRecord},
+    entity::{
+        AccountEntity, AccountRecord, FolderEntity, FolderRecord,
+        SecretRecord,
+    },
     open_file,
 };
-use sos_vault::Summary;
+use sos_vault::{Summary, Vault};
+use sos_vfs as vfs;
 use std::{fmt, sync::Arc};
 
 #[cfg(feature = "files")]
@@ -90,6 +94,61 @@ impl BackendTarget {
         match self {
             Self::FileSystem(paths) => paths.clone(),
             Self::Database(paths, _) => paths.clone(),
+        }
+    }
+
+    /// Read the device vault.
+    pub async fn read_device_vault(
+        &self,
+        account_id: &AccountId,
+    ) -> Result<Option<Vault>> {
+        match self {
+            BackendTarget::FileSystem(paths) => {
+                if vfs::try_exists(paths.device_file()).await? {
+                    let buffer = vfs::read(paths.device_file()).await?;
+                    let vault: Vault = decode(&buffer).await?;
+                    Ok(Some(vault))
+                } else {
+                    Ok(None)
+                }
+            }
+            BackendTarget::Database(_, client) => {
+                let account_id = *account_id;
+                let device_folder = client
+                    .conn_and_then(move |conn| {
+                        let account = AccountEntity::new(&conn);
+                        let folder = FolderEntity::new(&conn);
+                        let account_row = account.find_one(&account_id)?;
+                        let device_folder =
+                            folder.find_device_folder(account_row.row_id)?;
+                        let secrets = if let Some(device_folder) =
+                            &device_folder
+                        {
+                            Some(folder.load_secrets(device_folder.row_id)?)
+                        } else {
+                            None
+                        };
+                        Ok::<_, sos_database::Error>(
+                            device_folder.zip(secrets),
+                        )
+                    })
+                    .await?;
+
+                if let Some((folder, secret_rows)) = device_folder {
+                    let record = FolderRecord::from_row(folder).await?;
+                    let mut vault = record.into_vault()?;
+                    for row in secret_rows {
+                        let record = SecretRecord::from_row(row).await?;
+                        let SecretRecord {
+                            secret_id, commit, ..
+                        } = record;
+                        vault.insert_entry(secret_id, commit);
+                    }
+                    Ok(Some(vault))
+                } else {
+                    Ok(None)
+                }
+            }
         }
     }
 

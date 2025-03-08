@@ -169,11 +169,10 @@ impl Identity {
         account_id: &AccountId,
         key: &AccessKey,
     ) -> Result<()> {
+        let target = self.target.clone().with_account_id(account_id);
         let mut identity =
-            IdentityFolder::login(&self.target, account_id, key).await?;
-        identity
-            .ensure_device_vault(&self.target, account_id)
-            .await?;
+            IdentityFolder::login(&target, account_id, key).await?;
+        identity.ensure_device_vault(&target, account_id).await?;
         self.identity = Some(identity);
         Ok(())
     }

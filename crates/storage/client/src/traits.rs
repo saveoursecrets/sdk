@@ -254,6 +254,14 @@ pub trait ClientFolderStorage:
     /// Read the login vault from the storage.
     async fn read_login_vault(&self) -> Result<Vault>;
 
+    /// Read the device vault from the storage.
+    async fn read_device_vault(&self) -> Result<Option<Vault>> {
+        Ok(self
+            .backend_target()
+            .read_device_vault(self.account_id())
+            .await?)
+    }
+
     /// List the in-memory folders.
     fn list_folders(&self) -> &[Summary] {
         self.summaries(Internal).as_slice()

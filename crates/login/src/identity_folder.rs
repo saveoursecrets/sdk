@@ -12,16 +12,13 @@ use secrecy::{ExposeSecret, SecretBox, SecretString};
 use sos_backend::{
     database::{
         async_sqlite::Client,
-        entity::{
-            AccountEntity, AccountRow, FolderEntity, FolderRecord, FolderRow,
-            SecretRecord,
-        },
+        entity::{AccountEntity, AccountRow, FolderEntity, FolderRow},
     },
     AccessPoint, BackendTarget, Folder, FolderEventLog,
 };
 use sos_core::{
-    constants::LOGIN_AGE_KEY_URN, crypto::AccessKey, decode, encode,
-    AccountId, AuthenticationError, Paths,
+    constants::LOGIN_AGE_KEY_URN, crypto::AccessKey, encode, AccountId,
+    AuthenticationError, Paths,
 };
 use sos_filesystem::write_exclusive;
 use sos_signer::ed25519;
@@ -31,7 +28,6 @@ use sos_vault::{
     BuilderCredentials, SecretAccess, Vault, VaultBuilder, VaultFlags,
     VaultId,
 };
-use sos_vfs as vfs;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use urn::Urn;
@@ -180,85 +176,44 @@ impl IdentityFolder {
         target: &BackendTarget,
         account_id: &AccountId,
     ) -> Result<()> {
-        match target {
+        let device_vault = target.read_device_vault(account_id).await?;
+        let device_manager = match target {
             BackendTarget::FileSystem(paths) => {
-                let paths = paths.clone().with_account_id(account_id);
-                self.ensure_device_vault_fs(&paths).await
-            }
-            BackendTarget::Database(_, client) => {
-                self.ensure_device_vault_db(client).await
-            }
-        }
-    }
-
-    /// Ensure that the account has a vault for storing device specific
-    /// information such as the private key used to identify a machine.
-    async fn ensure_device_vault_fs(&mut self, paths: &Paths) -> Result<()> {
-        let device_vault = if vfs::try_exists(paths.device_file()).await? {
-            let buffer = vfs::read(paths.device_file()).await?;
-            let vault: Vault = decode(&buffer).await?;
-            Some(vault)
-        } else {
-            None
-        };
-
-        let device_manager = if let Some(vault) = device_vault {
-            let folder_id = *vault.id();
-            let device_keeper =
-                AccessPoint::new_fs(vault, paths.device_file());
-            self.read_device_manager(&folder_id, device_keeper).await?
-        } else {
-            self.new_device_manager_fs(paths, DeviceSigner::new_random())
-                .await?
-        };
-        self.devices = Some(device_manager);
-        Ok(())
-    }
-
-    async fn ensure_device_vault_db(
-        &mut self,
-        client: &Client,
-    ) -> Result<()> {
-        let account_id = *self.private_identity.account_id();
-        let device_folder = client
-            .conn_and_then(move |conn| {
-                let account = AccountEntity::new(&conn);
-                let folder = FolderEntity::new(&conn);
-                let account_row = account.find_one(&account_id)?;
-                let device_folder =
-                    folder.find_device_folder(account_row.row_id)?;
-                let secrets = if let Some(device_folder) = &device_folder {
-                    Some(folder.load_secrets(device_folder.row_id)?)
+                if let Some(vault) = device_vault {
+                    let folder_id = *vault.id();
+                    let device_keeper =
+                        AccessPoint::new_fs(vault, paths.device_file());
+                    Some(
+                        self.read_device_manager(&folder_id, device_keeper)
+                            .await?,
+                    )
                 } else {
                     None
-                };
-                Ok::<_, sos_backend::database::Error>(
-                    device_folder.zip(secrets),
-                )
-            })
-            .await?;
-
-        let device_manager = if let Some((folder, secret_rows)) =
-            device_folder
-        {
-            let record = FolderRecord::from_row(folder).await?;
-            let mut vault = record.into_vault()?;
-            for row in secret_rows {
-                let record = SecretRecord::from_row(row).await?;
-                let SecretRecord {
-                    secret_id, commit, ..
-                } = record;
-                vault.insert_entry(secret_id, commit);
+                }
             }
+            BackendTarget::Database(_, client) => {
+                if let Some(vault) = device_vault {
+                    let folder_id = *vault.id();
+                    let device_keeper =
+                        AccessPoint::new_db(vault, client.clone(), folder_id)
+                            .await;
+                    Some(
+                        self.read_device_manager(&folder_id, device_keeper)
+                            .await?,
+                    )
+                } else {
+                    None
+                }
+            }
+        };
 
-            let folder_id = *vault.id();
-            let device_keeper =
-                AccessPoint::new_db(vault, client.clone(), folder_id).await;
-            self.read_device_manager(&folder_id, device_keeper).await?
+        let device_manager = if let Some(device_manager) = device_manager {
+            device_manager
         } else {
-            self.new_device_manager_db(client, DeviceSigner::new_random())
+            self.new_device_manager(&target, DeviceSigner::new_random())
                 .await?
         };
+
         self.devices = Some(device_manager);
         Ok(())
     }
@@ -312,7 +267,6 @@ impl IdentityFolder {
         let (device_password, device_vault) =
             self.create_device_vault().await?;
         let folder_id = *device_vault.id();
-
         let account_id = *self.private_identity.account_id();
         let folder_row = FolderRow::new_insert(&device_vault).await?;
         client
