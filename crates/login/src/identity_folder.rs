@@ -28,8 +28,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use urn::Urn;
 
-/// Identity vault stores the account signing key,
-/// asymmetric encryption key and delegated passwords.
+/// Identity folder stores delegated passwords and an
+/// asymmetric encryption key.
 pub struct IdentityFolder {
     /// Folder storage.
     #[doc(hidden)]
