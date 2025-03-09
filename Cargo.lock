@@ -5004,7 +5004,7 @@ dependencies = [
 
 [[package]]
 name = "sos-account"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "async-trait",
  "futures",
@@ -5175,7 +5175,7 @@ dependencies = [
 
 [[package]]
 name = "sos-core"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "aes-gcm",
  "age",
@@ -5245,7 +5245,7 @@ dependencies = [
 
 [[package]]
 name = "sos-database-upgrader"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5467,7 +5467,7 @@ dependencies = [
 
 [[package]]
 name = "sos-login"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "age",
  "async-trait",
@@ -5536,7 +5536,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -5795,7 +5795,7 @@ dependencies = [
 
 [[package]]
 name = "sos-server-storage"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "async-trait",
  "binary-stream",
