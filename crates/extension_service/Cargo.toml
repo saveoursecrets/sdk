@@ -8,11 +8,11 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [dependencies]
-sos-account = { workspace = true, features = ["clipboard"] }
+sos-account = { workspace = true, features = ["clipboard", "search"] }
 sos-backend.workspace = true
 sos-core.workspace = true
 sos-ipc = { workspace = true, features = ["extension-helper-server", "search", "clipboard"] }
-sos-net = { workspace = true, features = ["clipboard"] }
+sos-net = { workspace = true, features = ["clipboard", "search"] }
 tokio.workspace = true
 anyhow.workspace = true
 xclipboard.workspace = true
