@@ -37,9 +37,11 @@ pub struct IdentityFolder {
     /// Lookup table.
     #[doc(hidden)]
     pub index: UrnLookup,
-
+    /// Backend target.
+    target: BackendTarget,
+    /// Private identity.
     private_identity: PrivateIdentity,
-
+    /// Device manager.
     pub(super) devices: Option<crate::device::DeviceManager>,
 }
 
@@ -86,7 +88,7 @@ impl IdentityFolder {
                     })
                     .await
                     .map_err(sos_backend::database::Error::from)?;
-                Folder::new(target, &account_id, vault.id()).await?
+                Folder::new(target.clone(), &account_id, vault.id()).await?
             }
         };
 
@@ -101,6 +103,7 @@ impl IdentityFolder {
         Ok(Self {
             folder,
             index,
+            target,
             private_identity,
             devices: None,
         })
@@ -161,7 +164,28 @@ impl IdentityFolder {
     pub async fn rename(&mut self, account_name: String) -> Result<()> {
         let access_point = self.folder.access_point();
         let mut access_point = access_point.lock().await;
-        access_point.set_vault_name(account_name).await?;
+        access_point.set_vault_name(account_name.clone()).await?;
+
+        // Database backend targets store the primary account
+        // name in a column whereas previously for the file system
+        // backend we used the name of the identity login folder
+        // so for database backends update in both places
+        match &self.target {
+            BackendTarget::Database(_, client) => {
+                let account_id = *self.private_identity.account_id();
+                client
+                    .conn_and_then(move |conn| {
+                        let account_entity = AccountEntity::new(&conn);
+                        let account = account_entity.find_one(&account_id)?;
+                        account_entity
+                            .rename_account(account.row_id, &account_name)?;
+                        Ok::<_, Error>(())
+                    })
+                    .await?;
+            }
+            _ => {}
+        }
+
         Ok(())
     }
 
@@ -452,8 +476,12 @@ impl IdentityFolder {
                     )
                     .await?;
 
-                Folder::new(target, account_id, login_folder.summary.id())
-                    .await?
+                Folder::new(
+                    target.clone(),
+                    account_id,
+                    login_folder.summary.id(),
+                )
+                .await?
             }
         };
 
@@ -475,6 +503,7 @@ impl IdentityFolder {
         Ok(Self {
             folder,
             index,
+            target,
             private_identity,
             devices: None,
         })

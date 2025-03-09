@@ -1,4 +1,4 @@
-account migrate export --force target/demo/export.zip
+account migrate export --force $MIGRATE_EXPORT
 #$ regex (?i)export unencrypted
 y
 #$ wait

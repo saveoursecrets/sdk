@@ -90,17 +90,17 @@ async fn prepare_env() -> Result<()> {
     set_var("ACCOUNT_NAME_ALT", "Demo Account");
     set_var("ACCOUNT_PASSWORD", "demo-test-password-case");
     set_var("ACCOUNT_BACKUP", "../../target/demo-backup.zip");
-    set_var("ACCOUNT_CONTACTS", "../../fixtures/contacts.vcf");
-    set_var("CONTACTS_EXPORT", "../../target/demo-contacts.vcf");
+    set_var("ACCOUNT_CONTACTS", "../fixtures/contacts.vcf");
+    set_var("CONTACTS_EXPORT", "../../target/demo/contacts.vcf");
 
     set_var("DEFAULT_FOLDER_NAME", "Documents");
     set_var("FOLDER_NAME", "mock-folder");
     set_var("NEW_FOLDER_NAME", "mock-folder-renamed");
 
-    set_var("FILE_INPUT", "../../fixtures/sample.heic");
+    set_var("FILE_INPUT", "../fixtures/sample.heic");
     set_var("FILE_OUTPUT", "../../target/file-download.heic");
 
-    set_var("ATTACH_INPUT", "../../fixtures/test-file.txt");
+    set_var("ATTACH_INPUT", "../fixtures/test-file.txt");
     set_var("ATTACH_OUTPUT", "../../target/attachment-download.txt");
 
     set_var("NOTE_NAME", "mock note");
@@ -124,23 +124,21 @@ async fn prepare_env() -> Result<()> {
     set_var("PASSWORD_ATTACHMENT", "password-attachment");
     set_var("LINK_VALUE", "https://example.com");
 
+    set_var("MIGRATE_EXPORT", "../../target/demo/export.zip");
     set_var(
         "MIGRATE_1PASSWORD",
-        "../../fixtures/migrate/1password-export.csv",
+        "../fixtures/migrate/1password-export.csv",
     );
     set_var(
         "MIGRATE_DASHLANE",
-        "../../fixtures/migrate/dashlane-export.zip",
+        "../fixtures/migrate/dashlane-export.zip",
     );
     set_var(
         "MIGRATE_BITWARDEN",
-        "../../fixtures/migrate/bitwarden-export.csv",
+        "../fixtures/migrate/bitwarden-export.csv",
     );
-    set_var(
-        "MIGRATE_FIREFOX",
-        "../../fixtures/migrate/firefox-export.csv",
-    );
-    set_var("MIGRATE_MACOS", "../../fixtures/migrate/macos-export.csv");
+    set_var("MIGRATE_FIREFOX", "../fixtures/migrate/firefox-export.csv");
+    set_var("MIGRATE_MACOS", "../fixtures/migrate/macos-export.csv");
 
     Ok(())
 }

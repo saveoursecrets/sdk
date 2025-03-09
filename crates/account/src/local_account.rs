@@ -1051,14 +1051,7 @@ impl Account for LocalAccount {
     }
 
     async fn set_account_name(&mut self, account_name: String) -> Result<()> {
-        let authenticated_user = self
-            .storage
-            .authenticated_user_mut()
-            .ok_or(AuthenticationError::NotAuthenticated)?;
-        authenticated_user
-            .rename_account(account_name.clone())
-            .await?;
-        Ok(())
+        Ok(self.storage.rename_account(account_name).await?)
     }
 
     async fn delete_account(&mut self) -> Result<()> {

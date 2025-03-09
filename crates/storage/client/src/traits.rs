@@ -829,10 +829,14 @@ pub trait ClientAccountStorage:
     + ClientSecretStorage
     + ClientEventLogStorage
 {
-    /*
     /// Rename the account.
-    async fn rename_account(&self, name: &str) -> Result<()>;
-    */
+    async fn rename_account(&mut self, account_name: String) -> Result<()> {
+        let authenticated_user = self
+            .authenticated_user_mut()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
+        authenticated_user.rename_account(account_name).await?;
+        Ok(())
+    }
 
     /// Import an account from a change set of event logs.
     ///

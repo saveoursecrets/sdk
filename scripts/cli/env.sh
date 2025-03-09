@@ -46,6 +46,7 @@ export LINK_ATTACHMENT="link-attachment"
 export PASSWORD_ATTACHMENT="password-attachment"
 export LINK_VALUE="https://example.com"
 
+export MIGRATE_EXPORT="target/demo/export.zip"
 export MIGRATE_1PASSWORD="tests/fixtures/migrate/1password-export.csv"
 export MIGRATE_DASHLANE="tests/fixtures/migrate/dashlane-export.zip"
 export MIGRATE_BITWARDEN="tests/fixtures/migrate/bitwarden-export.csv"
