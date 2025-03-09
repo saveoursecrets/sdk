@@ -1,20 +1,20 @@
+use crate::{Error, FileEventError, Result};
 use notify::{
     recommended_watcher, Event, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::{
-    events::{AccountEvent, EventLogExt, WriteEvent},
-    prelude::{
-        Account, AccountSwitcher, Address, Error as SdkError, ErrorExt, Paths,
-    },
-    vault::VaultId,
+use sos_account::{Account, AccountSwitcher};
+use sos_backend::BackendTarget;
+use sos_core::{
+    events::{AccountEvent, EventLog, WriteEvent},
+    AccountId, ErrorExt, Paths, VaultId,
 };
+use sos_login::DelegatedAccess;
+use sos_sync::SyncStorage;
+use sos_vault::SecretAccess;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, RwLock};
-
-use crate::{Error, FileEventError, Result};
 
 /// Event broadcast when an account changes on disc.
 #[typeshare::typeshare]
@@ -22,7 +22,7 @@ use crate::{Error, FileEventError, Result};
 #[serde(rename_all = "camelCase")]
 pub struct AccountChangeEvent {
     /// Account identifier.
-    pub account_id: Address,
+    pub account_id: AccountId,
     /// Event records with information about the changes.
     pub records: ChangeRecords,
 }
@@ -49,40 +49,40 @@ impl ChangeRecords {
 /// User accounts for the web service.
 pub struct WebAccounts<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
         + 'static,
 {
     accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
-    watchers: Arc<Mutex<HashMap<Address, RecommendedWatcher>>>,
+    watchers: Arc<Mutex<HashMap<AccountId, RecommendedWatcher>>>,
     channel: broadcast::Sender<AccountChangeEvent>,
 }
 
 impl<A, R, E> Clone for WebAccounts<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -101,15 +101,17 @@ impl<A, R, E> WebAccounts<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -125,6 +127,17 @@ where
         }
     }
 
+    /// Create a backend target for the accounts.
+    pub async fn backend_target(&self) -> Result<BackendTarget> {
+        let accounts = self.accounts.read().await;
+        let paths = if let Some(paths) = accounts.paths() {
+            paths
+        } else {
+            Paths::new_client(Paths::data_dir().unwrap())
+        };
+        Ok(BackendTarget::from_paths(&paths).await?)
+    }
+
     /// Subscribe to change events.
     pub fn subscribe(&self) -> broadcast::Receiver<AccountChangeEvent> {
         self.channel.subscribe()
@@ -133,7 +146,7 @@ where
     /// Start watching an account for changes.
     pub fn watch(
         &self,
-        account_id: Address,
+        account_id: AccountId,
         paths: Arc<Paths>,
         folder_ids: Vec<VaultId>,
     ) -> Result<()> {
@@ -195,7 +208,7 @@ where
     /// Stop watching an account for changes.
     pub fn unwatch(
         &self,
-        account_id: &Address,
+        account_id: &AccountId,
         paths: Arc<Paths>,
         folder_ids: Vec<VaultId>,
     ) -> Result<bool> {
@@ -218,17 +231,17 @@ where
 impl<A, R, E> AsRef<Arc<RwLock<AccountSwitcher<A, R, E>>>>
     for WebAccounts<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -247,22 +260,24 @@ async fn update_account_search_index<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_account::Error>
+        + From<sos_database::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
         + 'static,
 {
     let paths = account.paths();
-    let index = account.index().await?;
+    let index = account.search_index().await?;
 
     let folder_ids = match records {
         ChangeRecords::Account(events) => {
@@ -294,9 +309,11 @@ where
                             let key = account
                                 .find_folder_password(&folder_id)
                                 .await?
-                                .ok_or(SdkError::NoFolderPassword(
-                                    folder_id,
-                                ))?;
+                                .ok_or(
+                                    sos_account::Error::NoFolderPassword(
+                                        folder_id,
+                                    ),
+                                )?;
                             // Import the vault into the account
                             account
                                 .import_folder(
@@ -307,16 +324,15 @@ where
                                 .await?;
 
                             // Now the storage should have the folder so
-                            // we can access the gatekeeper and add it to
+                            // we can access the access point and add it to
                             // the search index
-                            let storage = account.storage().await.unwrap();
-                            let storage = storage.read().await;
                             if let Some(folder) =
-                                storage.cache().get(&folder_id)
+                                account.folder(&folder_id).await.ok()
                             {
-                                let keeper = folder.keeper();
+                                let access_point = folder.access_point();
+                                let access_point = access_point.lock().await;
                                 let mut index = index.write().await;
-                                index.add_folder(keeper).await?;
+                                index.add_folder(&*access_point).await?;
                             }
                         }
                         AccountEvent::DeleteFolder(_) => {
@@ -328,22 +344,21 @@ where
                 }
             }
             ChangeRecords::Folder(folder_id, events) => {
-                let storage = account.storage().await.unwrap();
-                let mut storage = storage.write().await;
-                if let Some(folder) = storage.cache_mut().get_mut(&folder_id)
-                {
-                    let keeper = folder.keeper_mut();
+                if let Some(folder) = account.folder(&folder_id).await.ok() {
+                    let access_point = folder.access_point();
+                    let mut access_point = access_point.lock().await;
 
                     // Must reload the vault before updating the
                     // search index
                     let path = paths.vault_path(folder_id);
-                    keeper.reload_vault(path).await?;
+                    access_point.reload_vault(path).await?;
 
                     for event in events {
                         match event {
                             WriteEvent::CreateSecret(secret_id, _) => {
-                                if let Some((meta, secret, _)) =
-                                    keeper.read_secret(secret_id).await?
+                                if let Some((meta, secret, _)) = access_point
+                                    .read_secret(secret_id)
+                                    .await?
                                 {
                                     let mut index = index.write().await;
                                     index.add(
@@ -352,8 +367,9 @@ where
                                 }
                             }
                             WriteEvent::UpdateSecret(secret_id, _) => {
-                                if let Some((meta, secret, _)) =
-                                    keeper.read_secret(secret_id).await?
+                                if let Some((meta, secret, _)) = access_point
+                                    .read_secret(secret_id)
+                                    .await?
                                 {
                                     let mut index = index.write().await;
                                     index.update(
@@ -377,17 +393,17 @@ where
 }
 
 async fn notify_listener<A, R, E>(
-    account_id: Address,
+    account_id: AccountId,
     paths: Arc<Paths>,
     accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
-    watchers: Arc<Mutex<HashMap<Address, RecommendedWatcher>>>,
+    watchers: Arc<Mutex<HashMap<AccountId, RecommendedWatcher>>>,
     mut rx: broadcast::Receiver<notify::Event>,
     channel: broadcast::Sender<AccountChangeEvent>,
 ) -> Result<()>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
+        + DelegatedAccess<Error = E>
         + Sync
         + Send
         + 'static,
@@ -395,7 +411,12 @@ where
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -421,12 +442,12 @@ where
             let mut accounts = accounts.write().await;
             let account = accounts
                 .iter_mut()
-                .find(|a| a.address() == &account_id)
+                .find(|a| a.account_id() == &account_id)
                 .ok_or(FileEventError::NoAccount(account_id))?;
 
-            // Reload the identity folder
+            // Reload the login folder
             {
-                account.reload_identity_folder().await.map_err(|e| {
+                account.reload_login_folder().await.map_err(|e| {
                     FileEventError::ReloadIdentityFolder(e.to_string())
                 })?;
             }
@@ -458,7 +479,7 @@ where
 
             ChangeRecords::Account(records)
         } else {
-            let folder_id: VaultId = name.parse().map_err(SdkError::from)?;
+            let folder_id: VaultId = name.parse()?;
 
             // Event log was removed so we can treat
             // as a folder delete event, we should
@@ -472,29 +493,26 @@ where
                 }
 
                 {
-                    let accounts = accounts.read().await;
+                    let mut accounts = accounts.write().await;
                     let account = accounts
-                        .iter()
-                        .find(|a| a.address() == &account_id)
+                        .iter_mut()
+                        .find(|a| a.account_id() == &account_id)
                         .ok_or(FileEventError::NoAccount(account_id))?;
 
-                    let storage = account.storage().await.unwrap();
-                    let mut storage = storage.write().await;
-                    storage.remove_folder(&folder_id).await?;
+                    account.forget_folder(&folder_id).await.ok();
                 }
                 ChangeRecords::Folder(folder_id, vec![])
             } else {
                 let accounts = accounts.read().await;
                 let account = accounts
                     .iter()
-                    .find(|a| a.address() == &account_id)
+                    .find(|a| a.account_id() == &account_id)
                     .ok_or(FileEventError::NoAccount(account_id))?;
 
-                let storage = account.storage().await.unwrap();
-                let storage = storage.read().await;
-                let folder = storage
-                    .cache()
-                    .get(&folder_id)
+                let folder = account
+                    .folder(&folder_id)
+                    .await
+                    .ok()
                     .ok_or(FileEventError::NoFolder(folder_id))?;
 
                 let event_log = folder.event_log();
@@ -514,7 +532,7 @@ where
             let mut accounts = accounts.write().await;
 
             if let Some(account) =
-                accounts.iter_mut().find(|a| a.address() == &account_id)
+                accounts.iter_mut().find(|a| a.account_id() == &account_id)
             {
                 update_account_search_index(account, &records)
                     .await
@@ -547,7 +565,6 @@ async fn load_account_records<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -555,16 +572,20 @@ where
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_account::Error>
+        + From<sos_database::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
         + 'static,
 {
-    let storage = account.storage().await.unwrap();
-    let storage = storage.read().await;
-
-    let mut event_log = storage.account_log.write().await;
+    // FIXME: update the error handling to avoid the unwrap
+    let account_log = account.account_log().await.unwrap();
+    let mut event_log = account_log.write().await;
     let commit = event_log.tree().last_commit();
 
     let patch = event_log.diff_events(commit.as_ref()).await?;

@@ -1,29 +1,6 @@
 //! Protocol for pairing devices.
 use super::{DeviceEnrollment, Error, Result, ServerPairUrl};
-use crate::{
-    protocol::{
-        network_client::WebSocketRequest,
-        pairing_message,
-        tokio_tungstenite::{
-            connect_async,
-            tungstenite::protocol::{
-                frame::coding::CloseCode, CloseFrame, Message,
-            },
-            MaybeTlsStream, WebSocketStream,
-        },
-        AccountSync, Origin, PairingConfirm, PairingMessage, PairingReady,
-        PairingRequest, ProtoMessage, RelayHeader, RelayPacket, RelayPayload,
-        SyncOptions,
-    },
-    sdk::{
-        account::Account,
-        device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
-        events::DeviceEvent,
-        signer::ecdsa::SingleParty,
-        url::Url,
-    },
-    NetworkAccount,
-};
+use crate::NetworkAccount;
 use futures::{
     select,
     stream::{SplitSink, SplitStream},
@@ -31,9 +8,31 @@ use futures::{
 };
 use prost::bytes::Bytes;
 use snow::{Builder, HandshakeState, Keypair, TransportState};
+use sos_account::Account;
+use sos_backend::BackendTarget;
+use sos_core::{
+    device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
+    events::DeviceEvent,
+    AccountId, Origin,
+};
+use sos_protocol::{
+    network_client::WebSocketRequest,
+    pairing_message,
+    tokio_tungstenite::{
+        connect_async,
+        tungstenite::{
+            protocol::{frame::coding::CloseCode, CloseFrame, Message},
+            Utf8Bytes,
+        },
+        MaybeTlsStream, WebSocketStream,
+    },
+    AccountSync, PairingConfirm, PairingMessage, PairingReady,
+    PairingRequest, ProtoMessage, RelayHeader, RelayPacket, RelayPayload,
+    SyncOptions,
+};
 use std::collections::HashSet;
-use std::{borrow::Cow, path::PathBuf};
 use tokio::{net::TcpStream, sync::mpsc};
+use url::Url;
 
 const PATTERN: &str = "Noise_XXpsk3_25519_ChaChaPoly_BLAKE2s";
 const RELAY_PATH: &str = "api/v1/relay";
@@ -132,8 +131,11 @@ impl<'a> OfferPairing<'a> {
     ) -> Result<(OfferPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
-        let share_url =
-            ServerPairUrl::new(url.clone(), keypair.public.clone());
+        let share_url = ServerPairUrl::new(
+            *account.account_id(),
+            url.clone(),
+            keypair.public.clone(),
+        );
         Self::new_connection(account, share_url, keypair, false).await
     }
 
@@ -168,8 +170,11 @@ impl<'a> OfferPairing<'a> {
                 .build_responder()?
         };
 
-        let mut request =
-            WebSocketRequest::new(share_url.server(), RELAY_PATH)?;
+        let mut request = WebSocketRequest::new(
+            *account.account_id(),
+            share_url.server(),
+            RELAY_PATH,
+        )?;
         request
             .uri
             .query_pairs_mut()
@@ -230,7 +235,7 @@ impl<'a> OfferPairing<'a> {
                     if event.is_some() {
                         let _ = self.tx.send(Message::Close(Some(CloseFrame {
                             code: CloseCode::Normal,
-                            reason: Cow::Borrowed("closed"),
+                            reason: Utf8Bytes::from_static("closed"),
                         }))).await;
                         break;
                     }
@@ -322,7 +327,7 @@ impl<'a> OfferPairing<'a> {
             IncomingAction::Reply(next_state, reply) => {
                 self.state = next_state;
                 let buffer = reply.encode_prefixed().await?;
-                self.tx.send(Message::Binary(buffer)).await?;
+                self.tx.send(Message::Binary(buffer.into())).await?;
             }
             IncomingAction::HandleMessage(msg) => {
                 let msg = msg.inner.unwrap();
@@ -360,7 +365,7 @@ impl<'a> OfferPairing<'a> {
                     };
 
                     let buffer = reply.encode_prefixed().await?;
-                    self.tx.send(Message::Binary(buffer)).await?;
+                    self.tx.send(Message::Binary(buffer.into())).await?;
                 } else if let pairing_message::Inner::Request(message) = msg {
                     tracing::debug!("<- device");
 
@@ -368,21 +373,18 @@ impl<'a> OfferPairing<'a> {
                     let device: DeviceMetaData =
                         serde_json::from_slice(&device_bytes)?;
 
-                    let account_signer =
-                        self.account.account_signer().await?;
-                    let account_signing_key = account_signer.to_bytes();
-                    let account_signing_key: [u8; 32] =
-                        account_signing_key.as_slice().try_into()?;
                     let (device_signer, manager) =
                         self.account.new_device_vault().await?;
                     let device_vault = manager.into_vault_buffer().await?;
                     let servers = self.account.servers().await;
+                    let account_name = self.account.account_name().await?;
 
                     self.register_device(device_signer.public_key(), device)
                         .await?;
 
                     let private_message = PairingConfirm {
-                        account_signing_key: account_signing_key.to_vec(),
+                        account_id: message.account_id,
+                        account_name,
                         device_signing_key: device_signer.to_bytes().to_vec(),
                         device_vault,
                         servers: servers
@@ -421,7 +423,7 @@ impl<'a> OfferPairing<'a> {
 
                     tracing::debug!("-> private-key");
                     let buffer = reply.encode_prefixed().await?;
-                    self.tx.send(Message::Binary(buffer)).await?;
+                    self.tx.send(Message::Binary(buffer.into())).await?;
                     self.state = PairProtocolState::Done;
                 } else {
                     return Err(Error::BadState);
@@ -443,13 +445,9 @@ impl<'a> OfferPairing<'a> {
         let events: Vec<DeviceEvent> =
             vec![DeviceEvent::Trust(trusted_device)];
         {
-            let storage = self
-                .account
-                .storage()
-                .await
-                .ok_or(sos_sdk::Error::NoStorage)?;
-            let mut writer = storage.write().await;
-            writer.patch_devices_unchecked(events).await?;
+            self.account
+                .patch_devices_unchecked(events.as_slice())
+                .await?;
         }
 
         // Send the patch to the remote server.
@@ -519,6 +517,8 @@ pub struct AcceptPairing<'a> {
     keypair: Keypair,
     /// Current device information.
     device: &'a DeviceMetaData,
+    /// Backend target.
+    target: BackendTarget,
     /// URL shared by the offering device.
     share_url: ServerPairUrl,
     /// Noise protocol state.
@@ -527,8 +527,6 @@ pub struct AcceptPairing<'a> {
     tx: WsSink,
     /// Current state of the protocol.
     state: PairProtocolState,
-    /// Data directory for the device enrollment.
-    data_dir: Option<PathBuf>,
     /// Device enrollment.
     enrollment: Option<DeviceEnrollment>,
     /// Whether the pairing is inverted.
@@ -540,27 +538,28 @@ impl<'a> AcceptPairing<'a> {
     pub async fn new(
         share_url: ServerPairUrl,
         device: &'a DeviceMetaData,
-        data_dir: Option<PathBuf>,
+        target: BackendTarget,
     ) -> Result<(AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
-        Self::new_connection(share_url, device, data_dir, keypair, false)
-            .await
+        Self::new_connection(share_url, device, target, keypair, false).await
     }
 
     /// Create a new inverted pairing connection.
     pub async fn new_inverted(
+        account_id: AccountId,
         server: Url,
         device: &'a DeviceMetaData,
-        data_dir: Option<PathBuf>,
+        target: BackendTarget,
     ) -> Result<(ServerPairUrl, AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
-        let share_url = ServerPairUrl::new(server, keypair.public.clone());
+        let share_url =
+            ServerPairUrl::new(account_id, server, keypair.public.clone());
         let (pairing, stream) = Self::new_connection(
             share_url.clone(),
             device,
-            data_dir,
+            target,
             keypair,
             true,
         )
@@ -571,7 +570,7 @@ impl<'a> AcceptPairing<'a> {
     async fn new_connection(
         share_url: ServerPairUrl,
         device: &'a DeviceMetaData,
-        data_dir: Option<PathBuf>,
+        target: BackendTarget,
         keypair: Keypair,
         is_inverted: bool,
     ) -> Result<(AcceptPairing<'a>, WsStream)> {
@@ -589,8 +588,11 @@ impl<'a> AcceptPairing<'a> {
                 .build_initiator()?
         };
 
-        let mut request =
-            WebSocketRequest::new(share_url.server(), RELAY_PATH)?;
+        let mut request = WebSocketRequest::new(
+            *share_url.account_id(),
+            share_url.server(),
+            RELAY_PATH,
+        )?;
         request
             .uri
             .query_pairs_mut()
@@ -602,10 +604,10 @@ impl<'a> AcceptPairing<'a> {
                 keypair,
                 device,
                 share_url,
+                target,
                 tunnel: Some(Tunnel::Handshake(tunnel)),
                 tx,
                 state: PairProtocolState::Pending,
-                data_dir,
                 enrollment: None,
                 is_inverted,
             },
@@ -649,7 +651,7 @@ impl<'a> AcceptPairing<'a> {
                     if event.is_some() {
                         let _ = self.tx.send(Message::Close(Some(CloseFrame {
                             code: CloseCode::Normal,
-                            reason: Cow::Borrowed("closed"),
+                            reason: Utf8Bytes::from_static("closed"),
                         }))).await;
                         break;
                     }
@@ -753,7 +755,7 @@ impl<'a> AcceptPairing<'a> {
                 self.state = next_state;
 
                 let buffer = reply.encode_prefixed().await?;
-                self.tx.send(Message::Binary(buffer)).await?;
+                self.tx.send(Message::Binary(buffer.into())).await?;
             }
             IncomingAction::HandleMessage(msg) => {
                 let msg = msg.inner.unwrap();
@@ -769,6 +771,10 @@ impl<'a> AcceptPairing<'a> {
 
                         let private_message = PairingRequest {
                             device_meta_data: device_bytes,
+                            account_id: self
+                                .share_url
+                                .account_id()
+                                .to_string(),
                         };
 
                         let payload = encrypt(
@@ -794,7 +800,7 @@ impl<'a> AcceptPairing<'a> {
                         };
                         tracing::debug!("-> device");
                         let buffer = reply.encode_prefixed().await?;
-                        self.tx.send(Message::Binary(buffer)).await?;
+                        self.tx.send(Message::Binary(buffer.into())).await?;
                     } else {
                         unreachable!();
                     }
@@ -822,8 +828,9 @@ impl<'a> AcceptPairing<'a> {
         &mut self,
         confirmation: PairingConfirm,
     ) -> Result<()> {
-        let signing_key: [u8; 32] =
-            confirmation.account_signing_key.as_slice().try_into()?;
+        // let signing_key: [u8; 32] =
+        //     confirmation.account_signing_key.as_slice().try_into()?;
+
         let device_signing_key: [u8; 32] =
             confirmation.device_signing_key.as_slice().try_into()?;
         let device_vault = confirmation.device_vault;
@@ -831,21 +838,26 @@ impl<'a> AcceptPairing<'a> {
         for server in confirmation.servers {
             servers.insert(server.try_into()?);
         }
+        let account_id: AccountId = confirmation.account_id.parse()?;
 
-        let signer: SingleParty = signing_key.try_into()?;
+        // let signer: SingleParty = signing_key.try_into()?;
+
         let server = self.share_url.server().clone();
         let origin: Origin = server.into();
-        let data_dir = self.data_dir.clone();
+        // let data_dir = self.data_dir.clone();
+
         let enrollment = DeviceEnrollment::new(
-            Box::new(signer),
+            self.target.clone(),
+            account_id,
+            confirmation.account_name,
             origin,
             device_signing_key.try_into()?,
             device_vault,
             servers,
-            data_dir,
         )
         .await?;
         self.enrollment = Some(enrollment);
+
         Ok(())
     }
 }
@@ -937,7 +949,7 @@ trait NoiseTunnel {
         } else {
             unreachable!();
         };
-        self.send(Message::Binary(buffer)).await?;
+        self.send(Message::Binary(buffer.into())).await?;
         Ok(())
     }
 

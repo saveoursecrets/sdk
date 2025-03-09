@@ -1,0 +1,39 @@
+[package]
+name = "sos-integrity"
+version = "0.17.0"
+edition = "2021"
+description = "Integrity checks for the Save Our Secrets SDK."
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+full = ["files"]
+files = []
+
+[dependencies]
+sos-core.workspace = true
+sos-backend.workspace = true
+sos-filesystem.workspace = true
+sos-database.workspace = true
+sos-vault.workspace = true
+sos-vfs.workspace = true
+
+thiserror.workspace = true
+binary-stream.workspace = true
+futures.workspace = true
+indexmap.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+hex.workspace = true
+uuid.workspace = true
+sha2.workspace = true
+tokio-stream.workspace = true
+
+[build-dependencies]
+rustc_version.workspace = true

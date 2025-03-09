@@ -1,74 +1,77 @@
 //! Network aware account.
-use crate::{
-    protocol::{
-        AccountSync, DiffRequest, EventLogType, Origin, RemoteSync,
-        RemoteSyncHandler, SyncClient, SyncOptions, SyncResult, UpdateSet,
-    },
-    sdk::{
-        account::{
-            Account, AccountBuilder, AccountChange, AccountData,
-            CipherComparison, FolderChange, FolderCreate, FolderDelete,
-            LocalAccount, SecretChange, SecretDelete, SecretInsert,
-            SecretMove,
-        },
-        commit::{CommitHash, CommitState},
-        crypto::{AccessKey, Cipher, KeyDerivation},
-        device::{
-            DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice,
-        },
-        events::{AccountEvent, EventLogExt, EventRecord, ReadEvent},
-        identity::{AccountRef, PublicIdentity},
-        sha2::{Digest, Sha256},
-        signer::ecdsa::{Address, BoxedEcdsaSigner},
-        storage::{
-            AccessOptions, ClientStorage, NewFolderOptions, StorageEventLogs,
-        },
-        vault::{
-            secret::{Secret, SecretId, SecretMeta, SecretRow},
-            Summary, Vault, VaultCommit, VaultFlags, VaultId,
-        },
-        vfs, Paths,
-    },
-    Error, RemoteBridge, Result,
-};
+use crate::{Error, RemoteBridge, Result};
 use async_trait::async_trait;
 use secrecy::SecretString;
-use sos_sdk::events::{AccountPatch, DevicePatch, FolderPatch};
+use sha2::{Digest, Sha256};
+use sos_account::{
+    Account, AccountBuilder, AccountChange, AccountData, CipherComparison,
+    FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
+    SecretDelete, SecretInsert, SecretMove,
+};
+use sos_backend::{BackendTarget, Folder, ServerOrigins};
+use sos_client_storage::{AccessOptions, NewFolderOptions};
+use sos_core::{
+    commit::{CommitHash, CommitState},
+    crypto::{AccessKey, Cipher, KeyDerivation},
+    device::{DevicePublicKey, TrustedDevice},
+    events::{
+        AccountEvent, DeviceEvent, EventLog, EventLogType, EventRecord,
+        ReadEvent, WriteEvent,
+    },
+    AccountId, AccountRef, AuthenticationError, FolderRef, Origin, Paths,
+    PublicIdentity, RemoteOrigins, SecretId, StorageError, UtcDateTime,
+    VaultId,
+};
+use sos_login::{
+    device::{DeviceManager, DeviceSigner},
+    DelegatedAccess,
+};
+use sos_protocol::{
+    is_offline, AccountSync, DiffRequest, RemoteResult, RemoteSync,
+    SyncClient, SyncOptions, SyncResult,
+};
+use sos_remote_sync::RemoteSyncHandler;
+use sos_sync::{CreateSet, StorageEventLogs, UpdateSet};
+use sos_vault::{
+    secret::{Secret, SecretMeta, SecretRow, SecretType},
+    Summary, Vault, VaultCommit, VaultFlags,
+};
 use std::{
     collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
+    path::Path,
     sync::Arc,
 };
 use tokio::sync::{Mutex, RwLock};
 
 #[cfg(feature = "clipboard")]
-use sos_sdk::{
-    prelude::{ClipboardCopyRequest, SecretPath},
-    xclipboard::Clipboard,
+use {
+    sos_account::{xclipboard::Clipboard, ClipboardCopyRequest},
+    sos_core::SecretPath,
 };
 
 #[cfg(feature = "search")]
-use crate::sdk::prelude::{
+use sos_search::{
     AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
     QueryFilter, SearchIndex,
 };
 
-#[cfg(feature = "archive")]
-use crate::sdk::prelude::{Inventory, RestoreOptions};
-
 use indexmap::IndexSet;
 
 #[cfg(feature = "contacts")]
-use crate::sdk::prelude::ContactImportProgress;
-
-#[cfg(feature = "archive")]
-use tokio::io::{AsyncRead, AsyncSeek};
+use sos_account::ContactImportProgress;
 
 #[cfg(feature = "migrate")]
-use crate::sdk::prelude::ImportTarget;
+use sos_migrate::import::ImportTarget;
 
 #[cfg(feature = "listen")]
 use sos_protocol::network_client::WebSocketHandle;
+
+#[cfg(feature = "audit")]
+use {
+    sos_audit::{AuditData, AuditEvent},
+    sos_backend::audit::append_audit_events,
+    sos_core::events::EventKind,
+};
 
 /*
 #[cfg(feature = "security-report")]
@@ -80,13 +83,13 @@ use crate::sdk::account::security_report::{
 use super::remote::Remotes;
 
 #[cfg(feature = "files")]
-use crate::{
-    account::file_transfers::{
+use {
+    crate::account::file_transfers::{
         FileTransferSettings, FileTransfers, FileTransfersHandle,
         InflightTransfers,
     },
-    protocol::{network_client::HttpClient, transfer::FileOperation},
-    sdk::{prelude::FilePatch, storage::files::FileMutationEvent},
+    sos_external_files::FileMutationEvent,
+    sos_protocol::{network_client::HttpClient, transfer::FileOperation},
 };
 
 /// Options for network account creation.
@@ -101,8 +104,8 @@ pub struct NetworkAccountOptions {
 
 /// Account with networking capability.
 pub struct NetworkAccount {
-    /// Address of this account.
-    address: Address,
+    /// Account identifier.
+    account_id: AccountId,
 
     /// Paths for the account.
     paths: Arc<Paths>,
@@ -112,6 +115,9 @@ pub struct NetworkAccount {
 
     /// Remote targets for synchronization.
     pub(super) remotes: Arc<RwLock<Remotes>>,
+
+    /// Server origins for this account.
+    server_origins: Option<ServerOrigins>,
 
     /// Lock to prevent write to local storage
     /// whilst a sync operation is in progress.
@@ -150,7 +156,7 @@ impl NetworkAccount {
             let mut account = self.account.lock().await;
             let folders = account.sign_in(key).await?;
             self.paths = account.paths();
-            self.address = account.address().clone();
+            self.account_id = *account.account_id();
             folders
         };
 
@@ -160,34 +166,25 @@ impl NetworkAccount {
             self.connection_id = self.client_connection_id().await.ok();
         }
 
-        // Load origins from disc and create remote definitions
-        if let Some(origins) = self.load_servers().await? {
-            let mut remotes: Remotes = Default::default();
+        let server_origins =
+            ServerOrigins::new(self.backend_target().await, &self.account_id);
+        let servers = server_origins.list_servers().await?;
 
-            for origin in origins {
+        // Initialize remote bridges for each server origin
+        if !servers.is_empty() {
+            let mut remotes: Remotes = Default::default();
+            for origin in servers {
                 let remote = self.remote_bridge(&origin).await?;
                 remotes.insert(origin, remote);
             }
-
             self.remotes = Arc::new(RwLock::new(remotes));
         }
 
+        self.server_origins = Some(server_origins);
         self.activate().await?;
 
         Ok(folders)
     }
-
-    /*
-    /// Copy of the HTTP client for a remote.
-    ///
-    /// This is an internal function used for testing
-    /// only, do not use.
-    #[doc(hidden)]
-    pub async fn remote_client(&self, origin: &Origin) -> Option<HttpClient> {
-        let remotes = self.remotes.read().await;
-        remotes.get(origin).map(|r| r.client().clone())
-    }
-    */
 
     /// Deactive this account by closing down long-running tasks.
     ///
@@ -233,34 +230,6 @@ impl NetworkAccount {
             );
             self.file_transfers = Some(file_transfers);
             self.start_file_transfers().await?;
-        }
-
-        Ok(())
-    }
-
-    /// Revoke a device.
-    pub async fn revoke_device(
-        &mut self,
-        device_key: &crate::sdk::device::DevicePublicKey,
-    ) -> Result<()> {
-        let current_device = self.current_device().await?;
-        if current_device.public_key() == device_key {
-            return Err(Error::RevokeDeviceSelf);
-        }
-
-        // Update the local device event log
-        {
-            let account = self.account.lock().await;
-            let storage =
-                account.storage().await.ok_or(sos_sdk::Error::NoStorage)?;
-            let mut storage = storage.write().await;
-            storage.revoke_device(device_key).await?;
-        }
-
-        // Send the device event logs to the remote servers
-        if let Some(e) = self.sync().await.first_error() {
-            tracing::error!(error = ?e);
-            return Err(Error::RevokeDeviceSync(Box::new(e)));
         }
 
         Ok(())
@@ -318,57 +287,73 @@ impl NetworkAccount {
     pub async fn add_server(
         &mut self,
         origin: Origin,
-    ) -> Result<Option<Error>> {
+    ) -> Result<Option<RemoteResult<Error>>> {
+        let remote = self.remote_bridge(&origin).await?;
+
         #[cfg(feature = "files")]
         {
-            let remote = self.remote_bridge(&origin).await?;
-
             if let Some(file_transfers) = self.file_transfers.as_mut() {
                 file_transfers.add_client(remote.client().clone()).await;
             };
 
-            let mut remotes = self.remotes.write().await;
             if let Some(handle) = &self.file_transfer_handle {
                 self.proxy_remote_file_queue(handle, &remote).await;
             }
-            remotes.insert(origin.clone(), remote);
-            self.save_remotes(&*remotes).await?;
         }
 
-        let mut sync_error = None;
         {
+            let mut remotes = self.remotes.write().await;
+            remotes.insert(origin.clone(), remote);
+            self.server_origins
+                .as_mut()
+                .unwrap()
+                .add_server(origin.clone())
+                .await?;
+            tracing::debug!(url = %origin.url(), "server::added");
+        }
+
+        let mut sync_result = None;
+        if !is_offline() {
             let remotes = self.remotes.read().await;
             if let Some(remote) = remotes.get(&origin) {
                 let options = SyncOptions {
                     origins: vec![origin.clone()],
                     ..Default::default()
                 };
-                if let Err(err) =
-                    remote.sync_with_options(&options).await.result
-                {
-                    sync_error = Some(err);
+
+                let res = remote.sync_with_options(&options).await;
+                if let Some(sync_error) = res.result.as_ref().err() {
+                    tracing::warn!(
+                        sync_error = ?sync_error,
+                        "server::initial_sync_failed");
                 }
+                sync_result = Some(res);
             }
-        }
-
-        tracing::debug!(url = %origin.url(), "server::added");
-        if let Some(sync_error) = &sync_error {
+        } else {
             tracing::warn!(
-                sync_error = ?sync_error,
-                "server::initial_sync_failed");
+                "offline mode active, ignoring initial server sync"
+            );
         }
 
-        Ok(sync_error)
+        Ok(sync_result)
     }
 
-    /// Update server origin information.
-    pub async fn update_server(&mut self, origin: Origin) -> Result<bool> {
+    /// Replace a server origin with updated origin information.
+    pub async fn replace_server(
+        &mut self,
+        old_origin: &Origin,
+        new_origin: Origin,
+    ) -> Result<bool> {
         // Note that this works because Origin only includes
         // the url for it's Hash implementation
         let mut remotes = self.remotes.write().await;
-        if let Some(remote) = remotes.remove(&origin) {
-            remotes.insert(origin, remote);
-            self.save_remotes(&*remotes).await?;
+        if let Some(remote) = remotes.remove(&old_origin) {
+            remotes.insert(new_origin.clone(), remote);
+            self.server_origins
+                .as_mut()
+                .unwrap()
+                .replace_server(old_origin, new_origin)
+                .await?;
             Ok(true)
         } else {
             Ok(false)
@@ -389,7 +374,11 @@ impl NetworkAccount {
                 if let Some(file_transfers) = self.file_transfers.as_mut() {
                     file_transfers.remove_client(remote.client()).await;
                 }
-                self.save_remotes(&*remotes).await?;
+                self.server_origins
+                    .as_mut()
+                    .unwrap()
+                    .remove_server(origin)
+                    .await?;
             }
             remote
         };
@@ -400,18 +389,16 @@ impl NetworkAccount {
 
     /// Create a remote bridge between this account and the origin server.
     async fn remote_bridge(&self, origin: &Origin) -> Result<RemoteBridge> {
-        let signer = self.account_signer().await?;
         let device = self.device_signer().await?;
         let conn_id = if let Some(conn_id) = &self.connection_id {
             conn_id.to_string()
         } else {
             self.client_connection_id().await?
         };
-
         let provider = RemoteBridge::new(
+            *self.account_id(),
             Arc::clone(&self.account),
             origin.clone(),
-            signer,
             device.into(),
             conn_id,
         )?;
@@ -438,17 +425,6 @@ impl NetworkAccount {
             return Err(Error::FolderExists(*folder_id));
         }
 
-        let vault_path = self.paths.vault_path(folder_id);
-        let event_path = self.paths.event_log_path(folder_id);
-
-        if vfs::try_exists(&vault_path).await? {
-            return Err(Error::FileExists(vault_path));
-        }
-
-        if vfs::try_exists(&event_path).await? {
-            return Err(Error::FileExists(event_path));
-        }
-
         self.recover_remote_folder_unchecked(origin, folder_id)
             .await
     }
@@ -467,36 +443,15 @@ impl NetworkAccount {
             log_type: EventLogType::Folder(*folder_id),
             from_hash: None,
         };
-        let response = remote.client().diff(self.address(), request).await?;
+        let response = remote.client().diff(request).await?;
         self.restore_folder(folder_id, response.patch).await
-    }
-
-    /// Load origin servers from disc.
-    async fn load_servers(&self) -> Result<Option<HashSet<Origin>>> {
-        let remotes_file = self.paths().remote_origins();
-        if vfs::try_exists(&remotes_file).await? {
-            let contents = vfs::read(&remotes_file).await?;
-            let origins: HashSet<Origin> = serde_json::from_slice(&contents)?;
-            Ok(Some(origins))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Save remote definitions to disc.
-    async fn save_remotes(&self, remotes: &Remotes) -> Result<()> {
-        let origins = remotes.keys().collect::<Vec<_>>();
-        let data = serde_json::to_vec_pretty(&origins)?;
-        let file = self.paths().remote_origins();
-        vfs::write_exclusive(file, data).await?;
-        Ok(())
     }
 
     /// Spawn a task to handle file transfers.
     #[cfg(feature = "files")]
     async fn start_file_transfers(&mut self) -> Result<()> {
         if !self.is_authenticated().await {
-            return Err(crate::sdk::Error::NotAuthenticated.into());
+            return Err(AuthenticationError::NotAuthenticated.into());
         }
 
         if self.offline {
@@ -558,7 +513,7 @@ impl NetworkAccount {
 
 impl From<&NetworkAccount> for AccountRef {
     fn from(value: &NetworkAccount) -> Self {
-        Self::Address(value.address().clone())
+        Self::Id(*value.account_id())
     }
 }
 
@@ -568,19 +523,19 @@ impl NetworkAccount {
     /// After preparing an account call `sign_in`
     /// to authenticate a user.
     pub async fn new_unauthenticated(
-        address: Address,
-        data_dir: Option<PathBuf>,
+        account_id: AccountId,
+        target: BackendTarget,
         options: NetworkAccountOptions,
-        // offline: bool,
     ) -> Result<Self> {
         let account =
-            LocalAccount::new_unauthenticated(address, data_dir).await?;
+            LocalAccount::new_unauthenticated(account_id, target).await?;
 
         Ok(Self {
-            address,
+            account_id,
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             remotes: Arc::new(RwLock::new(Default::default())),
+            server_origins: None,
             sync_lock: Arc::new(Mutex::new(())),
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
@@ -603,13 +558,13 @@ impl NetworkAccount {
     pub async fn new_account(
         account_name: String,
         passphrase: SecretString,
-        data_dir: Option<PathBuf>,
+        target: BackendTarget,
         options: NetworkAccountOptions,
     ) -> Result<Self> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
-            data_dir,
+            target,
             options,
             |builder| {
                 builder
@@ -629,23 +584,24 @@ impl NetworkAccount {
     pub async fn new_account_with_builder(
         account_name: String,
         passphrase: SecretString,
-        data_dir: Option<PathBuf>,
+        target: BackendTarget,
         options: NetworkAccountOptions,
         builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
         let account = LocalAccount::new_account_with_builder(
             account_name,
             passphrase.clone(),
-            data_dir.clone(),
+            target,
             builder,
         )
         .await?;
 
         let owner = Self {
-            address: account.address().clone(),
+            account_id: *account.account_id(),
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             remotes: Arc::new(RwLock::new(Default::default())),
+            server_origins: None,
             sync_lock: Arc::new(Mutex::new(())),
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
@@ -668,7 +624,7 @@ impl NetworkAccount {
             .file_transfers
             .as_ref()
             .map(|t| Arc::clone(&t.inflight))
-            .ok_or_else(|| crate::sdk::Error::NotAuthenticated)?)
+            .ok_or_else(|| AuthenticationError::NotAuthenticated)?)
     }
 
     /// Convert file mutation events into file transfer queue entries.
@@ -696,12 +652,22 @@ impl Account for NetworkAccount {
     type Error = Error;
     type NetworkResult = SyncResult<Self::Error>;
 
-    fn address(&self) -> &Address {
-        &self.address
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 
     fn paths(&self) -> Arc<Paths> {
         Arc::clone(&self.paths)
+    }
+
+    async fn backend_target(&self) -> BackendTarget {
+        let account = self.account.lock().await;
+        account.backend_target().await
+    }
+
+    async fn folder(&self, folder_id: &VaultId) -> Result<Folder> {
+        let account = self.account.lock().await;
+        Ok(account.folder(folder_id).await?)
     }
 
     async fn is_authenticated(&self) -> bool {
@@ -709,30 +675,12 @@ impl Account for NetworkAccount {
         account.is_authenticated().await
     }
 
-    async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
-        let account = self.account.lock().await;
-        Ok(account.account_signer().await?)
-    }
-
     async fn import_account_events(
         &mut self,
-        identity: FolderPatch,
-        account: AccountPatch,
-        device: DevicePatch,
-        folders: HashMap<VaultId, FolderPatch>,
-        #[cfg(feature = "files")] files: FilePatch,
+        events: CreateSet,
     ) -> Result<()> {
         let mut inner = self.account.lock().await;
-        Ok(inner
-            .import_account_events(
-                identity,
-                account,
-                device,
-                folders,
-                #[cfg(feature = "files")]
-                files,
-            )
-            .await?)
+        Ok(inner.import_account_events(events).await?)
     }
 
     async fn new_device_vault(
@@ -752,6 +700,49 @@ impl Account for NetworkAccount {
         Ok(account.device_public_key().await?)
     }
 
+    async fn patch_devices_unchecked(
+        &mut self,
+        events: &[DeviceEvent],
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.patch_devices_unchecked(events).await?)
+    }
+
+    async fn revoke_device(
+        &mut self,
+        device_key: &DevicePublicKey,
+    ) -> Result<()> {
+        let current_device = self.current_device().await?;
+        if current_device.public_key() == device_key {
+            return Err(Error::RevokeDeviceSelf);
+        }
+
+        // Update the local device event log
+        {
+            let mut account = self.account.lock().await;
+            account.revoke_device(device_key).await?;
+        }
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                Default::default(),
+                EventKind::RevokeDevice,
+                *self.account_id(),
+                Some(AuditData::Device(*device_key)),
+            );
+            append_audit_events(&[audit_event]).await?;
+        }
+
+        // Send the device event logs to the remote servers
+        if let Some(e) = self.sync().await.first_error() {
+            tracing::error!(error = ?e);
+            return Err(Error::RevokeDeviceSync(Box::new(e)));
+        }
+
+        Ok(())
+    }
+
     async fn current_device(&self) -> Result<TrustedDevice> {
         let account = self.account.lock().await;
         Ok(account.current_device().await?)
@@ -767,28 +758,30 @@ impl Account for NetworkAccount {
         Ok(account.public_identity().await?)
     }
 
-    async fn account_label(&self) -> Result<String> {
+    async fn account_name(&self) -> Result<String> {
         let account = self.account.lock().await;
-        Ok(account.account_label().await?)
+        Ok(account.account_name().await?)
     }
 
     async fn folder_description(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
     ) -> Result<String> {
         let mut account = self.account.lock().await;
-        Ok(account.folder_description(folder).await?)
+        Ok(account.folder_description(folder_id).await?)
     }
 
     async fn set_folder_description(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
         description: impl AsRef<str> + Send + Sync,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.set_folder_description(folder, description).await?
+            account
+                .set_folder_description(folder_id, description)
+                .await?
         };
 
         let result = FolderChange {
@@ -800,32 +793,14 @@ impl Account for NetworkAccount {
         Ok(result)
     }
 
-    async fn find_folder_password(
-        &self,
-        folder_id: &VaultId,
-    ) -> Result<Option<AccessKey>> {
+    async fn login_folder_summary(&self) -> Result<Summary> {
         let account = self.account.lock().await;
-        Ok(account.find_folder_password(folder_id).await?)
+        Ok(account.login_folder_summary().await?)
     }
 
-    async fn generate_folder_password(&self) -> Result<SecretString> {
-        let account = self.account.lock().await;
-        Ok(account.generate_folder_password().await?)
-    }
-
-    async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
-        let account = self.account.lock().await;
-        Ok(account.identity_vault_buffer().await?)
-    }
-
-    async fn identity_folder_summary(&self) -> Result<Summary> {
-        let account = self.account.lock().await;
-        Ok(account.identity_folder_summary().await?)
-    }
-
-    async fn reload_identity_folder(&mut self) -> Result<()> {
+    async fn reload_login_folder(&mut self) -> Result<()> {
         let mut account = self.account.lock().await;
-        Ok(account.reload_identity_folder().await?)
+        Ok(account.reload_login_folder().await?)
     }
 
     async fn change_cipher(
@@ -932,9 +907,9 @@ impl Account for NetworkAccount {
         account.verify(key).await
     }
 
-    async fn open_folder(&self, summary: &Summary) -> Result<()> {
+    async fn open_folder(&self, folder_id: &VaultId) -> Result<()> {
         let account = self.account.lock().await;
-        Ok(account.open_folder(summary).await?)
+        Ok(account.open_folder(folder_id).await?)
     }
 
     async fn current_folder(&self) -> Result<Option<Summary>> {
@@ -942,9 +917,18 @@ impl Account for NetworkAccount {
         Ok(account.current_folder().await?)
     }
 
+    async fn history(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>> {
+        let account = self.account.lock().await;
+        Ok(account.history(folder_id).await?)
+    }
+
     async fn sign_out(&mut self) -> Result<()> {
         self.deactivate().await;
         self.remotes = Default::default();
+        self.server_origins = None;
 
         #[cfg(feature = "files")]
         {
@@ -973,6 +957,14 @@ impl Account for NetworkAccount {
         Ok(result)
     }
 
+    async fn set_account_name(
+        &mut self,
+        account_name: String,
+    ) -> std::result::Result<(), Self::Error> {
+        let mut account = self.account.lock().await;
+        Ok(account.set_account_name(account_name).await?)
+    }
+
     async fn delete_account(&mut self) -> Result<()> {
         // Shutdown any change listeners
         #[cfg(feature = "listen")]
@@ -999,17 +991,9 @@ impl Account for NetworkAccount {
         account.find(predicate).await
     }
 
-    async fn storage(&self) -> Option<Arc<RwLock<ClientStorage>>> {
+    async fn find_folder(&self, vault: &FolderRef) -> Option<Summary> {
         let account = self.account.lock().await;
-        account.storage().await
-    }
-
-    async fn set_storage(
-        &mut self,
-        storage: Option<Arc<RwLock<ClientStorage>>>,
-    ) {
-        let mut account = self.account.lock().await;
-        account.set_storage(storage).await
+        account.find_folder(vault).await
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {
@@ -1022,9 +1006,12 @@ impl Account for NetworkAccount {
         Ok(account.list_folders().await?)
     }
 
-    async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {
+    async fn list_secret_ids(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Vec<SecretId>> {
         let account = self.account.lock().await;
-        Ok(account.secret_ids(summary).await?)
+        Ok(account.list_secret_ids(folder_id).await?)
     }
 
     async fn account_data(&self) -> Result<AccountData> {
@@ -1032,9 +1019,9 @@ impl Account for NetworkAccount {
         Ok(account.account_data().await?)
     }
 
-    async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
+    async fn root_hash(&self, folder_id: &VaultId) -> Result<CommitHash> {
         let account = self.account.lock().await;
-        Ok(account.root_commit(summary).await?)
+        Ok(account.root_hash(folder_id).await?)
     }
 
     async fn identity_state(&self) -> Result<CommitState> {
@@ -1042,14 +1029,14 @@ impl Account for NetworkAccount {
         Ok(account.identity_state().await?)
     }
 
-    async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
+    async fn commit_state(&self, folder_id: &VaultId) -> Result<CommitState> {
         let account = self.account.lock().await;
-        Ok(account.commit_state(summary).await?)
+        Ok(account.commit_state(folder_id).await?)
     }
 
     async fn compact_account(
         &mut self,
-    ) -> Result<HashMap<Summary, (AccountEvent, u64, u64)>> {
+    ) -> Result<HashMap<Summary, AccountEvent>> {
         let result = {
             let mut account = self.account.lock().await;
             account.compact_account().await?
@@ -1102,21 +1089,25 @@ impl Account for NetworkAccount {
 
     async fn compact_folder(
         &mut self,
-        folder: &Summary,
-    ) -> Result<(AccountEvent, u64, u64)> {
+        folder_id: &VaultId,
+    ) -> Result<AccountEvent> {
         let result = {
             let mut account = self.account.lock().await;
-            account.compact_folder(folder).await?
+            account.compact_folder(folder_id).await?
         };
 
         // Prepare event logs for the folders that
         // were converted
         let mut folders = HashMap::new();
+        let folder = self
+            .find(|f| f.id() == folder_id)
+            .await
+            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
         if !folder.flags().is_sync_disabled() {
-            let event_log = self.folder_log(folder.id()).await?;
+            let event_log = self.folder_log(folder_id).await?;
             let log_file = event_log.read().await;
             let diff = log_file.diff_unchecked().await?;
-            folders.insert(*folder.id(), diff);
+            folders.insert(*folder_id, diff);
         }
 
         if !folders.is_empty() {
@@ -1156,12 +1147,12 @@ impl Account for NetworkAccount {
 
     async fn change_folder_password(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
     ) -> Result<()> {
         {
             let mut account = self.account.lock().await;
-            account.change_folder_password(folder, new_key).await?;
+            account.change_folder_password(folder_id, new_key).await?;
         }
 
         let identity = {
@@ -1173,11 +1164,15 @@ impl Account for NetworkAccount {
         // Prepare event logs for the folders that
         // were converted
         let mut folders = HashMap::new();
+        let folder = self
+            .find(|f| f.id() == folder_id)
+            .await
+            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
         if !folder.flags().is_sync_disabled() {
-            let event_log = self.folder_log(folder.id()).await?;
+            let event_log = self.folder_log(folder_id).await?;
             let log_file = event_log.read().await;
             let diff = log_file.diff_unchecked().await?;
-            folders.insert(*folder.id(), diff);
+            folders.insert(*folder_id, diff);
         }
 
         if !folders.is_empty() {
@@ -1209,11 +1204,11 @@ impl Account for NetworkAccount {
     #[cfg(feature = "search")]
     async fn detached_view(
         &self,
-        summary: &Summary,
+        folder_id: &VaultId,
         commit: CommitHash,
-    ) -> Result<crate::sdk::account::DetachedView> {
+    ) -> Result<sos_account::DetachedView> {
         let account = self.account.lock().await;
-        Ok(account.detached_view(summary, commit).await?)
+        Ok(account.detached_view(folder_id, commit).await?)
     }
 
     #[cfg(feature = "search")]
@@ -1231,9 +1226,9 @@ impl Account for NetworkAccount {
     }
 
     #[cfg(feature = "search")]
-    async fn index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
+    async fn search_index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
         let account = self.account.lock().await;
-        Ok(account.index().await?)
+        Ok(account.search_index().await?)
     }
 
     #[cfg(feature = "search")]
@@ -1278,7 +1273,7 @@ impl Account for NetworkAccount {
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
-        file_name: &str,
+        file_name: &sos_core::ExternalFileName,
     ) -> Result<Vec<u8>> {
         let account = self.account.lock().await;
         Ok(account
@@ -1362,14 +1357,13 @@ impl Account for NetworkAccount {
         meta: SecretMeta,
         secret: Option<Secret>,
         options: AccessOptions,
-        destination: Option<&Summary>,
     ) -> Result<SecretChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
             let mut account = self.account.lock().await;
             account
-                .update_secret(secret_id, meta, secret, options, destination)
+                .update_secret(secret_id, meta, secret, options)
                 .await?
         };
 
@@ -1392,8 +1386,8 @@ impl Account for NetworkAccount {
     async fn move_secret(
         &mut self,
         secret_id: &SecretId,
-        from: &Summary,
-        to: &Summary,
+        from: &VaultId,
+        to: &VaultId,
         options: AccessOptions,
     ) -> Result<SecretMove<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
@@ -1420,7 +1414,7 @@ impl Account for NetworkAccount {
     async fn read_secret(
         &self,
         secret_id: &SecretId,
-        folder: Option<Summary>,
+        folder: Option<&VaultId>,
     ) -> Result<(SecretRow, ReadEvent)> {
         let account = self.account.lock().await;
         Ok(account.read_secret(secret_id, folder).await?)
@@ -1430,7 +1424,7 @@ impl Account for NetworkAccount {
         &self,
         folder_id: &VaultId,
         secret_id: &SecretId,
-    ) -> std::result::Result<(Option<VaultCommit>, ReadEvent), Self::Error>
+    ) -> std::result::Result<Option<(VaultCommit, ReadEvent)>, Self::Error>
     {
         let account = self.account.lock().await;
         Ok(account.raw_secret(folder_id, secret_id).await?)
@@ -1465,14 +1459,14 @@ impl Account for NetworkAccount {
 
     async fn archive(
         &mut self,
-        from: &Summary,
+        folder_id: &VaultId,
         secret_id: &SecretId,
         options: AccessOptions,
     ) -> Result<SecretMove<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.archive(from, secret_id, options).await?
+            account.archive(folder_id, secret_id, options).await?
         };
 
         let result = SecretMove {
@@ -1492,14 +1486,14 @@ impl Account for NetworkAccount {
     async fn unarchive(
         &mut self,
         secret_id: &SecretId,
-        secret_meta: &SecretMeta,
+        secret_kind: &SecretType,
         options: AccessOptions,
     ) -> Result<(SecretMove<Self::NetworkResult>, Summary)> {
         let _ = self.sync_lock.lock().await;
 
         let (result, to) = {
             let mut account = self.account.lock().await;
-            account.unarchive(secret_id, secret_meta, options).await?
+            account.unarchive(secret_id, secret_kind, options).await?
         };
 
         let result = SecretMove {
@@ -1523,15 +1517,13 @@ impl Account for NetworkAccount {
         meta: SecretMeta,
         path: impl AsRef<Path> + Send + Sync,
         options: AccessOptions,
-        destination: Option<&Summary>,
     ) -> Result<SecretChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
             let mut account = self.account.lock().await;
-            let result = account
-                .update_file(secret_id, meta, path, options, destination)
-                .await?;
+            let result =
+                account.update_file(secret_id, meta, path, options).await?;
             result
         };
 
@@ -1553,13 +1545,12 @@ impl Account for NetworkAccount {
 
     async fn create_folder(
         &mut self,
-        name: String,
         options: NewFolderOptions,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.create_folder(name, options).await?
+            account.create_folder(options).await?
         };
 
         let result = FolderCreate {
@@ -1574,13 +1565,13 @@ impl Account for NetworkAccount {
 
     async fn rename_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         name: String,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.rename_folder(summary, name).await?
+            account.rename_folder(folder_id, name).await?
         };
 
         let result = FolderChange {
@@ -1594,13 +1585,13 @@ impl Account for NetworkAccount {
 
     async fn update_folder_flags(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         flags: VaultFlags,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.update_folder_flags(summary, flags).await?
+            account.update_folder_flags(folder_id, flags).await?
         };
 
         let result = FolderChange {
@@ -1618,16 +1609,29 @@ impl Account for NetworkAccount {
         key: AccessKey,
         overwrite: bool,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
-        let buffer = vfs::read(path.as_ref()).await?;
-        self.import_folder_buffer(&buffer, key, overwrite).await
+        let _ = self.sync_lock.lock().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.import_folder(path.as_ref(), key, overwrite).await?
+        };
+
+        let result = FolderCreate {
+            folder: result.folder,
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_result: self.sync().await,
+        };
+
+        Ok(result)
     }
 
-    async fn import_identity_folder(
+    async fn import_login_folder(
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {
         let mut account = self.account.lock().await;
-        Ok(account.import_identity_folder(vault).await?)
+        Ok(account.import_login_folder(vault).await?)
     }
 
     async fn import_folder_buffer(
@@ -1656,36 +1660,36 @@ impl Account for NetworkAccount {
     async fn export_folder(
         &mut self,
         path: impl AsRef<Path> + Send + Sync,
-        summary: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<()> {
         let mut account = self.account.lock().await;
         Ok(account
-            .export_folder(path, summary, new_key, save_key)
+            .export_folder(path, folder_id, new_key, save_key)
             .await?)
     }
 
     async fn export_folder_buffer(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<Vec<u8>> {
         let mut account = self.account.lock().await;
         Ok(account
-            .export_folder_buffer(summary, new_key, save_key)
+            .export_folder_buffer(folder_id, new_key, save_key)
             .await?)
     }
 
     async fn delete_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
     ) -> Result<FolderDelete<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.delete_folder(summary).await?
+            account.delete_folder(folder_id).await?
         };
 
         let result = FolderDelete {
@@ -1697,11 +1701,16 @@ impl Account for NetworkAccount {
         Ok(result)
     }
 
+    async fn forget_folder(&mut self, folder_id: &VaultId) -> Result<bool> {
+        let mut account = self.account.lock().await;
+        Ok(account.forget_folder(folder_id).await?)
+    }
+
     #[cfg(feature = "contacts")]
     async fn load_avatar(
         &self,
         secret_id: &SecretId,
-        folder: Option<Summary>,
+        folder: Option<&VaultId>,
     ) -> Result<Option<Vec<u8>>> {
         let account = self.account.lock().await;
         Ok(account.load_avatar(secret_id, folder).await?)
@@ -1712,7 +1721,7 @@ impl Account for NetworkAccount {
         &self,
         path: impl AsRef<Path> + Send + Sync,
         secret_id: &SecretId,
-        folder: Option<Summary>,
+        folder: Option<&VaultId>,
     ) -> Result<()> {
         let account = self.account.lock().await;
         Ok(account.export_contact(path, secret_id, folder).await?)
@@ -1793,36 +1802,11 @@ impl Account for NetworkAccount {
     }
 
     #[cfg(feature = "archive")]
-    async fn restore_archive_inventory<
-        R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
-    >(
-        buffer: R,
-    ) -> Result<Inventory> {
-        Ok(LocalAccount::restore_archive_inventory(buffer).await?)
-    }
-
-    #[cfg(feature = "archive")]
     async fn import_backup_archive(
         path: impl AsRef<Path> + Send + Sync,
-        options: RestoreOptions,
-        data_dir: Option<PathBuf>,
-    ) -> Result<PublicIdentity> {
-        Ok(LocalAccount::import_backup_archive(path, options, data_dir)
-            .await?)
-    }
-
-    #[cfg(feature = "archive")]
-    async fn restore_backup_archive(
-        &mut self,
-        path: impl AsRef<Path> + Send + Sync,
-        password: SecretString,
-        options: RestoreOptions,
-        data_dir: Option<PathBuf>,
-    ) -> Result<PublicIdentity> {
-        let mut account = self.account.lock().await;
-        Ok(account
-            .restore_backup_archive(path, password, options, data_dir)
-            .await?)
+        target: &BackendTarget,
+    ) -> Result<Vec<PublicIdentity>> {
+        Ok(LocalAccount::import_backup_archive(path, target).await?)
     }
 
     #[cfg(feature = "clipboard")]
@@ -1834,5 +1818,36 @@ impl Account for NetworkAccount {
     ) -> Result<bool> {
         let account = self.account.lock().await;
         Ok(account.copy_clipboard(clipboard, target, request).await?)
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl DelegatedAccess for NetworkAccount {
+    type Error = Error;
+
+    async fn find_folder_password(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Option<AccessKey>> {
+        let account = self.account.lock().await;
+        Ok(account.find_folder_password(folder_id).await?)
+    }
+
+    async fn remove_folder_password(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.remove_folder_password(folder_id).await?)
+    }
+
+    async fn save_folder_password(
+        &mut self,
+        folder_id: &VaultId,
+        key: AccessKey,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.save_folder_password(folder_id, key).await?)
     }
 }

@@ -1,4 +1,4 @@
-use sos_protocol::sdk::logs::Logger;
+use sos_logs::Logger;
 use sos_server::{LogConfig, Result};
 
 #[tokio::main]
@@ -133,11 +133,11 @@ mod cli {
 
     mod service {
         use axum_server::Handle;
-        use sos_protocol::sdk::vfs;
         use sos_server::{
             Error, Result, Server, ServerConfig, SslConfig, State,
             StorageConfig,
         };
+        use sos_vfs as vfs;
         use std::{net::SocketAddr, path::PathBuf, sync::Arc};
         use tokio::sync::RwLock;
 
@@ -157,7 +157,13 @@ mod cli {
 
             let mut config: ServerConfig = Default::default();
             if let Some(path) = path.take() {
-                config.storage = StorageConfig { path };
+                // TODO: update to db options
+                // let database = Some(path.join(DATABASE_FILE));
+                config.storage = StorageConfig {
+                    path,
+                    database: None,
+                    database_uri: None,
+                };
             }
             if let Some(addr) = bind {
                 config.set_bind_address(addr);
@@ -182,7 +188,17 @@ mod cli {
         /// Start a web server.
         pub async fn start(config: ServerConfig) -> Result<()> {
             let backend = config.backend().await?;
+
+            #[cfg(feature = "audit")]
+            {
+                let provider = sos_backend::audit::new_fs_provider(
+                    backend.paths().audit_file().to_owned(),
+                );
+                sos_backend::audit::init_providers(vec![provider]);
+            }
+
             let state = Arc::new(RwLock::new(State::new(config)));
+
             let handle = Handle::new();
             let server = Server::new().await?;
             server

@@ -3,9 +3,7 @@ use futures::stream::StreamExt;
 use sos_net::{
     client::{changes, connect, Origin},
     sdk::{
-        hex,
-        identity::AccountRef,
-        signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
+        hex, identity::AccountRef, signer::ed25519::BoxedEd25519Signer,
         url::Url,
     },
 };
@@ -22,7 +20,6 @@ use crate::{
 async fn changes_stream(
     url: Url,
     public_key: Vec<u8>,
-    signer: BoxedEcdsaSigner,
     device: BoxedEd25519Signer,
 ) -> sos_net::client::Result<()> {
     let name = hex::encode(&public_key);

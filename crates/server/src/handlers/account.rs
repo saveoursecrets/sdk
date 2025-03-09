@@ -1,21 +1,19 @@
-use super::{authenticate_endpoint, Caller};
+use super::BODY_LIMIT;
+use super::{authenticate_endpoint, parse_account_id, Caller};
+use crate::{handlers::ConnectionQuery, ServerBackend, ServerState};
 use axum::{
     body::{to_bytes, Body},
     extract::{Extension, OriginalUri, Query},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
 use axum_extra::{
     headers::{authorization::Bearer, Authorization},
     typed_header::TypedHeader,
 };
+use std::sync::Arc;
 
 //use axum_macros::debug_handler;
-
-use super::BODY_LIMIT;
-use crate::{handlers::ConnectionQuery, ServerBackend, ServerState};
-
-use std::sync::Arc;
 
 /// Determine if an account exists.
 #[utoipa::path(
@@ -37,15 +35,17 @@ pub(crate) async fn account_exists(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         None,
         Arc::clone(&state),
         Arc::clone(&backend),
-        false,
     )
     .await
     {
@@ -84,7 +84,7 @@ pub(crate) async fn account_exists(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::CONFLICT,
@@ -101,16 +101,18 @@ pub(crate) async fn create_account(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
+    let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
+            account_id,
             bearer,
             &bytes,
             Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
-            false,
         )
         .await
         {
@@ -139,7 +141,7 @@ pub(crate) async fn create_account(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::NOT_FOUND,
@@ -156,15 +158,17 @@ pub(crate) async fn delete_account(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         None,
         Arc::clone(&state),
         Arc::clone(&backend),
-        false,
     )
     .await
     {
@@ -197,7 +201,7 @@ pub(crate) async fn delete_account(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::NOT_FOUND,
@@ -214,16 +218,18 @@ pub(crate) async fn update_account(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
+    let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
+            account_id,
             bearer,
             &bytes,
             Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
-            true,
         )
         .await
         {
@@ -255,7 +261,7 @@ pub(crate) async fn update_account(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -271,15 +277,17 @@ pub(crate) async fn fetch_account(
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
-        true,
     )
     .await
     {
@@ -307,7 +315,7 @@ pub(crate) async fn fetch_account(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -323,15 +331,17 @@ pub(crate) async fn sync_status(
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
-        true,
     )
     .await
     {
@@ -364,7 +374,7 @@ pub(crate) async fn sync_status(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -379,16 +389,18 @@ pub(crate) async fn event_scan(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
+    let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
+            account_id,
             bearer,
             &bytes,
             Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
-            true,
         )
         .await
         {
@@ -425,7 +437,7 @@ pub(crate) async fn event_scan(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -440,16 +452,18 @@ pub(crate) async fn event_diff(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
+    let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
+            account_id,
             bearer,
             &bytes,
             Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
-            true,
         )
         .await
         {
@@ -486,7 +500,7 @@ pub(crate) async fn event_diff(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -501,16 +515,18 @@ pub(crate) async fn event_patch(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
+    let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
+            account_id,
             bearer,
             &bytes,
             Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
-            true,
         )
         .await
         {
@@ -547,7 +563,7 @@ pub(crate) async fn event_patch(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -562,16 +578,18 @@ pub(crate) async fn sync_account(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
+    let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
+            account_id,
             bearer,
             &bytes,
             Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
-            true,
         )
         .await
         {
@@ -598,11 +616,11 @@ mod handlers {
         StatusCode,
     };
     use sos_protocol::{
-        constants::MIME_TYPE_PROTOBUF, server_helpers, CreateSet,
-        DiffRequest, PatchRequest, ScanRequest, SyncPacket, SyncStorage,
-        UpdateSet, WireEncodeDecode,
+        constants::MIME_TYPE_PROTOBUF, DiffRequest, PatchRequest,
+        ScanRequest, WireEncodeDecode,
     };
-
+    use sos_server_storage::server_helpers;
+    use sos_sync::{CreateSet, SyncPacket, SyncStorage, UpdateSet};
     use std::sync::Arc;
 
     #[cfg(feature = "listen")]
@@ -617,7 +635,7 @@ mod handlers {
         caller: Caller,
     ) -> Result<bool> {
         let reader = backend.read().await;
-        reader.account_exists(caller.address()).await
+        reader.account_exists(caller.account_id()).await
     }
 
     pub(super) async fn create_account(
@@ -628,14 +646,14 @@ mod handlers {
     ) -> Result<()> {
         {
             let reader = backend.read().await;
-            if reader.account_exists(caller.address()).await? {
+            if reader.account_exists(caller.account_id()).await? {
                 return Err(Error::Conflict);
             }
         }
 
         let account = CreateSet::decode(bytes).await?;
         let mut writer = backend.write().await;
-        writer.create_account(caller.address(), account).await?;
+        writer.create_account(caller.account_id(), account).await?;
         Ok(())
     }
 
@@ -645,7 +663,7 @@ mod handlers {
         caller: Caller,
     ) -> Result<()> {
         let mut writer = backend.write().await;
-        writer.delete_account(caller.address()).await?;
+        writer.delete_account(caller.account_id()).await?;
         Ok(())
     }
 
@@ -657,7 +675,7 @@ mod handlers {
     ) -> Result<()> {
         let account = UpdateSet::decode(bytes).await?;
         let mut writer = backend.write().await;
-        writer.update_account(caller.address(), account).await?;
+        writer.update_account(caller.account_id(), account).await?;
         Ok(())
     }
 
@@ -668,7 +686,7 @@ mod handlers {
     ) -> Result<(HeaderMap, Vec<u8>)> {
         let reader = backend.read().await;
         let account: CreateSet =
-            reader.fetch_account(caller.address()).await?;
+            reader.fetch_account(caller.account_id()).await?;
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -685,15 +703,15 @@ mod handlers {
         caller: Caller,
     ) -> Result<(HeaderMap, Vec<u8>)> {
         let reader = backend.read().await;
-        if !reader.account_exists(caller.address()).await? {
+        if !reader.account_exists(caller.account_id()).await? {
             return Err(Error::Status(StatusCode::NOT_FOUND));
         }
 
         let accounts = reader.accounts();
         let reader = accounts.read().await;
-        let account = reader.get(caller.address()).unwrap();
+        let account = reader.get(caller.account_id()).unwrap();
         let account = account.read().await;
-        let status = account.storage.sync_status().await?;
+        let status = account.sync_status().await?;
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
@@ -713,8 +731,8 @@ mod handlers {
             let accounts = reader.accounts();
             let reader = accounts.read().await;
             let account = reader
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
@@ -727,7 +745,8 @@ mod handlers {
 
         let reader = account.read().await;
         let response =
-            server_helpers::event_scan(&req, &reader.storage).await?;
+            server_helpers::event_scan::<_, crate::Error>(&req, &*reader)
+                .await?;
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -749,8 +768,8 @@ mod handlers {
             let accounts = reader.accounts();
             let reader = accounts.read().await;
             let account = reader
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
@@ -758,7 +777,8 @@ mod handlers {
 
         let reader = account.read().await;
         let response =
-            server_helpers::event_diff(&req, &reader.storage).await?;
+            server_helpers::event_diff::<_, crate::Error>(&req, &*reader)
+                .await?;
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -780,8 +800,8 @@ mod handlers {
             let accounts = reader.accounts();
             let reader = accounts.read().await;
             let account = reader
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
@@ -789,16 +809,17 @@ mod handlers {
 
         let (response, outcome) = {
             let mut writer = account.write().await;
-            server_helpers::event_patch(req, &mut writer.storage).await?
+            server_helpers::event_patch::<_, crate::Error>(req, &mut *writer)
+                .await?
         };
 
         #[cfg(feature = "listen")]
         if outcome.changes > 0 {
             if let Some(conn_id) = caller.connection_id() {
                 let reader = account.read().await;
-                let local_status = reader.storage.sync_status().await?;
+                let local_status = reader.sync_status().await?;
                 let notification = ChangeNotification::new(
-                    caller.address(),
+                    caller.account_id(),
                     conn_id.to_string(),
                     local_status.root,
                     outcome,
@@ -828,8 +849,8 @@ mod handlers {
             let accounts = reader.accounts();
             let reader = accounts.read().await;
             let account = reader
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
@@ -837,14 +858,18 @@ mod handlers {
 
         let (packet, outcome) = {
             let mut writer = account.write().await;
-            server_helpers::sync_account(packet, &mut writer.storage).await?
+            server_helpers::sync_account::<_, crate::Error>(
+                packet,
+                &mut *writer,
+            )
+            .await?
         };
 
         #[cfg(feature = "listen")]
         if outcome.changes > 0 {
             if let Some(conn_id) = caller.connection_id() {
                 let notification = ChangeNotification::new(
-                    caller.address(),
+                    caller.account_id(),
                     conn_id.to_string(),
                     packet.status.root,
                     outcome,

@@ -1,6 +1,6 @@
 [package]
 name = "sos-sdk"
-version = "0.16.2"
+version = "0.17.0"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
@@ -8,116 +8,21 @@ license = "MIT OR Apache-2.0"
 categories = ["cryptography::cryptocurrencies", "authentication"]
 repository = "https://github.com/saveoursecrets/sdk"
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["account", "audit", "logs"]
-account = []
-archive = ["dep:async_zip"]
-audit = []
-clipboard = ["dep:xclipboard", "dep:serde_json_path"]
-contacts = []
-files = []
-interactive-keychain-tests = []
-logs = ["rev_buf_reader", "tracing-appender", "tracing-subscriber"]
-mem-fs = ["sos-vfs/mem-fs"]
-migrate = ["dep:async_zip", "dep:csv-async"]
-keychain-access = ["dep:security-framework", "dep:keychain_parser"]
-recovery = ["dep:vsss-rs"]
-search = ["dep:probly-search"]
+full = ["files"]
+files = ["sos-core/files", "sos-login/files"]
 
 [dependencies]
-binary-stream.workspace = true
-secrecy.workspace = true
-tokio-util.workspace = true
-tracing.workspace = true
-thiserror.workspace = true
-async-trait.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-uuid.workspace = true
-hex.workspace = true
-k256.workspace = true
-sha1.workspace = true
-sha2.workspace = true
-sha3.workspace = true
-serde_with.workspace = true
-once_cell.workspace = true
-rand.workspace = true
-url.workspace = true
-time.workspace = true
-time-tz.workspace = true
-futures.workspace = true
-parking_lot.workspace = true
-bs58.workspace = true
-indexmap.workspace = true
-bitflags.workspace = true
-enum-iterator.workspace = true
-tempfile.workspace = true
-rs_merkle.workspace = true
-typeshare.workspace = true
+sos-core.workspace = true
+sos-login.workspace = true
+sos-password.workspace = true
+sos-signer.workspace = true
+sos-vault.workspace = true
 sos-vfs.workspace = true
-xclipboard = { workspace = true, optional = true }
-serde_json_path = { workspace = true, optional = true }
-
-subtle = { version = "2.5" }
-ethereum-types = "0.15"
-async_zip = { version = "0.0.17", default-features = false, features = ["deflate", "tokio"], optional = true }
-csv-async = { version = "1", features = ["tokio", "with_serde"], optional = true }
-aes-gcm = { version = "0.10.1", features = ["std"] }
-chacha20poly1305 = { version = "0.10.1", features = ["std"] }
-filetime = "0.2"
-argon2 = { version = "0.5", features = ["std"]}
-balloon-hash = { version = "0.4", features = ["std"]}
-pem = { version = "3", features = ["serde"] }
-zxcvbn = { version = "3.0.1", features = ["ser"] }
-totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }
-vcard4 = { version = "0.7.1", features = ["serde"] }
-async-once-cell = "0.5"
-age = { version = "0.11", features = ["async"] }
-ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
-urn = { version = "0.7", features = ["serde"] }
-walkdir = "2"
-unicode-segmentation = "1.10"
-mime_guess = { version = "2" }
-sanitize-filename = "0.6"
-futures-util = "0.3"
-async-stream = "0.3"
-whoami = { version = "1.5" }
-vsss-rs = {version = "3", optional = true }
-tracing-appender = { version = "0.2", optional = true }
-tracing-subscriber = { version = "0.3.16", features = ["env-filter", "json"], optional = true }
-rev_buf_reader = { version = "0.3", optional = true }
-
-[dependencies.probly-search]
-version = "2.0.1"
-optional = true
-
-[target.'cfg(target_os = "macos")'.dependencies]
-security-framework = { version = "3.1", optional = true }
-keychain_parser = { version = "0.1", path = "../keychain_parser", optional = true }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
-etcetera = "0.8"
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = {version = "0.2", features = ["js"]}
-uuid = { version = "1", features = ["serde", "v4", "js"] }
-tokio = { version = "1", default-features = false, features = ["rt", "sync", "macros", "io-util"] }
-
-[dependencies.chbs]
-version = "0.1.1"
-
-[dev-dependencies]
-anyhow = "1"
-tokio = { version = "1", features = ["full"] }
-sos-test-utils = { path = "../test_utils" }
 
 [build-dependencies]
-rustc_version = "0.4.1"
+rustc_version.workspace = true

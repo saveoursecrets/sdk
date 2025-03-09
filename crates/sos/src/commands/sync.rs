@@ -3,18 +3,16 @@ use crate::{
     Error, Result,
 };
 use clap::Subcommand;
-use sos_net::{
-    protocol::{AccountSync, Origin, SyncOptions, SyncStatus, SyncStorage},
-    sdk::{
-        account::Account,
-        commit::{CommitState, CommitTree, Comparison},
-        events::EventLogExt,
-        identity::AccountRef,
-        storage::StorageEventLogs,
-        url::Url,
-    },
-    NetworkAccount,
+use sos_account::Account;
+use sos_core::{
+    commit::{CommitState, CommitTree, Comparison},
+    events::EventLog,
+    AccountRef, Origin,
 };
+use sos_net::NetworkAccount;
+use sos_protocol::{AccountSync, SyncOptions};
+use sos_sync::{StorageEventLogs, SyncStatus, SyncStorage};
+use url::Url;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -205,14 +203,8 @@ async fn print_status(
     let folders = owner.list_folders().await?;
     for folder in folders {
         let id = folder.id();
-        let storage = owner
-            .storage()
-            .await
-            .ok_or(sos_net::sdk::Error::NoStorage)?;
-        let storage = storage.read().await;
-        let disc_folder = storage.cache().get(id).unwrap();
-        let log = disc_folder.event_log();
-        let log = log.read().await;
+        let event_log = owner.folder_log(id).await?;
+        let event_log = event_log.read().await;
         if let (Some(local_folder), Some(remote_folder)) =
             (local.folders.get(id), remote.folders.get(id))
         {
@@ -221,7 +213,7 @@ async fn print_status(
                 &title,
                 local_folder,
                 remote_folder,
-                log.tree(),
+                event_log.tree(),
             )?;
         }
     }

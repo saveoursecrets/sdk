@@ -3,8 +3,11 @@
 use http::{Request, Response, StatusCode};
 use secrecy::SecretString;
 use serde::Deserialize;
-use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{AccessKey, Account, Address, ErrorExt, Identity};
+use sos_account::Account;
+use sos_core::AccountId;
+use sos_core::{crypto::AccessKey, ErrorExt};
+use sos_login::DelegatedAccess;
+use sos_sync::SyncStorage;
 use std::collections::HashMap;
 
 use crate::web_service::{
@@ -27,23 +30,27 @@ pub async fn list_accounts<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
         + 'static,
 {
-    let accounts = accounts.as_ref().read().await;
-    match Identity::list_accounts(accounts.paths()).await {
-        Ok(list) => json(StatusCode::OK, &list),
+    match accounts.backend_target().await {
+        Ok(target) => match target.list_accounts().await {
+            Ok(list) => json(StatusCode::OK, &list),
+            Err(e) => internal_server_error(e),
+        },
         Err(e) => internal_server_error(e),
     }
 }
@@ -56,15 +63,17 @@ pub async fn list_folders<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -73,11 +82,11 @@ where
     let accounts = accounts.as_ref().read().await;
     let mut list = HashMap::new();
     for account in accounts.iter() {
-        let address = account.address().to_string();
+        let account_id = account.account_id().to_string();
         if account.is_authenticated().await {
             match account.list_folders().await {
                 Ok(folders) => {
-                    list.insert(address, folders);
+                    list.insert(account_id, folders);
                 }
                 Err(e) => {
                     return internal_server_error(e);
@@ -96,15 +105,17 @@ pub async fn authenticated_accounts<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -113,8 +124,8 @@ where
     let accounts = accounts.as_ref().read().await;
     let mut list = HashMap::new();
     for account in accounts.iter() {
-        let address = account.address().to_string();
-        list.insert(address.to_string(), account.is_authenticated().await);
+        let account_id = account.account_id().to_string();
+        list.insert(account_id.to_string(), account.is_authenticated().await);
     }
     json(StatusCode::OK, &list)
 }
@@ -127,7 +138,7 @@ pub async fn sign_in_account<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
+        + DelegatedAccess<Error = E>
         + Sync
         + Send
         + 'static,
@@ -135,7 +146,12 @@ where
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -161,7 +177,7 @@ where
 ///
 /// If a platform authenticator or platform keyring is not supported
 /// this will return `StatusCode::UNAUTHORIZED` and the user will
-/// need to supply their password and
+/// need to supply their password.
 pub async fn sign_in<A, R, E>(
     req: Request<Incoming>,
     accounts: WebAccounts<A, R, E>,
@@ -169,15 +185,17 @@ pub async fn sign_in<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -215,22 +233,24 @@ where
 /// Sign in to an account
 pub async fn sign_in_password<A, R, E>(
     accounts: WebAccounts<A, R, E>,
-    account_id: Address,
+    account_id: AccountId,
     password: SecretString,
     save_password: bool,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -241,7 +261,7 @@ where
     let mut user_accounts = accounts.as_ref().write().await;
     let Some(account) = user_accounts
         .iter_mut()
-        .find(|a| a.address() == &account_id)
+        .find(|a| a.account_id() == &account_id)
     else {
         return status(StatusCode::NOT_FOUND);
     };
@@ -295,15 +315,17 @@ pub async fn sign_out_account<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -326,7 +348,7 @@ pub async fn sign_out_all<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
+        + DelegatedAccess<Error = E>
         + Sync
         + Send
         + 'static,
@@ -334,7 +356,12 @@ where
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -347,20 +374,22 @@ where
 /// Sign out of an account
 pub async fn sign_out<A, R, E>(
     accounts: WebAccounts<A, R, E>,
-    account_id: Option<Address>,
+    account_id: Option<AccountId>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -370,7 +399,7 @@ where
     if let Some(account_id) = account_id {
         let Some(account) = user_accounts
             .iter_mut()
-            .find(|a| a.address() == &account_id)
+            .find(|a| a.account_id() == &account_id)
         else {
             return status(StatusCode::NOT_FOUND);
         };
@@ -403,7 +432,7 @@ where
             };
 
             account_info.push((
-                *account.address(),
+                *account.account_id(),
                 account.paths(),
                 folder_ids,
             ));

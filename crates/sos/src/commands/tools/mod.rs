@@ -1,38 +1,40 @@
 use crate::{
     helpers::{
-        account::resolve_account,
-        account::resolve_user_with_password,
-        messages::{fail, info, success},
+        account::{resolve_account_address, resolve_user_with_password},
+        messages::{info, success},
         readline::read_flag,
     },
     Error, Result,
 };
 use clap::Subcommand;
-use sos_net::sdk::{
-    account::Account,
+use sos_account::Account;
+use sos_backend::BackendTarget;
+use sos_client_storage::ClientStorage;
+use sos_core::FolderRef;
+use sos_core::{
     constants::EVENT_LOG_EXT,
     crypto::{AccessKey, Cipher, KeyDerivation},
-    encode,
-    events::{FolderEventLog, FolderReducer},
-    identity::AccountRef,
-    vault::VaultId,
-    vfs, Paths,
+    AccountRef, Paths,
 };
 use std::path::PathBuf;
 use terminal_banner::{Banner, Padding};
 
 mod audit;
 mod authenticator;
+mod backup;
 mod check;
+mod db;
+mod debug;
 mod events;
-// mod ipc;
 mod security_report;
 
 use audit::Command as AuditCommand;
 use authenticator::Command as AuthenticatorCommand;
+use backup::Command as BackupCommand;
 use check::{verify_events, Command as CheckCommand};
+use db::Command as DbCommand;
+use debug::Command as DebugCommand;
 use events::Command as EventsCommand;
-// use ipc::Command as IpcCommand;
 use security_report::SecurityReportFormat;
 
 #[derive(Subcommand, Debug)]
@@ -48,10 +50,20 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: AuthenticatorCommand,
     },
+    /// Export, import and inspect backup archives.
+    Backup {
+        #[clap(subcommand)]
+        cmd: BackupCommand,
+    },
     /// Check file status and integrity.
     Check {
         #[clap(subcommand)]
         cmd: CheckCommand,
+    },
+    /// Debug utilities.
+    Debug {
+        #[clap(subcommand)]
+        cmd: DebugCommand,
     },
     /// Convert the cipher for an account.
     ConvertCipher {
@@ -72,20 +84,13 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: EventsCommand,
     },
-    /*
-    /// Inter-process communication utilities.
-    Ipc {
-        #[clap(subcommand)]
-        cmd: IpcCommand,
-    },
-    */
     /// Repair a vault from a corresponding events file.
     RepairVault {
         /// Account name or address.
         account: AccountRef,
 
         /// Folder identifier.
-        folder: VaultId,
+        folder: FolderRef,
     },
     /// Generate a security report.
     ///
@@ -116,6 +121,11 @@ pub enum Command {
         /// Write report to this file.
         file: PathBuf,
     },
+    /// Backend database management tools.
+    Db {
+        #[clap(subcommand)]
+        cmd: DbCommand,
+    },
 }
 
 /// Handle sync commands.
@@ -123,7 +133,9 @@ pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
         Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Authenticator { cmd } => authenticator::run(cmd).await?,
+        Command::Backup { cmd } => backup::run(cmd).await?,
         Command::Check { cmd } => check::run(cmd).await?,
+        Command::Debug { cmd } => debug::run(cmd).await?,
         Command::ConvertCipher {
             account,
             cipher,
@@ -174,48 +186,34 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Events { cmd } => events::run(cmd).await?,
         // Command::Ipc { cmd } => ipc::run(cmd).await?,
         Command::RepairVault { account, folder } => {
-            let account = resolve_account(Some(&account))
-                .await
-                .ok_or(Error::NoAccount(account.to_string()))?;
+            let account_id = resolve_account_address(Some(&account)).await?;
+            let paths = Paths::new_client(Paths::data_dir()?)
+                .with_account_id(&account_id);
+            let target = BackendTarget::from_paths(&paths).await?;
+            let folders = target.list_folders(&account_id).await?;
+            let target_folder = folders
+                .iter()
+                .find(|f| match &folder {
+                    FolderRef::Id(id) => f.id() == id,
+                    FolderRef::Name(name) => f.name() == name,
+                })
+                .ok_or_else(|| Error::FolderNotFound(folder.to_string()))?;
 
-            match account {
-                AccountRef::Address(address) => {
-                    let paths =
-                        Paths::new(Paths::data_dir()?, address.to_string());
-                    let events_file = paths.event_log_path(&folder);
-                    let vault_file = paths.vault_path(&folder);
+            let prompt = format!(
+                "Overwrite vault file with events from {}.{} (y/n)? ",
+                folder, EVENT_LOG_EXT,
+            );
+            if read_flag(Some(&prompt))? {
+                verify_events(account, folder.clone(), false).await?;
 
-                    if !vfs::try_exists(&events_file).await? {
-                        return Err(Error::NotFile(events_file));
-                    }
+                ClientStorage::rebuild_folder_vault(
+                    target,
+                    &account_id,
+                    target_folder.id(),
+                )
+                .await?;
 
-                    if !vfs::try_exists(&vault_file).await? {
-                        return Err(Error::NotFile(vault_file));
-                    }
-
-                    let prompt = format!(
-                        "Overwrite vault file with events from {}.{} (y/n)? ",
-                        folder, EVENT_LOG_EXT,
-                    );
-                    if read_flag(Some(&prompt))? {
-                        verify_events(events_file.clone(), false).await?;
-
-                        let event_log =
-                            FolderEventLog::new(&events_file).await?;
-
-                        let vault = FolderReducer::new()
-                            .reduce(&event_log)
-                            .await?
-                            .build(true)
-                            .await?;
-
-                        let buffer = encode(&vault).await?;
-                        vfs::write(vault_file, buffer).await?;
-
-                        success(format!("Repaired {}", folder));
-                    }
-                }
-                _ => fail("unable to locate account"),
+                success(format!("Repaired {}", folder));
             }
         }
         Command::SecurityReport {
@@ -228,6 +226,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             security_report::run(account, force, format, include_all, file)
                 .await?
         }
+        Command::Db { cmd } => db::run(cmd).await?,
     }
     Ok(())
 }

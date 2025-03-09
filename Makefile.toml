@@ -1,7 +1,3 @@
-extend= [
-  { path = "coverage.toml" }
-]
-
 [config]
 default_to_workspace = false
 skip_core_tasks = true
@@ -13,9 +9,27 @@ BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
 # tests take a while due to so many exec calls
 RUST_TEST_TIME_INTEGRATION = "120000,240000"
 
+[tasks.publishers]
+command = "cargo"
+args = [
+  "supply-chain",
+  "publishers",
+]
+
 [tasks.typegen]
 script = '''
-RUST_LOG=debug typeshare crates/sdk crates/ipc crates/protocol --lang=typescript --output-file=packages/types/types.ts && cat packages/types/preamble.ts packages/types/types.ts > packages/types/index.ts
+RUST_LOG=debug typeshare \
+  crates/account \
+  crates/core \
+  crates/database \
+  crates/login \
+  crates/ipc \
+  crates/protocol \
+  crates/search \
+  crates/vault \
+  --lang=typescript \
+  --output-file=packages/types/types.ts \
+    && cat packages/types/preamble.ts packages/types/types.ts > packages/types/index.ts
 cd packages/types && npm run fmt && npm run lint
 '''
 
@@ -31,7 +45,7 @@ args = [
   "-p",
   "sos-web",
   "--features",
-  "account,contacts,search",
+  "contacts,search",
   "--target",
   "wasm32-unknown-unknown",
 ]
@@ -45,11 +59,9 @@ workspace = true
 command = "cargo"
 args = ["clippy", "--all-features"]
 
-[tasks.build]
-workspace = true
+[tasks.debug]
 command = "cargo"
 args = ["build"]
-dependencies = ["clean"]
 
 [tasks.release]
 command = "cargo"
@@ -78,52 +90,44 @@ args = [
   "--workspace",
   "--all-features",
   "--open",
-  "--no-deps"
+  "--no-deps",
+  "--exclude",
+  "sos-vfs",
 ]
 dependencies = ["clean-doc"]
 
 [tasks.unit]
 command = "cargo"
-args = ["test", "--all", "--lib"]
-
-[tasks.test-command-line]
-command = "cargo"
-args = [
-  "test",
-  "command_line",
-  "--features",
-  "enable-cli-tests",
-  "--",
-  "--nocapture",
-]
-dependencies = ["clean-cli"]
+args = ["test", "-p", "sos-unit-tests", "--lib"]
 
 [tasks.clean-cli]
 script_runner = "@shell"
 script = '''
 rm -rf target/accounts
 rm -rf target/demo
-# rm -f target/*.{zip,vcf,heic,txt,toml,csv,json}
-
 mkdir -p target/accounts
 mkdir -p target/demo
 '''
 
+[tasks.test-command-line]
+script = '''
+export SOS_TEST=1
+export PATH="../../target/debug:$PATH"
+cargo nextest run command_line -p sos-command-line-tests \
+  --nocapture --profile cli
+'''
+dependencies = ["clean-cli", "debug"]
+
 [tasks.test-cli]
-script = { file = "./scripts/cli/specs.sh" }
-dependencies = ["clean-cli"]
+script = { file = "./tests/command_line/runner/specs.sh" }
+dependencies = ["clean-cli", "debug" ]
 
 [tasks.test-shell]
-script = { file = "./scripts/cli/shell.sh" }
-dependencies = ["clean-cli"]
+script = { file = "./tests/command_line/runner/shell.sh" }
+dependencies = ["clean-cli", "debug"]
 
 [tasks.demos]
-script = { file = "./scripts/cli/demos.sh" }
-dependencies = ["clean-cli"]
-
-[tasks.test]
-command = "cargo"
-args = ["test", "--all", "--features", "enable-cli-tests"]
+script = { file = "./tests/command_line/runner/demos.sh" }
 dependencies = ["clean-cli"]
 
 # build test helper executables
@@ -131,44 +135,54 @@ dependencies = ["clean-cli"]
 command = "cargo"
 args = ["build", "-p", "sos-integration-tests"]
 
-[tasks.test-lite]
-command = "cargo"
-args = ["nextest", "run"]
-dependencies = ["clean-cli", "build-test"]
-
-[tasks.genhtml]
+[tasks.clean-tests]
 script = '''
-grcov ${COVERAGE_PROF_OUTPUT} -s . --binary-path ./target/cover/debug -t html --branch --ignore-not-existing -o ./target/coverage/ --ignore 'workspace/*/build.rs' --ignore 'tests/*' --ignore 'target/*'
-
-#genhtml -o ./target/debug/coverage/ --show-details --highlight --ignore-errors source --legend ./target/lcov.info
+rm -rf target/integration-test
 '''
 
-[tasks.coverage]
-alias = "coverage_grcov"
-dependencies = ["clean-profraw"]
-
-[tasks.clean-profraw]
+[tasks.test]
 script = '''
-rm -f *.profraw
-rm -f workspace/net/*.profraw
-rm -f workspace/migrate/*.profraw
-rm -f workspace/sdk/*.profraw
+cargo nextest run -p sos-integration-tests -p sos-unit-tests
 '''
+dependencies = ["clean-tests", "build-test"]
 
-[tasks.clean-coverage]
-command = "cargo"
-args = ["clean", "--target-dir", "target/coverage"]
+[tasks.test-all]
+script = '''
+cargo nextest run \
+  -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_CLIENT_DB=1 cargo nextest run \
+  -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_SERVER_DB=1 cargo nextest run \
+  -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo nextest run \
+  -p sos-integration-tests -p sos-unit-tests
+'''
+dependencies = ["clean-tests", "build-test"]
 
-[tasks.clean-cover]
-command = "cargo"
-args = ["clean", "--target-dir", "target/cover"]
+[tasks.ci]
+script = '''
+cargo nextest run --profile ci \
+  -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_CLIENT_DB=1 cargo nextest run --profile ci \
+  -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_SERVER_DB=1 cargo nextest run --profile ci \
+  -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo nextest run --profile ci \
+  -p sos-integration-tests -p sos-unit-tests
+'''
+dependencies = ["clean-tests", "build-test"]
 
 [tasks.cover]
-dependencies = [
-  "clean-cli",
-  "clean-cover",
-  "clean-coverage",
-  "coverage",
-  "genhtml",
-  "clean-profraw"
-]
+script = '''
+cargo llvm-cov clean --workspace
+cargo llvm-cov nextest \
+  --no-report -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_CLIENT_DB=1 cargo llvm-cov nextest \
+  --no-report -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_SERVER_DB=1 cargo llvm-cov nextest \
+  --no-report -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo llvm-cov nextest \
+  --no-report -p sos-integration-tests -p sos-unit-tests
+cargo llvm-cov report --html
+'''
+dependencies = ["clean-tests"]

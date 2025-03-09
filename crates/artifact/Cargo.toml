@@ -1,11 +1,15 @@
 [package]
 name = "sos-artifact"
-version = "0.8.7"
+version = "0.8.9"
 edition = "2021"
 description = "Types for release artifact meta data"
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 url.workspace = true
@@ -13,8 +17,4 @@ thiserror.workspace = true
 serde.workspace = true
 hex.workspace = true
 time.workspace = true
-semver = { version = "1", features = ["serde"] }
-
-[dev-dependencies]
-anyhow = "1"
-serde_json = "1"
+semver.workspace = true

@@ -11,13 +11,12 @@ use http::{
     header::{CONTENT_LENGTH, CONTENT_TYPE},
     StatusCode,
 };
-use sos_protocol::{
-    constants::MIME_TYPE_JSON, ErrorReply, Merge, SyncStorage,
-};
-use sos_sdk::{
-    logs::Logger,
-    prelude::{Account, AccountSwitcher, ErrorExt},
-};
+use sos_account::{Account, AccountSwitcher};
+use sos_core::ErrorExt;
+use sos_login::DelegatedAccess;
+use sos_logs::Logger;
+use sos_protocol::{constants::MIME_TYPE_JSON, ErrorReply};
+use sos_sync::SyncStorage;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
@@ -48,17 +47,17 @@ impl ExtensionHelperOptions {
 /// Server for a native bridge proxy.
 pub struct ExtensionHelperServer<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -76,7 +75,7 @@ impl<A, R, E> ExtensionHelperServer<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
+        + DelegatedAccess<Error = E>
         + Sync
         + Send
         + 'static,
@@ -84,7 +83,12 @@ where
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -160,6 +164,12 @@ where
         ) -> Result<LocalRequest> {
             let mut chunks: Vec<LocalRequest> = Vec::new();
             while let Some(Ok(buffer)) = stdin.next().await {
+                /*
+                tracing::debug!(
+                    "buffer: {}",
+                    std::str::from_utf8(&buffer).unwrap()
+                );
+                */
                 let req = serde_json::from_slice::<LocalRequest>(&buffer)?;
                 let chunks_len = req.chunks_len();
                 chunks.push(req);
@@ -177,20 +187,27 @@ where
                 result = read_chunked_request(&mut stdin) => {
                     match result {
                         Ok(request) => {
-                          let client = self.client.clone();
-                          if let Err(e) = handle_request(
+                            tracing::trace!(
+                                request= ?request,
+                                "sos_extension_helper::request",
+                            );
+                            let client = self.client.clone();
+                            if let Err(e) = handle_request(
                             client, channel.clone(), request).await {
                             self.internal_error(
                               StatusCode::INTERNAL_SERVER_ERROR,
                               e,
                               &mut channel);
-                          }
+                            }
                         }
                         Err(e) => {
-                          self.internal_error(
-                            StatusCode::BAD_REQUEST,
-                            e,
-                            &mut channel);
+                            tracing::warn!(
+                                error = %e,
+                                "sos_extension_helper::read_request_error");
+                            self.internal_error(
+                                StatusCode::BAD_REQUEST,
+                                e,
+                                &mut channel);
                         }
                     }
                 }
@@ -264,11 +281,6 @@ async fn handle_request(
     request: LocalRequest,
 ) -> Result<()> {
     let task = tokio::task::spawn(async move {
-        tracing::trace!(
-            request = ?request,
-            "sos_extension_helper::request",
-        );
-
         let request_id = request.request_id();
         let response = client.send(request).await;
 

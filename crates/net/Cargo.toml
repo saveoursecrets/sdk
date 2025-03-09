@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.16.2"
+version = "0.17.0"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -14,7 +14,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = []
 full = [
-  "account",
   "audit",
   "archive",
   "contacts",
@@ -23,37 +22,63 @@ full = [
   "listen",
   "migrate",
   "pairing",
-  "preferences",
   "search",
-  "security-report",
   "keychain-access",
-  "system-messages",
   "clipboard",
 ]
 
-account = ["sos-sdk/account"]
+audit = ["sos-audit", "sos-account/audit"]
 listen = ["sos-protocol/listen"]
 hashcheck = ["sos-protocol/hashcheck"]
-audit = ["sos-sdk/audit"]
-archive = ["sos-sdk/archive", "sos-protocol/archive"]
-files = ["sos-sdk/files", "sos-protocol/files"]
-clipboard = ["sos-sdk/clipboard"]
-contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
-migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
-keychain-access = ["sos-sdk/keychain-access"]
-recovery = ["sos-sdk/recovery"]
+archive = [
+  "sos-account/archive",
+  "sos-filesystem/archive",
+  "sos-database/archive",
+]
+files = [
+  "sos-core/files",
+  "sos-external-files/files",
+  "sos-protocol/files", 
+  "sos-remote-sync/files",
+  "sos-client-storage/files",
+  "sos-account/files",
+]
+clipboard = ["sos-account/clipboard"]
+contacts = ["sos-account/contacts", "sos-protocol/contacts"]
+migrate = ["sos-account/migrate", "sos-migrate"]
+keychain-access = ["sos-migrate/keychain-access"]
 pairing = ["dep:snow", "sos-protocol/pairing"]
-search = ["sos-sdk/search", "sos-protocol/search"]
+search = ["sos-search", "sos-account/search", "sos-protocol/search"]
 
-preferences = ["sos-account-extras/preferences"]
-security-report = ["sos-account-extras/security-report"]
-system-messages = ["sos-account-extras/system-messages"]
+# preferences = ["sos-backend/preferences"]
+# security-report = ["sos-security-report"]
+# system-messages = ["sos-backend/system-messages"]
 
 [dependencies]
+sos-account.workspace = true
+sos-core.workspace = true
+sos-backend.workspace = true
+sos-database.workspace = true
+sos-filesystem.workspace = true
+sos-client-storage.workspace = true
+sos-login.workspace = true
+sos-protocol = { workspace = true, features = ["network-client"] }
+sos-reducers.workspace = true
+sos-remote-sync.workspace = true
+sos-signer.workspace = true
+sos-password.workspace = true
+sos-sync.workspace = true
+sos-vault.workspace = true
+sos-vfs.workspace = true
+
+sos-audit = { workspace = true, optional = true }
+sos-external-files = { workspace = true, optional = true }
+sos-search = { workspace = true, optional = true }
+sos-migrate = { workspace = true, optional = true }
+
 tokio-util.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
-tracing-subscriber.workspace = true
 async-trait.workspace = true
 async-recursion.workspace = true
 http.workspace = true
@@ -61,6 +86,7 @@ serde_json.workspace = true
 serde.workspace = true
 uuid.workspace = true
 hex.workspace = true
+sha2.workspace = true
 sha3.workspace = true
 secrecy.workspace = true
 serde_with.workspace = true
@@ -72,27 +98,10 @@ indexmap.workspace = true
 binary-stream.workspace = true
 rs_merkle.workspace = true
 prost.workspace = true
+tokio.workspace = true
 
 # pairing
-snow = { version = "0.9", optional = true }
-
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync"] }
-
-[dependencies.sos-sdk]
-workspace = true
-
-[dependencies.sos-protocol]
-version = "0.16"
-path = "../protocol"
-features = ["account", "network-client"]
-
-[dependencies.sos-account-extras]
-version = "0.16"
-path = "../account_extras/"
-optional = true
-
-[dev-dependencies]
-anyhow = "1"
+snow = { workspace = true, optional = true }
 
 [build-dependencies]
-rustc_version = "0.4.1"
+rustc_version.workspace = true

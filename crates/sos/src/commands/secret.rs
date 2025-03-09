@@ -19,13 +19,21 @@ use crossterm::{
     terminal::{Clear, ClearType},
 };
 use futures::{future::LocalBoxFuture, select, FutureExt};
+use human_bytes::human_bytes;
 use kdam::{term, tqdm, BarExt, Column, RichProgress, Spinner};
-use sos_net::sdk::prelude::*;
+use sos_account::Account;
+use sos_client_storage::AccessOptions;
+use sos_core::{AccountRef, FolderRef};
+use sos_external_files::FileProgress;
+use sos_search::{ArchiveFilter, Document, DocumentView};
+use sos_vault::{
+    secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
+    Summary,
+};
+use sos_vfs as vfs;
 use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 use terminal_banner::{Banner, Padding};
 use tokio::sync::{mpsc, oneshot};
-
-use human_bytes::human_bytes;
 
 type PredicateFunc =
     Box<dyn Fn(&mut Owner) -> LocalBoxFuture<Result<Summary>>>;
@@ -621,7 +629,7 @@ async fn resolve_verify<'a>(
         let owner = user.read().await;
         let owner =
             owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-        owner.open_folder(&summary).await?;
+        owner.open_folder(summary.id()).await?;
     }
 
     let (secret_id, meta) =
@@ -677,14 +685,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                     ignored_types: None,
                 }];
             } else if let Some(folder) = &folder {
-                let storage = owner
-                    .storage()
-                    .await
-                    .ok_or(sos_net::sdk::Error::NoStorage)?;
-                let reader = storage.read().await;
-                let summary = reader
+                let summary = owner
                     .find_folder(folder)
-                    .cloned()
+                    .await
                     .ok_or(Error::FolderNotFound(folder.to_string()))?;
                 views = vec![DocumentView::Vault(*summary.id())];
             } else if favorites {
@@ -727,7 +730,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let owner = owner
                     .selected_account()
                     .ok_or(Error::NoSelectedAccount)?;
-                owner.open_folder(&summary).await?;
+                owner.open_folder(summary.id()).await?;
             }
 
             let mut owner = user.write().await;
@@ -921,7 +924,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                             resolved.meta,
                             None,
                             Default::default(),
-                            None,
                         )
                         .await?;
                 }
@@ -972,7 +974,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                             data.into(),
                             Some(edited_secret),
                             options,
-                            None,
                         )
                         .await?;
                     let _ = shutdown_tx.send(()).await;
@@ -1010,7 +1011,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                         resolved.meta,
                         None,
                         Default::default(),
-                        None,
                     )
                     .await?;
                 let state = if value { "on" } else { "off" };
@@ -1042,7 +1042,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                         resolved.meta,
                         None,
                         Default::default(),
-                        None,
                     )
                     .await?;
                 success("Secret renamed");
@@ -1073,8 +1072,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                 owner
                     .move_secret(
                         &resolved.secret_id,
-                        &resolved.summary,
-                        &to,
+                        resolved.summary.id(),
+                        to.id(),
                         Default::default(),
                     )
                     .await?;
@@ -1163,7 +1162,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                             resolved.meta,
                             Some(data.into()),
                             Default::default(),
-                            None,
                         )
                         .await?;
                     success("Secret updated");
@@ -1219,7 +1217,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     .ok_or(Error::NoSelectedAccount)?;
                 owner
                     .archive(
-                        &resolved.summary,
+                        resolved.summary.id(),
                         &resolved.secret_id,
                         Default::default(),
                     )
@@ -1265,13 +1263,13 @@ pub async fn run(cmd: Command) -> Result<()> {
                 owner
                     .unarchive(
                         &resolved.secret_id,
-                        &resolved.meta,
+                        resolved.meta.kind(),
                         Default::default(),
                     )
                     .await?;
                 success("Restored from archive");
                 if let Some(folder) = original_folder {
-                    owner.open_folder(&folder).await?;
+                    owner.open_folder(folder.id()).await?;
                 }
             }
         }
@@ -1492,7 +1490,6 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                     resolved.meta,
                     Some(new_secret),
                     options,
-                    None,
                 )
                 .await?;
             let _ = shutdown_tx.send(()).await;
@@ -1529,6 +1526,7 @@ fn access_options() -> (AccessOptions, mpsc::Sender<()>, oneshot::Receiver<()>)
     let options = AccessOptions {
         folder: None,
         file_progress: Some(progress_tx),
+        ..Default::default()
     };
 
     tokio::task::spawn(show_secret_progress(

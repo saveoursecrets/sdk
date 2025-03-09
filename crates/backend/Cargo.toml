@@ -1,0 +1,81 @@
+[package]
+name = "sos-backend"
+version = "0.17.0"
+edition = "2021"
+description = "Backend storage abstraction for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+full = [
+  "archive",
+  "audit",
+  "files",
+  "preferences",
+  "search",
+  "system-messages",
+]
+archive = [
+  "sos-archive",
+  "sos-database/archive",
+  "sos-filesystem/archive",
+]
+audit = [
+  "sos-audit",
+  "sos-database/audit",
+  "sos-filesystem/audit",
+]
+files = [
+  "sos-core/files",
+  "sos-external-files/files",
+  "sos-database/files",
+  "sos-filesystem/files",
+  "sos-reducers/files",
+]
+preferences = [
+  "sos-preferences",
+  "sos-database/preferences",
+  "sos-filesystem/preferences",
+]
+search = []
+system-messages = [
+  "sos-system-messages",
+  "sos-database/system-messages",
+  "sos-filesystem/system-messages",
+  "urn",
+]
+
+[dependencies]
+sos-core.workspace = true
+sos-database.workspace = true
+sos-filesystem.workspace = true
+sos-reducers.workspace = true
+sos-vault.workspace = true
+sos-vfs.workspace = true
+
+sos-external-files = { workspace = true, optional = true }
+sos-audit = { workspace = true, optional = true }
+sos-archive = { workspace = true, optional = true }
+sos-preferences = { workspace = true, optional = true }
+sos-system-messages = { workspace = true, optional = true }
+
+thiserror.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+binary-stream.workspace = true
+tracing.workspace = true
+indexmap.workspace = true
+tempfile.workspace = true
+serde.workspace = true
+
+# system-messages
+urn = { workspace = true, optional = true }
+
+[build-dependencies]
+rustc_version.workspace = true

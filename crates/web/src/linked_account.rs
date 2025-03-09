@@ -2,72 +2,83 @@
 use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
-use sos_protocol::{
-    network_client::HttpClient, AutoMerge, Origin, RemoteResult, RemoteSync,
-    RemoteSyncHandler, SyncClient, SyncDirection, SyncOptions, SyncStatus,
-    SyncStorage, UpdateSet,
+use secrecy::SecretString;
+use sos_account::{
+    Account, AccountChange, AccountData, CipherComparison, DetachedView,
+    FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
+    SecretDelete, SecretInsert, SecretMove,
 };
-use sos_sdk::{
+use sos_backend::{
+    AccountEventLog, BackendTarget, DeviceEventLog, Folder, FolderEventLog,
+};
+use sos_client_storage::{AccessOptions, NewFolderOptions};
+use sos_core::{
+    commit::{CommitHash, CommitState, Comparison},
     events::{
-        AccountEventLog, AccountPatch, DeviceEventLog, DevicePatch,
-        FolderEventLog, FolderPatch,
+        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
+        WriteEvent,
     },
-    prelude::{
-        AccessKey, AccessOptions, Account, AccountChange, AccountData,
-        AccountEvent, Address, Cipher, CipherComparison, ClientStorage,
-        CommitHash, CommitState, DetachedView, DeviceManager,
-        DevicePublicKey, DeviceSigner, EventRecord, FolderChange,
-        FolderCreate, FolderDelete, KeyDerivation, LocalAccount,
-        NewFolderOptions, Paths, PublicIdentity, ReadEvent, Secret,
-        SecretChange, SecretDelete, SecretId, SecretInsert, SecretMeta,
-        SecretMove, SecretRow, StorageEventLogs, Summary, TrustedDevice,
-        Vault, VaultCommit, VaultFlags, VaultId,
-    },
-    secrecy::SecretString,
-    signer::ecdsa::BoxedEcdsaSigner,
-    vfs,
+    AccountId, Origin, SecretId, VaultId,
 };
+use sos_core::{
+    crypto::{AccessKey, Cipher, KeyDerivation},
+    device::{DevicePublicKey, TrustedDevice},
+    events::{AccountEvent, DeviceEvent, EventRecord, ReadEvent},
+    FolderRef, Paths, PublicIdentity, UtcDateTime, VaultCommit, VaultFlags,
+};
+use sos_login::{
+    device::{DeviceManager, DeviceSigner},
+    DelegatedAccess,
+};
+use sos_protocol::{
+    network_client::HttpClient, RemoteResult, RemoteSync, SyncClient,
+    SyncOptions,
+};
+use sos_remote_sync::{AutoMerge, RemoteSyncHandler};
+use sos_sync::{
+    CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs,
+    SyncDirection, SyncStatus, SyncStorage, UpdateSet,
+};
+use sos_vault::{
+    secret::{Secret, SecretMeta, SecretRow, SecretType},
+    Summary, Vault,
+};
+use sos_vfs as vfs;
 use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
+    collections::{HashMap, HashSet},
+    path::Path,
     sync::Arc,
 };
 use tokio::sync::{Mutex, RwLock};
 
 #[cfg(feature = "clipboard")]
-use sos_sdk::{
-    prelude::{ClipboardCopyRequest, SecretPath},
-    xclipboard::Clipboard,
+use {
+    sos_account::{xclipboard::Clipboard, ClipboardCopyRequest},
+    sos_core::SecretPath,
 };
 
 #[cfg(feature = "search")]
-use sos_sdk::prelude::{
+use sos_search::{
     AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
     QueryFilter, SearchIndex,
 };
 
-#[cfg(feature = "archive")]
-use sos_sdk::prelude::{Inventory, RestoreOptions};
-
 #[cfg(feature = "contacts")]
-use sos_sdk::prelude::ContactImportProgress;
-
-#[cfg(feature = "archive")]
-use tokio::io::{AsyncRead, AsyncSeek};
+use sos_account::ContactImportProgress;
 
 #[cfg(feature = "migrate")]
-use sos_sdk::prelude::ImportTarget;
+use sos_migrate::import::ImportTarget;
 
 #[cfg(feature = "files")]
-use sos_protocol::transfer::FileTransferQueueSender;
-
-#[cfg(feature = "files")]
-use sos_sdk::prelude::{FileEventLog, FilePatch};
+use {
+    sos_backend::FileEventLog, sos_core::events::patch::FileDiff,
+    sos_protocol::transfer::FileTransferQueueSender,
+};
 
 /// Linked account syncs with a local account on the same device.
 pub struct LinkedAccount {
     account: Arc<Mutex<LocalAccount>>,
-    address: Address,
+    account_id: AccountId,
     paths: Arc<Paths>,
     client: HttpClient,
     /// Lock to prevent write to local storage
@@ -78,16 +89,16 @@ pub struct LinkedAccount {
 impl LinkedAccount {
     /// Create a new unauthenticated linked account.
     pub async fn new_unauthenticated(
-        address: Address,
+        account_id: AccountId,
+        target: BackendTarget,
         client: HttpClient,
-        data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let account =
-            LocalAccount::new_unauthenticated(address, data_dir).await?;
+            LocalAccount::new_unauthenticated(account_id, target).await?;
         Ok(Self {
+            account_id,
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
-            address,
             client,
             sync_lock: Arc::new(Mutex::new(())),
         })
@@ -97,14 +108,14 @@ impl LinkedAccount {
     pub async fn new_account(
         account_name: String,
         passphrase: SecretString,
+        target: BackendTarget,
         client: HttpClient,
-        data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let account =
-            LocalAccount::new_account(account_name, passphrase, data_dir)
+            LocalAccount::new_account(account_name, passphrase, target)
                 .await?;
         Ok(Self {
-            address: *account.address(),
+            account_id: *account.account_id(),
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             client,
@@ -119,12 +130,22 @@ impl Account for LinkedAccount {
     type Error = Error;
     type NetworkResult = RemoteResult<Self::Error>;
 
-    fn address(&self) -> &Address {
-        &self.address
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
+    }
+
+    async fn backend_target(&self) -> BackendTarget {
+        let account = self.account.lock().await;
+        account.backend_target().await
+    }
+
+    async fn folder(&self, folder_id: &VaultId) -> Result<Folder> {
+        let account = self.account.lock().await;
+        Ok(account.folder(folder_id).await?)
     }
 
     async fn is_authenticated(&self) -> bool {
@@ -132,30 +153,12 @@ impl Account for LinkedAccount {
         account.is_authenticated().await
     }
 
-    async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
-        let account = self.account.lock().await;
-        Ok(account.account_signer().await?)
-    }
-
     async fn import_account_events(
         &mut self,
-        identity: FolderPatch,
-        account: AccountPatch,
-        device: DevicePatch,
-        folders: HashMap<VaultId, FolderPatch>,
-        #[cfg(feature = "files")] files: FilePatch,
+        events: CreateSet,
     ) -> Result<()> {
         let mut inner = self.account.lock().await;
-        Ok(inner
-            .import_account_events(
-                identity,
-                account,
-                device,
-                folders,
-                #[cfg(feature = "files")]
-                files,
-            )
-            .await?)
+        Ok(inner.import_account_events(events).await?)
     }
 
     async fn new_device_vault(
@@ -175,6 +178,22 @@ impl Account for LinkedAccount {
         Ok(account.device_public_key().await?)
     }
 
+    async fn patch_devices_unchecked(
+        &mut self,
+        events: &[DeviceEvent],
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.patch_devices_unchecked(events).await?)
+    }
+
+    async fn revoke_device(
+        &mut self,
+        device_key: &DevicePublicKey,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.revoke_device(device_key).await?)
+    }
+
     async fn current_device(&self) -> Result<TrustedDevice> {
         let account = self.account.lock().await;
         Ok(account.current_device().await?)
@@ -190,29 +209,31 @@ impl Account for LinkedAccount {
         Ok(account.public_identity().await?)
     }
 
-    async fn account_label(&self) -> Result<String> {
+    async fn account_name(&self) -> Result<String> {
         let account = self.account.lock().await;
-        Ok(account.account_label().await?)
+        Ok(account.account_name().await?)
     }
 
     async fn folder_description(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
     ) -> Result<String> {
         let mut account = self.account.lock().await;
-        Ok(account.folder_description(folder).await?)
+        Ok(account.folder_description(folder_id).await?)
     }
 
     async fn set_folder_description(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
         description: impl AsRef<str> + Send + Sync,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
             let mut account = self.account.lock().await;
-            account.set_folder_description(folder, description).await?
+            account
+                .set_folder_description(folder_id, description)
+                .await?
         };
 
         let result = FolderChange {
@@ -224,32 +245,14 @@ impl Account for LinkedAccount {
         Ok(result)
     }
 
-    async fn find_folder_password(
-        &self,
-        folder_id: &VaultId,
-    ) -> Result<Option<AccessKey>> {
+    async fn login_folder_summary(&self) -> Result<Summary> {
         let account = self.account.lock().await;
-        Ok(account.find_folder_password(folder_id).await?)
+        Ok(account.login_folder_summary().await?)
     }
 
-    async fn generate_folder_password(&self) -> Result<SecretString> {
-        let account = self.account.lock().await;
-        Ok(account.generate_folder_password().await?)
-    }
-
-    async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
-        let account = self.account.lock().await;
-        Ok(account.identity_vault_buffer().await?)
-    }
-
-    async fn identity_folder_summary(&self) -> Result<Summary> {
-        let account = self.account.lock().await;
-        Ok(account.identity_folder_summary().await?)
-    }
-
-    async fn reload_identity_folder(&mut self) -> Result<()> {
+    async fn reload_login_folder(&mut self) -> Result<()> {
         let mut account = self.account.lock().await;
-        Ok(account.reload_identity_folder().await?)
+        Ok(account.reload_login_folder().await?)
     }
 
     async fn change_cipher(
@@ -280,9 +283,9 @@ impl Account for LinkedAccount {
         account.verify(key).await
     }
 
-    async fn open_folder(&self, summary: &Summary) -> Result<()> {
+    async fn open_folder(&self, folder_id: &VaultId) -> Result<()> {
         let account = self.account.lock().await;
-        Ok(account.open_folder(summary).await?)
+        Ok(account.open_folder(folder_id).await?)
     }
 
     async fn current_folder(&self) -> Result<Option<Summary>> {
@@ -296,6 +299,19 @@ impl Account for LinkedAccount {
     {
         let account = self.account.lock().await;
         account.find(predicate).await
+    }
+
+    async fn find_folder(&self, vault: &FolderRef) -> Option<Summary> {
+        let account = self.account.lock().await;
+        account.find_folder(vault).await
+    }
+
+    async fn history(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>> {
+        let account = self.account.lock().await;
+        Ok(account.history(folder_id).await?)
     }
 
     async fn sign_out(&mut self) -> Result<()> {
@@ -321,27 +337,25 @@ impl Account for LinkedAccount {
         Ok(result)
     }
 
+    async fn set_account_name(
+        &mut self,
+        account_name: String,
+    ) -> std::result::Result<(), Self::Error> {
+        let mut account = self.account.lock().await;
+        Ok(account.set_account_name(account_name).await?)
+    }
+
     async fn delete_account(&mut self) -> Result<()> {
         let mut account = self.account.lock().await;
         Ok(account.delete_account().await?)
     }
 
-    async fn storage(&self) -> Option<Arc<RwLock<ClientStorage>>> {
+    async fn list_secret_ids(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Vec<SecretId>> {
         let account = self.account.lock().await;
-        account.storage().await
-    }
-
-    async fn set_storage(
-        &mut self,
-        storage: Option<Arc<RwLock<ClientStorage>>>,
-    ) {
-        let mut account = self.account.lock().await;
-        account.set_storage(storage).await
-    }
-
-    async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {
-        let account = self.account.lock().await;
-        Ok(account.secret_ids(summary).await?)
+        Ok(account.list_secret_ids(folder_id).await?)
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {
@@ -359,9 +373,9 @@ impl Account for LinkedAccount {
         Ok(account.account_data().await?)
     }
 
-    async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
+    async fn root_hash(&self, folder_id: &VaultId) -> Result<CommitHash> {
         let account = self.account.lock().await;
-        Ok(account.root_commit(summary).await?)
+        Ok(account.root_hash(folder_id).await?)
     }
 
     async fn identity_state(&self) -> Result<CommitState> {
@@ -369,24 +383,24 @@ impl Account for LinkedAccount {
         Ok(account.identity_state().await?)
     }
 
-    async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
+    async fn commit_state(&self, folder_id: &VaultId) -> Result<CommitState> {
         let account = self.account.lock().await;
-        Ok(account.commit_state(summary).await?)
+        Ok(account.commit_state(folder_id).await?)
     }
 
     async fn compact_account(
         &mut self,
-    ) -> Result<HashMap<Summary, (AccountEvent, u64, u64)>> {
+    ) -> Result<HashMap<Summary, AccountEvent>> {
         let mut account = self.account.lock().await;
         Ok(account.compact_account().await?)
     }
 
     async fn compact_folder(
         &mut self,
-        summary: &Summary,
-    ) -> Result<(AccountEvent, u64, u64)> {
+        folder_id: &VaultId,
+    ) -> Result<AccountEvent> {
         let mut account = self.account.lock().await;
-        Ok(account.compact_folder(summary).await?)
+        Ok(account.compact_folder(folder_id).await?)
     }
 
     async fn restore_folder(
@@ -400,21 +414,21 @@ impl Account for LinkedAccount {
 
     async fn change_folder_password(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
     ) -> Result<()> {
         let mut account = self.account.lock().await;
-        Ok(account.change_folder_password(folder, new_key).await?)
+        Ok(account.change_folder_password(folder_id, new_key).await?)
     }
 
     #[cfg(feature = "search")]
     async fn detached_view(
         &self,
-        summary: &Summary,
+        folder_id: &VaultId,
         commit: CommitHash,
     ) -> Result<DetachedView> {
         let account = self.account.lock().await;
-        Ok(account.detached_view(summary, commit).await?)
+        Ok(account.detached_view(folder_id, commit).await?)
     }
 
     #[cfg(feature = "search")]
@@ -432,9 +446,9 @@ impl Account for LinkedAccount {
     }
 
     #[cfg(feature = "search")]
-    async fn index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
+    async fn search_index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
         let account = self.account.lock().await;
-        Ok(account.index().await?)
+        Ok(account.search_index().await?)
     }
 
     #[cfg(feature = "search")]
@@ -479,7 +493,7 @@ impl Account for LinkedAccount {
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
-        file_name: &str,
+        file_name: &sos_core::ExternalFileName,
     ) -> Result<Vec<u8>> {
         let account = self.account.lock().await;
         Ok(account
@@ -570,14 +584,13 @@ impl Account for LinkedAccount {
         meta: SecretMeta,
         secret: Option<Secret>,
         options: AccessOptions,
-        destination: Option<&Summary>,
     ) -> Result<SecretChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
             let mut account = self.account.lock().await;
             account
-                .update_secret(secret_id, meta, secret, options, destination)
+                .update_secret(secret_id, meta, secret, options)
                 .await?
         };
 
@@ -602,8 +615,8 @@ impl Account for LinkedAccount {
     async fn move_secret(
         &mut self,
         secret_id: &SecretId,
-        from: &Summary,
-        to: &Summary,
+        from: &VaultId,
+        to: &VaultId,
         options: AccessOptions,
     ) -> Result<SecretMove<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
@@ -632,7 +645,7 @@ impl Account for LinkedAccount {
     async fn read_secret(
         &self,
         secret_id: &SecretId,
-        folder: Option<Summary>,
+        folder: Option<&VaultId>,
     ) -> Result<(SecretRow, ReadEvent)> {
         let account = self.account.lock().await;
         Ok(account.read_secret(secret_id, folder).await?)
@@ -642,7 +655,7 @@ impl Account for LinkedAccount {
         &self,
         folder_id: &VaultId,
         secret_id: &SecretId,
-    ) -> Result<(Option<VaultCommit>, ReadEvent)> {
+    ) -> Result<Option<(VaultCommit, ReadEvent)>> {
         let account = self.account.lock().await;
         Ok(account.raw_secret(folder_id, secret_id).await?)
     }
@@ -678,14 +691,14 @@ impl Account for LinkedAccount {
 
     async fn archive(
         &mut self,
-        from: &Summary,
+        folder_id: &VaultId,
         secret_id: &SecretId,
         options: AccessOptions,
     ) -> Result<SecretMove<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.archive(from, secret_id, options).await?
+            account.archive(folder_id, secret_id, options).await?
         };
 
         let result = SecretMove {
@@ -707,14 +720,14 @@ impl Account for LinkedAccount {
     async fn unarchive(
         &mut self,
         secret_id: &SecretId,
-        secret_meta: &SecretMeta,
+        secret_kind: &SecretType,
         options: AccessOptions,
     ) -> Result<(SecretMove<Self::NetworkResult>, Summary)> {
         let _ = self.sync_lock.lock().await;
 
         let (result, to) = {
             let mut account = self.account.lock().await;
-            account.unarchive(secret_id, secret_meta, options).await?
+            account.unarchive(secret_id, secret_kind, options).await?
         };
 
         let result = SecretMove {
@@ -740,15 +753,12 @@ impl Account for LinkedAccount {
         meta: SecretMeta,
         path: impl AsRef<Path> + Send + Sync,
         options: AccessOptions,
-        destination: Option<&Summary>,
     ) -> Result<SecretChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
             let mut account = self.account.lock().await;
-            account
-                .update_file(secret_id, meta, path, options, destination)
-                .await?
+            account.update_file(secret_id, meta, path, options).await?
         };
 
         let result = SecretChange {
@@ -771,13 +781,12 @@ impl Account for LinkedAccount {
 
     async fn create_folder(
         &mut self,
-        name: String,
         options: NewFolderOptions,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.create_folder(name, options).await?
+            account.create_folder(options).await?
         };
 
         let result = FolderCreate {
@@ -792,13 +801,13 @@ impl Account for LinkedAccount {
 
     async fn rename_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         name: String,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.rename_folder(summary, name).await?
+            account.rename_folder(folder_id, name).await?
         };
 
         let result = FolderChange {
@@ -812,13 +821,13 @@ impl Account for LinkedAccount {
 
     async fn update_folder_flags(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         flags: VaultFlags,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.update_folder_flags(summary, flags).await?
+            account.update_folder_flags(folder_id, flags).await?
         };
 
         let result = FolderChange {
@@ -863,47 +872,47 @@ impl Account for LinkedAccount {
         Ok(result)
     }
 
-    async fn import_identity_folder(
+    async fn import_login_folder(
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {
         let mut account = self.account.lock().await;
-        Ok(account.import_identity_folder(vault).await?)
+        Ok(account.import_login_folder(vault).await?)
     }
 
     async fn export_folder(
         &mut self,
         path: impl AsRef<Path> + Send + Sync,
-        summary: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<()> {
         let mut account = self.account.lock().await;
         Ok(account
-            .export_folder(path, summary, new_key, save_key)
+            .export_folder(path, folder_id, new_key, save_key)
             .await?)
     }
 
     async fn export_folder_buffer(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<Vec<u8>> {
         let mut account = self.account.lock().await;
         Ok(account
-            .export_folder_buffer(summary, new_key, save_key)
+            .export_folder_buffer(folder_id, new_key, save_key)
             .await?)
     }
 
     async fn delete_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
     ) -> Result<FolderDelete<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.delete_folder(summary).await?
+            account.delete_folder(folder_id).await?
         };
 
         let result = FolderDelete {
@@ -915,11 +924,16 @@ impl Account for LinkedAccount {
         Ok(result)
     }
 
+    async fn forget_folder(&mut self, folder_id: &VaultId) -> Result<bool> {
+        let mut account = self.account.lock().await;
+        Ok(account.forget_folder(folder_id).await?)
+    }
+
     #[cfg(feature = "contacts")]
     async fn load_avatar(
         &self,
         secret_id: &SecretId,
-        folder: Option<Summary>,
+        folder: Option<&VaultId>,
     ) -> Result<Option<Vec<u8>>> {
         let account = self.account.lock().await;
         Ok(account.load_avatar(secret_id, folder).await?)
@@ -930,7 +944,7 @@ impl Account for LinkedAccount {
         &self,
         path: impl AsRef<Path> + Send + Sync,
         secret_id: &SecretId,
-        folder: Option<Summary>,
+        folder: Option<&VaultId>,
     ) -> Result<()> {
         let account = self.account.lock().await;
         Ok(account.export_contact(path, secret_id, folder).await?)
@@ -980,31 +994,10 @@ impl Account for LinkedAccount {
     }
 
     #[cfg(feature = "archive")]
-    async fn restore_archive_inventory<
-        R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
-    >(
-        _buffer: R,
-    ) -> Result<Inventory> {
-        unimplemented!();
-    }
-
-    #[cfg(feature = "archive")]
     async fn import_backup_archive(
         _path: impl AsRef<Path> + Send + Sync,
-        _options: RestoreOptions,
-        _data_dir: Option<PathBuf>,
-    ) -> Result<PublicIdentity> {
-        unimplemented!();
-    }
-
-    #[cfg(feature = "archive")]
-    async fn restore_backup_archive(
-        &mut self,
-        _path: impl AsRef<Path> + Send + Sync,
-        _password: SecretString,
-        _options: RestoreOptions,
-        _data_dir: Option<PathBuf>,
-    ) -> Result<PublicIdentity> {
+        _target: &BackendTarget,
+    ) -> Result<Vec<PublicIdentity>> {
         unimplemented!();
     }
 
@@ -1022,44 +1015,40 @@ impl Account for LinkedAccount {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl StorageEventLogs for LinkedAccount {
-    async fn identity_log(
-        &self,
-    ) -> sos_sdk::Result<Arc<RwLock<FolderEventLog>>> {
+    type Error = Error;
+
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
         let account = self.account.lock().await;
-        account.identity_log().await
+        Ok(account.identity_log().await?)
     }
 
-    async fn account_log(
-        &self,
-    ) -> sos_sdk::Result<Arc<RwLock<AccountEventLog>>> {
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
         let account = self.account.lock().await;
-        account.account_log().await
+        Ok(account.account_log().await?)
     }
 
-    async fn device_log(
-        &self,
-    ) -> sos_sdk::Result<Arc<RwLock<DeviceEventLog>>> {
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
         let account = self.account.lock().await;
-        account.device_log().await
+        Ok(account.device_log().await?)
     }
 
     #[cfg(feature = "files")]
-    async fn file_log(&self) -> sos_sdk::Result<Arc<RwLock<FileEventLog>>> {
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
         let account = self.account.lock().await;
-        account.file_log().await
+        Ok(account.file_log().await?)
     }
 
-    async fn folder_details(&self) -> sos_sdk::Result<IndexSet<Summary>> {
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
         let account = self.account.lock().await;
-        account.folder_details().await
+        Ok(account.folder_details().await?)
     }
 
     async fn folder_log(
         &self,
         id: &VaultId,
-    ) -> sos_sdk::Result<Arc<RwLock<FolderEventLog>>> {
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
         let account = self.account.lock().await;
-        account.folder_log(id).await
+        Ok(account.folder_log(id).await?)
     }
 }
 
@@ -1070,9 +1059,151 @@ impl SyncStorage for LinkedAccount {
         true
     }
 
-    async fn sync_status(&self) -> sos_sdk::Result<SyncStatus> {
+    async fn sync_status(&self) -> Result<SyncStatus> {
         let account = self.account.lock().await;
-        account.sync_status().await
+        Ok(account.sync_status().await?)
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl Merge for LinkedAccount {
+    async fn merge_identity(
+        &mut self,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<CheckedPatch> {
+        let mut account = self.account.lock().await;
+        Ok(account.merge_identity(diff, outcome).await?)
+    }
+
+    async fn compare_identity(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let account = self.account.lock().await;
+        Ok(account.compare_identity(state).await?)
+    }
+
+    async fn merge_account(
+        &mut self,
+        diff: AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<(CheckedPatch, HashSet<VaultId>)> {
+        let mut account = self.account.lock().await;
+        Ok(account.merge_account(diff, outcome).await?)
+    }
+
+    async fn compare_account(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let account = self.account.lock().await;
+        Ok(account.compare_account(state).await?)
+    }
+
+    async fn merge_device(
+        &mut self,
+        diff: DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<CheckedPatch> {
+        let mut account = self.account.lock().await;
+        Ok(account.merge_device(diff, outcome).await?)
+    }
+
+    async fn compare_device(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let account = self.account.lock().await;
+        Ok(account.compare_device(state).await?)
+    }
+
+    #[cfg(feature = "files")]
+    async fn merge_files(
+        &mut self,
+        diff: FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<CheckedPatch> {
+        let mut account = self.account.lock().await;
+        Ok(account.merge_files(diff, outcome).await?)
+    }
+
+    #[cfg(feature = "files")]
+    async fn compare_files(&self, state: &CommitState) -> Result<Comparison> {
+        let account = self.account.lock().await;
+        Ok(account.compare_files(state).await?)
+    }
+
+    async fn merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
+        let mut account = self.account.lock().await;
+        Ok(account.merge_folder(folder_id, diff, outcome).await?)
+    }
+
+    async fn compare_folder(
+        &self,
+        folder_id: &VaultId,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let account = self.account.lock().await;
+        Ok(account.compare_folder(folder_id, state).await?)
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ForceMerge for LinkedAccount {
+    async fn force_merge_identity(
+        &mut self,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_identity(diff, outcome).await?)
+    }
+
+    async fn force_merge_account(
+        &mut self,
+        diff: AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_account(diff, outcome).await?)
+    }
+
+    async fn force_merge_device(
+        &mut self,
+        diff: DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_device(diff, outcome).await?)
+    }
+
+    /// Force merge changes to the files event log.
+    #[cfg(feature = "files")]
+    async fn force_merge_files(
+        &mut self,
+        diff: FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_files(diff, outcome).await?)
+    }
+
+    async fn force_merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_folder(folder_id, diff, outcome).await?)
     }
 }
 
@@ -1095,8 +1226,8 @@ impl RemoteSyncHandler for LinkedAccount {
         self.client.origin()
     }
 
-    fn address(&self) -> &Address {
-        &self.address
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 
     fn account(&self) -> Arc<Mutex<Self::Account>> {
@@ -1147,11 +1278,7 @@ impl RemoteSync for LinkedAccount {
         &self,
         account_data: UpdateSet,
     ) -> RemoteResult<Self::Error> {
-        match self
-            .client
-            .update_account(&self.address, account_data)
-            .await
-        {
+        match self.client.update_account(account_data).await {
             Ok(_) => RemoteResult {
                 origin: self.origin().clone(),
                 result: Ok(None),
@@ -1168,5 +1295,36 @@ impl RemoteSync for LinkedAccount {
         unimplemented!(
             "sync file transfers not supported for linked accounts"
         );
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl DelegatedAccess for LinkedAccount {
+    type Error = Error;
+
+    async fn find_folder_password(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Option<AccessKey>> {
+        let account = self.account.lock().await;
+        Ok(account.find_folder_password(folder_id).await?)
+    }
+
+    async fn remove_folder_password(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.remove_folder_password(folder_id).await?)
+    }
+
+    async fn save_folder_password(
+        &mut self,
+        folder_id: &VaultId,
+        key: AccessKey,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.save_folder_password(folder_id, key).await?)
     }
 }

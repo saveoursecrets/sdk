@@ -1,11 +1,15 @@
 [package]
 name = "sos-platform-authenticator"
-version = "0.1.0"
+version = "0.17.0"
 edition = "2021"
 description = "Platform authenticator and keyring suppport for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 thiserror.workspace = true
@@ -24,4 +28,4 @@ version = "3.1"
 # path = "../../../../forks/rust-security-framework/security-framework"
 
 [build-dependencies]
-rustc_version = "0.4.1"
+rustc_version.workspace = true

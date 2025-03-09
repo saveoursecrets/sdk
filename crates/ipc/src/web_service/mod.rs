@@ -4,8 +4,10 @@ use http_body_util::Full;
 use hyper::body::Incoming;
 use hyper::service::Service;
 use parking_lot::Mutex;
-use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{Account, ErrorExt};
+use sos_account::Account;
+use sos_core::ErrorExt;
+use sos_login::DelegatedAccess;
+use sos_sync::SyncStorage;
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 use tower::service_fn;
 use tower::util::BoxCloneService;
@@ -61,7 +63,7 @@ impl LocalWebService {
     where
         A: Account<Error = E, NetworkResult = R>
             + SyncStorage
-            + Merge
+            + DelegatedAccess<Error = E>
             + Sync
             + Send
             + 'static,
@@ -69,7 +71,12 @@ impl LocalWebService {
         E: std::fmt::Debug
             + std::error::Error
             + ErrorExt
-            + From<sos_sdk::Error>
+            + From<sos_core::Error>
+            + From<sos_database::Error>
+            + From<sos_account::Error>
+            + From<sos_backend::Error>
+            + From<sos_vault::Error>
+            + From<sos_search::Error>
             + From<std::io::Error>
             + Send
             + Sync
@@ -246,7 +253,7 @@ impl LocalWebService {
                 .into(),
             )
             .unwrap();
-        
+
         /*
         let state = accounts.clone();
         router

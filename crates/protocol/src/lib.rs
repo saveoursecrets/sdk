@@ -1,10 +1,8 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Networking and sync protocol types for [Save Our Secrets](https://saveoursecrets.com).
-//!
-//! When the `account` feature is enabled [SyncStorage] will be
-//! implemented for `LocalAccount`.
+//! Networking and sync protocol types for the
+//! [Save Our Secrets](https://saveoursecrets.com) SDK.
 
 // There are two layers to the types in this module; the wire
 // types which are defined in the protobuf files are prefixed
@@ -25,11 +23,10 @@
 
 mod bindings;
 pub mod constants;
+mod diff;
 mod error;
 #[cfg(feature = "network-client")]
 pub mod network_client;
-pub mod server_helpers;
-mod sync;
 mod traits;
 
 #[cfg(any(
@@ -43,8 +40,8 @@ pub mod transfer;
 pub mod hashcheck;
 
 pub use bindings::*;
+pub use diff::*;
 pub use error::{AsConflict, ConflictError, Error, ErrorReply, NetworkError};
-pub use sync::*;
 pub use traits::*;
 
 use prost::{bytes::Buf, Message};
@@ -55,13 +52,25 @@ pub use reqwest;
 #[cfg(any(feature = "listen", feature = "pairing"))]
 pub use tokio_tungstenite;
 
-#[cfg(test)]
-mod tests;
-
-pub use sos_sdk as sdk;
-
 /// Result type for the wire protocol.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
+
+/// How to resolve hard conflicts.
+#[derive(Default, Debug)]
+pub enum HardConflictResolver {
+    /// Automatically fetch and overwrite account data.
+    #[default]
+    AutomaticFetch,
+}
+
+/// Options for sync operation.
+#[derive(Default, Debug)]
+pub struct SyncOptions {
+    /// Only sync these origins.
+    pub origins: Vec<sos_core::Origin>,
+    /// Resolver for hard conflicts.
+    pub hard_conflict_resolver: HardConflictResolver,
+}
 
 /// Trait for encoding and decoding protobuf generated types.
 ///
@@ -187,6 +196,6 @@ fn encode_uuid(id: &uuid::Uuid) -> Vec<u8> {
 
 /// Determine if the offline environment variable is set.
 pub fn is_offline() -> bool {
-    use crate::sdk::constants::SOS_OFFLINE;
+    use sos_core::constants::SOS_OFFLINE;
     std::env::var(SOS_OFFLINE).ok().is_some()
 }

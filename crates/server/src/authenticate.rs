@@ -1,53 +1,63 @@
 //! Authentication helper functions for extracting an address
 //! from a signature given in bearer authorization data.
-use axum_extra::headers::{authorization::Bearer, Authorization};
-
-use sos_protocol::sdk::{
-    decode,
-    signer::{
-        ecdsa::{self, recover_address, Address, BinaryEcdsaSignature},
-        ed25519::{self, BinaryEd25519Signature},
-    },
-};
-
 use super::{Error, Result};
+use axum_extra::headers::{authorization::Bearer, Authorization};
+use sos_core::{decode, AccountId};
+use sos_signer::ed25519::{self, BinaryEd25519Signature};
 
 #[derive(Debug)]
 pub struct BearerToken {
-    pub address: Address,
-    pub device_signature: Option<ed25519::Signature>,
+    pub account_id: AccountId,
+    pub device_signature: ed25519::Signature,
 }
 
 impl BearerToken {
     /// Create a new bearer token.
-    pub async fn new(token: &str, message: &[u8]) -> Result<Self> {
-        // When a token contains a period we are expecting
-        // an account signature and a device signature
-        let token = if token.contains('.') {
-            token.split_once('.').map(|s| (s.0, Some(s.1)))
-        } else {
-            Some((token, None))
-        };
+    pub async fn new(
+        header_account_id: Option<AccountId>,
+        token: &str,
+    ) -> Result<Self> {
+        let has_period_delimiter = token.contains('.');
 
-        let token = token.ok_or_else(|| Error::BadRequest)?;
-        let (account_token, device_token) = token;
+        #[allow(unused_assignments)]
+        let mut account_id: Option<AccountId> = None;
+        #[allow(unused_assignments)]
+        let mut device_signature: Option<ed25519::Signature> = None;
 
-        let value = bs58::decode(account_token).into_vec()?;
-        let buffer: BinaryEcdsaSignature = decode(&value).await?;
-        let signature: ecdsa::Signature = buffer.into();
-        let address = recover_address(signature, message)?;
+        match (header_account_id, has_period_delimiter) {
+            // Version 2 of the bearer format does not include
+            // an account signature but extracts the AccountId
+            // from a header instead
+            (Some(id), false) => {
+                account_id = Some(id);
 
-        let device_signature = if let Some(device_token) = device_token {
-            let value = bs58::decode(device_token).into_vec()?;
-            let buffer: BinaryEd25519Signature = decode(&value).await?;
-            let signature: ed25519::Signature = buffer.into();
-            Some(signature)
-        } else {
-            None
-        };
+                let value = bs58::decode(token).into_vec()?;
+                let buffer: BinaryEd25519Signature = decode(&value).await?;
+                let signature: ed25519::Signature = buffer.into();
+                device_signature = Some(signature);
+            }
+            (Some(_), true) => {
+                return Err(Error::Forbidden);
+            }
+            // Legacy version 1 encoding extracts the account identifier
+            // from the ECDSA signature public key
+            (None, true) => {
+                return Err(Error::Forbidden);
+            }
+            // Legacy without a device signature is now forbidden.
+            //
+            // This was previously accepted in v0.15.x.
+            (None, false) => {
+                return Err(Error::Forbidden);
+            }
+        }
+
+        let account_id = account_id.ok_or_else(|| Error::BadRequest)?;
+        let device_signature =
+            device_signature.ok_or_else(|| Error::BadRequest)?;
 
         Ok(Self {
-            address,
+            account_id,
             device_signature,
         })
     }
@@ -61,12 +71,9 @@ impl BearerToken {
 ///
 /// The signature is then converted to a recoverable signature and the public
 /// key is extracted using the body bytes as the message that has been signed.
-pub async fn bearer<B>(
+pub async fn bearer(
+    account_id: Option<AccountId>,
     authorization: Authorization<Bearer>,
-    body: B,
-) -> Result<BearerToken>
-where
-    B: AsRef<[u8]>,
-{
-    BearerToken::new(authorization.token(), body.as_ref()).await
+) -> Result<BearerToken> {
+    BearerToken::new(account_id, authorization.token()).await
 }

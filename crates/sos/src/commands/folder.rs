@@ -1,14 +1,3 @@
-use clap::Subcommand;
-
-use human_bytes::human_bytes;
-use sos_net::sdk::{
-    account::{Account, FolderCreate},
-    events::{EventLogExt, LogEvent},
-    hex,
-    identity::AccountRef,
-    vault::FolderRef,
-};
-
 use crate::{
     helpers::{
         account::{cd_folder, resolve_folder, resolve_user, SHELL},
@@ -17,6 +6,16 @@ use crate::{
     },
     Error, Result,
 };
+use clap::Subcommand;
+use hex;
+use sos_account::{Account, FolderCreate};
+use sos_backend::BackendTarget;
+use sos_client_storage::NewFolderOptions;
+use sos_core::{
+    events::{EventLog, LogEvent},
+    AccountId, AccountRef, FolderRef,
+};
+use sos_sync::StorageEventLogs;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -169,7 +168,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 }
 
                 let FolderCreate { folder, .. } =
-                    owner.create_folder(name, Default::default()).await?;
+                    owner.create_folder(NewFolderOptions::new(name)).await?;
                 success("Folder created");
                 folder
             };
@@ -209,7 +208,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let owner = owner
                         .selected_account_mut()
                         .ok_or(Error::NoSelectedAccount)?;
-                    owner.delete_folder(&summary).await?;
+                    owner.delete_folder(summary.id()).await?;
                     success("Folder deleted");
                 }
                 drop(owner);
@@ -261,10 +260,10 @@ pub async fn run(cmd: Command) -> Result<()> {
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
 
             if !is_shell {
-                owner.open_folder(&summary).await?;
+                owner.open_folder(summary.id()).await?;
             }
 
-            let ids = owner.secret_ids(&summary).await?;
+            let ids = owner.list_secret_ids(summary.id()).await?;
             for id in ids {
                 println!("{}", id);
             }
@@ -278,24 +277,17 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = user.read().await;
             let owner =
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-            let storage = owner
-                .storage()
-                .await
-                .ok_or(sos_net::sdk::Error::NoStorage)?;
-            let reader = storage.read().await;
-            if let Some(folder) = reader.cache().get(summary.id()) {
-                let event_log = folder.event_log();
-                let event_log = event_log.read().await;
-                let tree = event_log.tree();
-                if let Some(leaves) = tree.leaves() {
-                    for leaf in &leaves {
-                        println!("{}", hex::encode(leaf));
-                    }
-                    println!("size = {}", leaves.len());
+            let event_log = owner.folder_log(summary.id()).await?;
+            let event_log = event_log.read().await;
+            let tree = event_log.tree();
+            if let Some(leaves) = tree.leaves() {
+                for leaf in &leaves {
+                    println!("{}", hex::encode(leaf));
                 }
-                if let Some(root) = tree.root() {
-                    println!("root = {}", root);
-                }
+                println!("size = {}", leaves.len());
+            }
+            if let Some(root) = tree.root() {
+                println!("root = {}", root);
             }
         }
 
@@ -313,7 +305,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = owner
                 .selected_account_mut()
                 .ok_or(Error::NoSelectedAccount)?;
-            owner.rename_folder(&summary, name.clone()).await?;
+            owner.rename_folder(summary.id(), name.clone()).await?;
             success(format!("{} -> {}", summary.name(), name));
         }
 
@@ -341,7 +333,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     .selected_account()
                     .ok_or(Error::NoSelectedAccount)?;
                 if !is_shell {
-                    owner.open_folder(&summary).await?;
+                    owner.open_folder(summary.id()).await?;
                 }
             }
 
@@ -367,10 +359,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                         let owner = owner
                             .selected_account_mut()
                             .ok_or(Error::NoSelectedAccount)?;
-                        let (_, old_size, new_size) =
-                            owner.compact_folder(&summary).await?;
-                        println!("Old: {}", human_bytes(old_size as f64));
-                        println!("New: {}", human_bytes(new_size as f64));
+                        owner.compact_folder(summary.id()).await?;
+                        println!("Folder compacted");
                     }
                 }
                 History::Check { .. } => {
@@ -382,12 +372,12 @@ pub async fn run(cmd: Command) -> Result<()> {
                         .current_folder()
                         .await?
                         .ok_or(Error::NoVaultSelected)?;
-                    let storage = owner
-                        .storage()
-                        .await
-                        .ok_or(sos_net::sdk::Error::NoStorage)?;
-                    let owner = storage.read().await;
-                    owner.verify(&summary).await?;
+                    verify_event_log(
+                        owner.backend_target().await,
+                        owner.account_id(),
+                        &summary,
+                    )
+                    .await?;
                     success("Verified");
                 }
                 History::List { verbose, .. } => {
@@ -399,12 +389,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         .current_folder()
                         .await?
                         .ok_or(Error::NoVaultSelected)?;
-                    let storage = owner
-                        .storage()
-                        .await
-                        .ok_or(sos_net::sdk::Error::NoStorage)?;
-                    let owner = storage.read().await;
-                    let records = owner.history(&summary).await?;
+                    let records = owner.history(summary.id()).await?;
                     for (commit, time, event) in records {
                         print!("{} {} ", event.event_kind(), time);
                         if verbose {
@@ -418,5 +403,21 @@ pub async fn run(cmd: Command) -> Result<()> {
         }
     }
 
+    Ok(())
+}
+
+/// Verify an event log.
+async fn verify_event_log(
+    target: BackendTarget,
+    account_id: &AccountId,
+    folder: &sos_vault::Summary,
+) -> Result<()> {
+    use futures::StreamExt;
+    use sos_integrity::event_integrity;
+    let stream = event_integrity(&target, account_id, folder.id());
+    futures::pin_mut!(stream);
+    while let Some(event) = stream.next().await {
+        event?;
+    }
     Ok(())
 }

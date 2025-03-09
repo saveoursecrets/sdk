@@ -1,34 +1,26 @@
-use axum::{
-    body::{to_bytes, Body},
-    extract::{Extension, OriginalUri, Path, Query, Request},
-    http::StatusCode,
-    middleware::Next,
-    response::{IntoResponse, Response},
-};
-
-use axum_extra::{
-    headers::{authorization::Bearer, Authorization},
-    typed_header::TypedHeader,
-};
-
-//use axum_macros::debug_handler;
-
-use super::BODY_LIMIT;
-
-use sos_protocol::sdk::{
-    storage::files::{ExternalFile, ExternalFileName},
-    vault::{
-        secret::{SecretId, SecretPath},
-        VaultId,
-    },
-};
-
+use super::{parse_account_id, BODY_LIMIT};
 use crate::{
     handlers::{authenticate_endpoint, ConnectionQuery},
     ServerBackend, ServerState, ServerTransfer,
 };
+use axum::{
+    body::{to_bytes, Body},
+    extract::{Extension, OriginalUri, Path, Query, Request},
+    http::{HeaderMap, StatusCode},
+    middleware::Next,
+    response::{IntoResponse, Response},
+};
+use axum_extra::{
+    headers::{authorization::Bearer, Authorization},
+    typed_header::TypedHeader,
+};
 use serde::Deserialize;
+use sos_core::{
+    ExternalFile, ExternalFileName, SecretId, SecretPath, VaultId,
+};
 use std::sync::Arc;
+
+//use axum_macros::debug_handler;
 
 /// Query string for moving a file.
 #[derive(Debug, Deserialize)]
@@ -61,7 +53,7 @@ pub struct MoveFileQuery {
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -80,16 +72,18 @@ pub(crate) async fn receive_file(
     )>,
     Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
-        true,
     )
     .await
     {
@@ -126,7 +120,7 @@ pub(crate) async fn receive_file(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -145,15 +139,17 @@ pub(crate) async fn delete_file(
     )>,
     Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
-        true,
     )
     .await
     {
@@ -190,7 +186,7 @@ pub(crate) async fn delete_file(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -210,15 +206,17 @@ pub(crate) async fn send_file(
     )>,
     Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
-        true,
     )
     .await
     {
@@ -255,7 +253,7 @@ pub(crate) async fn send_file(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -275,15 +273,17 @@ pub(crate) async fn move_file(
     Query(query): Query<ConnectionQuery>,
     Query(move_query): Query<MoveFileQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
-        true,
     )
     .await
     {
@@ -317,7 +317,7 @@ pub(crate) async fn move_file(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -331,17 +331,19 @@ pub(crate) async fn compare_files(
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
+            account_id,
             bearer,
             uri.as_bytes(),
             Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
-            true,
         )
         .await
         {
@@ -361,17 +363,6 @@ pub(crate) async fn compare_files(
 
 mod handlers {
     use super::MoveFileQuery;
-    use sos_protocol::{
-        constants::MIME_TYPE_PROTOBUF,
-        sdk::{
-            sha2::{Digest, Sha256},
-            storage::files::{list_external_files, ExternalFileName},
-            vault::{secret::SecretId, VaultId},
-        },
-        transfer::{FileSet, FileTransfersSet},
-        WireEncodeDecode,
-    };
-
     use crate::{
         handlers::Caller, Error, Result, ServerBackend, ServerState,
     };
@@ -383,6 +374,15 @@ mod handlers {
     use futures::TryStreamExt;
     use http::header::{self, HeaderMap, HeaderValue};
     use indexmap::IndexSet;
+    use sha2::{Digest, Sha256};
+    use sos_core::{ExternalFileName, SecretId, VaultId};
+    use sos_external_files::list_external_files;
+    use sos_protocol::{
+        constants::MIME_TYPE_PROTOBUF,
+        transfer::{FileSet, FileTransfersSet},
+        WireEncodeDecode,
+    };
+    use sos_server_storage::ServerAccountStorage;
     use std::{path::PathBuf, sync::Arc};
     use tokio::{
         fs::File,
@@ -417,21 +417,20 @@ mod handlers {
             let accounts = backend.accounts();
             let accounts = accounts.read().await;
             let account = accounts
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
         let (parent_path, file_path) = {
             let reader = account.read().await;
-            let paths = reader.storage.paths();
-            let name = file_name.to_string();
-            let parent_path = paths
-                .file_folder_location(&vault_id)
-                .join(secret_id.to_string());
+            let paths = reader.paths();
+            let parent_path =
+                paths.into_file_secret_path(&vault_id, &secret_id);
+
             (
                 parent_path,
-                paths.file_location(&vault_id, &secret_id, &name),
+                paths.into_file_path_parts(&vault_id, &secret_id, &file_name),
             )
         };
 
@@ -488,16 +487,15 @@ mod handlers {
             let accounts = backend.accounts();
             let accounts = accounts.read().await;
             let account = accounts
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
         let file_path = {
             let reader = account.read().await;
-            let paths = reader.storage.paths();
-            let name = file_name.to_string();
-            paths.file_location(&vault_id, &secret_id, &name)
+            let paths = reader.paths();
+            paths.into_file_path_parts(&vault_id, &secret_id, &file_name)
         };
 
         if !tokio::fs::try_exists(&file_path).await? {
@@ -522,16 +520,15 @@ mod handlers {
             let accounts = backend.accounts();
             let accounts = accounts.read().await;
             let account = accounts
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
         let file_path = {
             let reader = account.read().await;
-            let paths = reader.storage.paths();
-            let name = file_name.to_string();
-            paths.file_location(&vault_id, &secret_id, &name)
+            let paths = reader.paths();
+            paths.into_file_path_parts(&vault_id, &secret_id, &file_name)
         };
 
         if !tokio::fs::try_exists(&file_path).await? {
@@ -563,24 +560,23 @@ mod handlers {
             let accounts = backend.accounts();
             let accounts = accounts.read().await;
             let account = accounts
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
         let (source_path, target_path, parent_path) = {
             let reader = account.read().await;
-            let paths = reader.storage.paths();
-            let name = file_name.to_string();
-            let source = paths.file_location(&vault_id, &secret_id, &name);
-            let target = paths.file_location(
+            let paths = reader.paths();
+            let source =
+                paths.into_file_path_parts(&vault_id, &secret_id, &file_name);
+            let target = paths.into_file_path_parts(
                 &query.vault_id,
                 &query.secret_id,
-                &query.name.to_string(),
+                &query.name,
             );
             let parent_path = paths
-                .file_folder_location(&query.vault_id)
-                .join(query.secret_id.to_string());
+                .into_file_secret_path(&query.vault_id, &query.secret_id);
 
             (source, target, parent_path)
         };
@@ -618,15 +614,21 @@ mod handlers {
             let accounts = backend.accounts();
             let accounts = accounts.read().await;
             let account = accounts
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             let account = account.read().await;
-            account.storage.paths()
+            account.paths()
         };
 
         let local_files = FileSet::decode(body).await?;
         let local_set = local_files.0;
+        tracing::debug!(
+            local_set_len = %local_set.len(), "compare_files");
+
         let remote_set = list_external_files(&*paths).await?;
+        tracing::debug!(
+            remote_set_len = %remote_set.len(), "compare_files");
+
         let uploads = local_set
             .difference(&remote_set)
             .cloned()
@@ -635,6 +637,13 @@ mod handlers {
             .difference(&local_set)
             .cloned()
             .collect::<IndexSet<_>>();
+
+        tracing::debug!(
+            uploads_len = %uploads.len(),
+            downloads_len = %downloads.len(),
+            "compare_files",
+        );
+
         let transfers = FileTransfersSet {
             uploads: FileSet(uploads),
             downloads: FileSet(downloads),

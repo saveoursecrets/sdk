@@ -2,8 +2,9 @@
 
 use http::{Request, Response, StatusCode};
 use serde::Deserialize;
-use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{Account, ClipboardCopyRequest, ErrorExt, SecretPath};
+use sos_account::{Account, ClipboardCopyRequest};
+use sos_core::{ErrorExt, SecretPath};
+use sos_sync::SyncStorage;
 
 use crate::web_service::{
     internal_server_error, json, parse_account_id, parse_json_body, status,
@@ -31,17 +32,17 @@ pub async fn copy_secret_clipboard<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -77,17 +78,17 @@ pub async fn read_secret<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -98,7 +99,8 @@ where
     };
 
     let accounts = accounts.as_ref().read().await;
-    let Some(account) = accounts.iter().find(|a| a.address() == &account_id)
+    let Some(account) =
+        accounts.iter().find(|a| a.account_id() == &account_id)
     else {
         return status(StatusCode::NOT_FOUND);
     };
@@ -112,7 +114,10 @@ where
         return status(StatusCode::NOT_FOUND);
     };
 
-    match account.read_secret(request.secret_id(), Some(folder)).await {
+    match account
+        .read_secret(request.secret_id(), Some(folder.id()))
+        .await
+    {
         Ok(result) => {
             let mut secret_row = result.0;
             let redacted = secret_row.secret_mut().redact(true, 12);
@@ -137,16 +142,17 @@ pub async fn set_favorite<A, R, E>(
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+        + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -158,7 +164,7 @@ where
 
     let mut accounts = accounts.as_ref().write().await;
     let Some(account) =
-        accounts.iter_mut().find(|a| a.address() == &account_id)
+        accounts.iter_mut().find(|a| a.account_id() == &account_id)
     else {
         return status(StatusCode::NOT_FOUND);
     };
@@ -214,17 +220,17 @@ pub async fn load_avatar<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
-        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -238,7 +244,8 @@ where
     };
 
     let accounts = accounts.as_ref().read().await;
-    let Some(account) = accounts.iter().find(|a| a.address() == &account_id)
+    let Some(account) =
+        accounts.iter().find(|a| a.account_id() == &account_id)
     else {
         return status(StatusCode::NOT_FOUND);
     };
@@ -252,7 +259,10 @@ where
         return status(StatusCode::NOT_FOUND);
     };
 
-    match account.load_avatar(request.secret_id(), Some(folder)).await {
+    match account
+        .load_avatar(request.secret_id(), Some(folder.id()))
+        .await
+    {
         Ok(maybe_avatar) => {
             let Some(png_bytes) = maybe_avatar else {
                 return status(StatusCode::NOT_FOUND);

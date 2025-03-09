@@ -1,0 +1,96 @@
+[package]
+name = "sos-integration-tests"
+version = "0.17.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[features]
+default = []
+enable-cli-tests = []
+
+[dependencies]
+sos-audit.workspace = true
+sos-core.workspace = true
+sos-password.workspace = true
+sos-external-files.workspace = true
+sos-account = { workspace = true, features = ["full"] }
+sos-backend = { workspace = true, features = ["full"] }
+sos-database = { workspace = true, features = ["full"] }
+sos-database-upgrader = { workspace = true, features = ["full"] }
+sos-login = { workspace = true, features = ["full"] }
+sos-filesystem = { workspace = true, features = ["full"] }
+sos-migrate = { workspace = true, features = ["full"] }
+sos-integrity = { workspace = true, features = ["full"] }
+sos-client-storage = { workspace = true, features = ["full"] }
+sos-server-storage = { workspace = true, features = ["full"] }
+sos-web = { workspace = true, features = ["full"] }
+sos-protocol = { workspace = true, features = ["full"] }
+sos-preferences.workspace = true
+sos-remote-sync = { workspace = true, features = ["full"] }
+sos-security-report.workspace = true
+sos-search.workspace = true
+sos-signer.workspace = true
+sos-sync = { workspace = true, features = ["full"] }
+sos-net = { workspace = true, features = ["full"] }
+sos-server = { workspace = true, features = ["listen", "audit", "pairing"] }
+sos-vault.workspace = true
+sos-vfs.workspace = true
+sos-sdk = { workspace = true, features = ["full"] }
+sos-test-utils.workspace = true
+
+tempfile = "3.5"
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+http.workspace = true
+anyhow.workspace = true
+
+[dependencies.sos-ipc]
+workspace = true
+features = [
+  "extension-helper-server",
+  "extension-helper-client",
+  "contacts", 
+  "migrate",
+  "search",
+  "files",
+]
+
+[dev-dependencies]
+binary-stream.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+async-recursion.workspace = true
+futures.workspace = true
+parking_lot.workspace = true
+once_cell.workspace = true
+serde.workspace = true
+indexmap.workspace = true
+anyhow.workspace = true
+secrecy.workspace = true
+http.workspace = true
+zxcvbn.workspace = true
+hex.workspace = true
+urn.workspace = true
+
+copy_dir = "0.1"
+maplit2 = "1"
+pretty_assertions = "1.4"
+
+[[bin]]
+name = "test-extension-helper"
+path = "src/test_extension_helper.rs"
+
+[[bin]]
+name = "test-preferences-concurrency"
+path = "src/test_preferences_concurrency.rs"
+
+[[bin]]
+name = "make-v3-backup-fixtures"
+path = "src/make_v3_backup_fixtures.rs"
+
+[[bin]]
+name = "db-compile-options"
+path = "src/db_compile_options.rs"

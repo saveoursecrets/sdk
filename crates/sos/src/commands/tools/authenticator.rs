@@ -5,10 +5,10 @@ use crate::{
     Error, Result,
 };
 use clap::Subcommand;
-use sos_net::sdk::prelude::{
-    export_authenticator, import_authenticator, Account, AccountRef,
-    FolderCreate, NewFolderOptions, VaultFlags,
-};
+use sos_account::{Account, FolderCreate};
+use sos_client_storage::NewFolderOptions;
+use sos_core::{AccountRef, VaultFlags};
+use sos_migrate::{export_authenticator, import_authenticator};
 use std::path::PathBuf;
 
 #[derive(Subcommand, Debug)]
@@ -57,14 +57,11 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .await
                 .ok_or(Error::NoAuthenticatorFolder)?;
 
-            let storage = owner
-                .storage()
-                .await
-                .ok_or(sos_net::sdk::Error::NoStorage)?;
-            let storage = storage.read().await;
-            let folder = storage.cache().get(authenticator.id()).unwrap();
+            let folder = owner.folder(authenticator.id()).await?;
+            let access_point = folder.access_point();
+            let access_point = access_point.lock().await;
 
-            export_authenticator(file, folder.keeper(), qr_codes).await?;
+            export_authenticator(file, &*access_point, qr_codes).await?;
             success("authenticator TOTP secrets exported");
         }
         Command::Import {
@@ -93,29 +90,25 @@ pub async fn run(cmd: Command) -> Result<()> {
                 }
             } else {
                 let options = NewFolderOptions {
-                    flags: VaultFlags::AUTHENTICATOR
-                        | VaultFlags::LOCAL
-                        | VaultFlags::NO_SYNC,
+                    name: folder_name.unwrap_or("Authenticator".to_string()),
+                    flags: Some(
+                        VaultFlags::AUTHENTICATOR
+                            | VaultFlags::LOCAL
+                            | VaultFlags::NO_SYNC,
+                    ),
                     ..Default::default()
                 };
-                let FolderCreate { folder, .. } = owner
-                    .create_folder(
-                        folder_name.unwrap_or("Authenticator".to_string()),
-                        options,
-                    )
-                    .await?;
+                let FolderCreate { folder, .. } =
+                    owner.create_folder(options).await?;
                 Some(folder)
             };
 
             if let Some(folder) = folder {
-                let storage = owner
-                    .storage()
-                    .await
-                    .ok_or(sos_net::sdk::Error::NoStorage)?;
-                let mut storage = storage.write().await;
-                let folder =
-                    storage.cache_mut().get_mut(folder.id()).unwrap();
-                import_authenticator(file, folder.keeper_mut()).await?;
+                let folder = owner.folder(folder.id()).await?;
+                let access_point = folder.access_point();
+                let mut access_point = access_point.lock().await;
+
+                import_authenticator(file, &mut *access_point).await?;
                 success("authenticator TOTP secrets imported");
             }
         }

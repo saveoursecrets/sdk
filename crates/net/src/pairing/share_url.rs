@@ -1,8 +1,12 @@
 use super::{Error, Result};
+use hex;
 use rand::Rng;
-use sos_sdk::{crypto::csprng, hex, url::Url};
+use sos_core::{csprng, AccountId};
 use std::str::FromStr;
+use url::Url;
 
+/// Account identifier.
+const AID: &str = "aid";
 /// Server URL.
 const URL: &str = "url";
 /// Noise public key.
@@ -13,6 +17,8 @@ const PSK: &str = "psk";
 /// URL shared to offer device pairing via an untrusted relay server.
 #[derive(Debug, Clone)]
 pub struct ServerPairUrl {
+    /// Account identifier.
+    account_id: AccountId,
     /// Server used to transfer the account data.
     server: Url,
     /// Public key of the noise protocol.
@@ -26,13 +32,23 @@ impl ServerPairUrl {
     ///
     /// The public key is the noise protocol public key
     /// of the device.
-    pub fn new(server: Url, public_key: Vec<u8>) -> Self {
+    pub fn new(
+        account_id: AccountId,
+        server: Url,
+        public_key: Vec<u8>,
+    ) -> Self {
         let pre_shared_key: [u8; 32] = csprng().gen();
         Self {
+            account_id,
             server,
             public_key,
             pre_shared_key,
         }
+    }
+
+    /// Account identifier.
+    pub fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 
     /// Server URL.
@@ -57,6 +73,7 @@ impl From<ServerPairUrl> for Url {
         let key = hex::encode(&value.public_key);
         let psk = hex::encode(&value.pre_shared_key);
         url.query_pairs_mut()
+            .append_pair(AID, &value.account_id.to_string())
             .append_pair(URL, &value.server.to_string())
             .append_pair(KEY, &key)
             .append_pair(PSK, &psk);
@@ -80,6 +97,16 @@ impl FromStr for ServerPairUrl {
 
         let mut pairs = url.query_pairs();
 
+        let account_id = pairs.find_map(|q| {
+            if q.0.as_ref() == AID {
+                Some(q.1)
+            } else {
+                None
+            }
+        });
+        let account_id = account_id.ok_or(Error::InvalidShareUrl)?;
+        let account_id: AccountId = account_id.as_ref().parse()?;
+
         let server = pairs.find_map(|q| {
             if q.0.as_ref() == URL {
                 Some(q.1)
@@ -87,7 +114,6 @@ impl FromStr for ServerPairUrl {
                 None
             }
         });
-
         let server = server.ok_or(Error::InvalidShareUrl)?;
         let server: Url = server.as_ref().parse()?;
 
@@ -113,29 +139,10 @@ impl FromStr for ServerPairUrl {
         let psk: [u8; 32] = psk.as_slice().try_into()?;
 
         Ok(Self {
+            account_id,
             server,
             public_key: key,
             pre_shared_key: psk,
         })
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::ServerPairUrl;
-    use crate::sdk::url::Url;
-    use anyhow::Result;
-
-    #[test]
-    fn server_pair_url() -> Result<()> {
-        let mock_url = Url::parse("http://192.168.1.8:5053/foo?bar=baz+qux")?;
-        let mock_key = vec![1, 2, 3, 4];
-        let share = ServerPairUrl::new(mock_url.clone(), mock_key.clone());
-        let share_url: Url = share.into();
-        let share_url = share_url.to_string();
-        let parsed_share: ServerPairUrl = share_url.parse()?;
-        assert_eq!(mock_url, parsed_share.server);
-        assert_eq!(&mock_key, parsed_share.public_key());
-        Ok(())
     }
 }

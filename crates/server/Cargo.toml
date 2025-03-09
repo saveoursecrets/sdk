@@ -1,6 +1,6 @@
 [package]
 name = "sos-server"
-version = "0.16.1"
+version = "0.17.0"
 edition = "2021"
 description = "Server for the Save Our Secrets sync protocol."
 homepage = "https://saveoursecrets.com"
@@ -17,9 +17,23 @@ prometheus = ["axum-prometheus"]
 acme = ["dep:tokio-rustls-acme"]
 listen = ["sos-protocol/listen"]
 pairing = ["sos-protocol/pairing"]
-audit = []
+audit = ["sos-audit"]
 
 [dependencies]
+sos-audit = { workspace = true, optional = true }
+sos-core.workspace = true
+sos-backend.workspace = true
+sos-database.workspace = true
+sos-external-files.workspace = true
+sos-filesystem.workspace = true
+sos-sync.workspace = true
+sos-server-storage = { workspace = true, features = ["full"] }
+sos-logs.workspace = true
+sos-protocol = { workspace = true, features = ["files"] }
+sos-cli-helpers.workspace = true
+sos-signer.workspace = true
+sos-vfs.workspace = true
+
 tokio-util.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
@@ -38,31 +52,23 @@ colored.workspace = true
 binary-stream.workspace = true
 toml.workspace = true 
 clap.workspace = true
+k256.workspace = true
+sha2.workspace = true
 
 axum-server.workspace = true
 tokio-rustls.workspace = true
 rustls.workspace = true
 
-axum = { version = "0.7", features = ["ws", "original-uri"] }
-axum-extra = {version = "0.9", features = ["typed-header"] }
+axum = { version = "0.8", features = ["ws", "original-uri"] }
+axum-extra = {version = "0.10", features = ["typed-header"] }
 # axum-macros = { version = "0.4" }
-axum-prometheus = { version = "0.7", optional = true }
+axum-prometheus = { version = "0.8", optional = true }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 tokio-stream = { version = "0.1" }
 utoipa = { version = "5", features = ["uuid"] }
-utoipa-rapidoc = { version = "5", features = ["axum"] }
+utoipa-rapidoc = { version = "6", features = ["axum"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros"] }
-
 tokio-rustls-acme = { version = "0.6", features = ["axum"], optional = true }
-
-[dependencies.sos-protocol]
-version = "0.16"
-path = "../protocol"
-features = ["files"]
-
-[dependencies.sos-cli-helpers]
-version = "0.1.0"
-path = "../cli_helpers"
 
 [build-dependencies]
 rustc_version = "0.4.1"

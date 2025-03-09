@@ -2,16 +2,13 @@ use crate::{
     helpers::{account::resolve_user, messages::success},
     Error, Result,
 };
-use sos_net::{
-    hashcheck,
-    sdk::{identity::AccountRef, zxcvbn::Score},
-    NetworkAccount,
-};
-
-use sos_net::extras::security_report::{
+use sos_core::AccountRef;
+use sos_net::{hashcheck, NetworkAccount};
+use sos_security_report::{
     generate_security_report, SecurityReportOptions, SecurityReportRow,
 };
 use std::{fmt, path::PathBuf, str::FromStr};
+use zxcvbn::Score;
 
 /// Formats for writing reports.
 #[derive(Default, Debug, Clone)]

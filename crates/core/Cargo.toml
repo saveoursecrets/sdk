@@ -1,0 +1,54 @@
+[package]
+name = "sos-core"
+version = "0.17.0"
+edition = "2021"
+description = "Core types for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[features]
+full = ["files"]
+files = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+sos-vfs.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+url.workspace = true
+rs_merkle.workspace = true
+hex.workspace = true
+mime_guess.workspace = true
+uuid.workspace = true
+rand.workspace = true
+binary-stream.workspace = true
+futures.workspace = true
+time.workspace = true
+time-tz.workspace = true
+async-trait.workspace = true
+serde_json.workspace = true
+bs58.workspace = true
+bitflags.workspace = true
+secrecy.workspace = true
+serde_with.workspace = true
+typeshare.workspace = true
+tokio.workspace = true
+
+# crypto
+sha2.workspace = true
+pem.workspace = true
+age.workspace = true
+argon2.workspace = true
+aes-gcm.workspace = true
+chacha20poly1305.workspace = true
+balloon-hash.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+etcetera.workspace = true
+
+[build-dependencies]
+rustc_version.workspace = true

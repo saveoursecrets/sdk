@@ -1,5 +1,5 @@
 [typescript.type_mappings]
-"Address" = "string"
+"AccountId" = "string"
 "VaultId" = "string"
 "SecretId" = "string"
 "SecretFlags" = "number"

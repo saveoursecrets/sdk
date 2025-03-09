@@ -1,8 +1,10 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Inter-process communication library supporting the
-//! native messaging API for browser extensions.
+//! Inter-process communication library for the
+//! [Save Our Secrets](https://saveoursecrets.com) SDK.
+//!
+//! Supports the native messaging API for browser extensions.
 
 mod error;
 
@@ -13,6 +15,7 @@ mod error;
 /// strange errors with the tokio FramedRead typically
 /// something like "frame size too big" because we have
 /// inadvertently written a bad length prefix to stdout.
+#[doc(hidden)]
 #[macro_export]
 #[allow(missing_fragment_specifier)]
 macro_rules! println {
@@ -44,7 +47,7 @@ pub use error::Error;
 pub use error::FileEventError;
 
 /// Result type for the library.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 use serde::{Deserialize, Serialize};
 

@@ -1,24 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-};
-
-use human_bytes::human_bytes;
-use terminal_banner::{Banner, Padding};
-
-use secrecy::{ExposeSecret, SecretString};
-use sos_net::sdk::{
-    account::Account,
-    hex, secrecy,
-    storage::search::Document,
-    url::Url,
-    vault::{
-        secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},
-        Summary,
-    },
-    vfs,
-};
-
+use super::{account::Owner, set_clipboard_text};
 use crate::{
     helpers::{
         messages::{fail, success},
@@ -29,8 +9,22 @@ use crate::{
     },
     Error, Result,
 };
-
-use super::{account::Owner, set_clipboard_text};
+use human_bytes::human_bytes;
+use secrecy::{ExposeSecret, SecretString};
+use sos_account::Account;
+use sos_core::ExternalFileName;
+use sos_search::Document;
+use sos_vault::{
+    secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},
+    Summary,
+};
+use sos_vfs as vfs;
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+};
+use terminal_banner::{Banner, Padding};
+use {secrecy, url::Url};
 
 /// Resolved secret data.
 pub(crate) struct ResolvedSecret {
@@ -49,7 +43,7 @@ pub async fn resolve_secret(
 ) -> Result<Option<(SecretId, SecretMeta)>> {
     let owner = user.read().await;
     let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-    let search = owner.index().await?;
+    let search = owner.search_index().await?;
     let index_reader = search.read().await;
     if let Some(Document {
         secret_id, meta, ..
@@ -452,7 +446,7 @@ pub(crate) async fn download_file_secret(
     if let Secret::File { content, .. } = secret {
         match content {
             FileContent::External { checksum, .. } => {
-                let file_name = hex::encode(checksum);
+                let file_name = ExternalFileName::from(checksum);
                 let buffer = owner
                     .download_file(
                         resolved.summary.id(),

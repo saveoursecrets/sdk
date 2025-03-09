@@ -1,0 +1,23 @@
+[package]
+name = "sos-reducers"
+version = "0.17.0"
+edition = "2021"
+description = "Event log reducers for the Save Our Secrets SDK."
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[features]
+full = ["files"]
+files = []
+
+[dependencies]
+sos-core.workspace = true
+sos-vault.workspace = true
+
+futures.workspace = true
+indexmap.workspace = true
+tracing.workspace = true
+
+[build-dependencies]
+rustc_version.workspace = true

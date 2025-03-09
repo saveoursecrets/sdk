@@ -11,9 +11,11 @@ use crate::{
     Error, Result, ServerBackend,
 };
 use axum_extra::headers::{authorization::Bearer, Authorization};
+use http::HeaderMap;
 use serde::Deserialize;
 use serde_json::json;
-use sos_protocol::sdk::signer::ecdsa::Address;
+use sos_core::AccountId;
+use sos_protocol::constants::X_SOS_ACCOUNT_ID;
 
 pub mod account;
 pub mod files;
@@ -29,6 +31,13 @@ const BODY_LIMIT: usize = 33554432;
 use sos_protocol::{ChangeNotification, WireEncodeDecode};
 
 use crate::server::{ServerState, State};
+
+fn parse_account_id(headers: &HeaderMap) -> Option<AccountId> {
+    headers
+        .get(X_SOS_ACCOUNT_ID)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<AccountId>().ok())
+}
 
 /// Query string for connections.
 #[derive(Debug, Deserialize, Clone)]
@@ -68,9 +77,9 @@ pub struct Caller {
 }
 
 impl Caller {
-    /// Account address of the caller.
-    pub fn address(&self) -> &Address {
-        &self.token.address
+    /// Account identifier of the caller.
+    pub fn account_id(&self) -> &AccountId {
+        &self.token.account_id
     }
 
     /// Connection identifier.
@@ -81,40 +90,35 @@ impl Caller {
 
 /// Authenticate an endpoint.
 async fn authenticate_endpoint(
+    account_id: Option<AccountId>,
     bearer: Authorization<Bearer>,
     signed_data: &[u8],
     query: Option<ConnectionQuery>,
     state: ServerState,
     backend: ServerBackend,
-    restricted: bool,
 ) -> Result<Caller> {
-    let token = authenticate::bearer(bearer, signed_data)
+    let token = authenticate::bearer(account_id, bearer)
         .await
         .map_err(|_| Error::BadRequest)?;
 
-    // Deny unauthorized account addresses
+    // Deny unauthorized account ids
     {
         let reader = state.read().await;
         if let Some(access) = &reader.config.access {
-            if !access.is_allowed_access(&token.address) {
+            if !access.is_allowed_access(&token.account_id) {
                 return Err(Error::Forbidden);
             }
         }
     }
 
-    // Restricted services require a device signature
-    match (restricted, &token.device_signature) {
-        (true, None) => {
-            return Err(Error::Forbidden);
-        }
-        (true, Some(device_signature)) => {
-            let reader = backend.read().await;
-            reader
-                .verify_device(&token.address, device_signature, &signed_data)
-                .await?;
-        }
-        _ => {}
-    }
+    let reader = backend.read().await;
+    reader
+        .verify_device(
+            &token.account_id,
+            &token.device_signature,
+            &signed_data,
+        )
+        .await?;
 
     let owner = Caller {
         token,
@@ -134,7 +138,7 @@ pub(crate) async fn send_notification(
     // Send notification on the websockets channel
     match notification.encode().await {
         Ok(buffer) => {
-            if let Some(account) = reader.sockets.get(caller.address()) {
+            if let Some(account) = reader.sockets.get(caller.account_id()) {
                 if let Err(error) = account.broadcast(caller, buffer).await {
                     tracing::warn!(error = ?error);
                 }

@@ -1,9 +1,15 @@
 # Test
 
-Run all the tests.
+Run tests using the default backend (does not include the CLI tests which can take a while due to launching the executable).
 
 ```
 cargo make test
+```
+
+Run tests using a matrix of all supported backends.
+
+```
+cargo make test-all
 ```
 
 To skip integration tests and just run unit tests:
@@ -12,16 +18,10 @@ To skip integration tests and just run unit tests:
 cargo make unit
 ```
 
-To generate a code coverage report in `target/coverage` run:
+To generate a code coverage report in `target/llvm-cov/html` run:
 
 ```
 cargo make cover
-```
-
-The CLI test specs can take a long time with the debug build so if you want to skip them use:
-
-```
-cargo make test-lite
 ```
 
 To run just the command line tests which would be included in test coverage:
@@ -30,7 +30,13 @@ To run just the command line tests which would be included in test coverage:
 cargo make test-command-line
 ```
 
-These tests always use a debug version of the executable. Run with `ANTICIPATE_ECHO` to debug:
+Or to test with the database backend:
+
+```
+SOS_TEST_CLIENT_DB=1 cargo make test-command-line
+```
+
+Run with `ANTICIPATE_ECHO` to debug:
 
 ```
 ANTICIPATE_ECHO=true cargo make test-command-line
@@ -38,19 +44,23 @@ ANTICIPATE_ECHO=true cargo make test-command-line
 
 ## Test Scripts
 
-The test scripts make it much faster to run tests by using a release version installed with `cargo install --path .`.
+Test scripts will prefer an executable in `target/debug` but it can be much faster to run tests using a release build installed with `cargo install --path crates/sos`.
 
-To run the CLI test specs using the first version of `sos` in `PATH`:
+To run all the CLI test specs (including for the `shell` command) using the version of `sos` in `target/debug`:
 
 ```
 cargo make test-cli
+SOS_TEST_CLIENT_DB=1 cargo make test-cli
 ```
 
 Or to just test the shell command:
 
 ```
 cargo make test-shell
+SOS_TEST_CLIENT_DB=1 cargo make test-shell
 ```
+
+The shell tests complete much faster as they don't need to launch an executable for each command.
 
 If you need to debug the CLI tests enable echo to see the I/O, for example:
 
@@ -59,7 +69,13 @@ ANTICIPATE_ECHO=true cargo make test-cli
 ANTICIPATE_ECHO=true cargo make test-shell
 ```
 
-Use the `SPEC` variable to run a specific test:
+Use the `SPEC` variable to debug a specific test:
+
+```
+cargo make clean-cli && SPEC=tests/command_line/scripts/secret/add-note.sh ANTICIPATE_ECHO=true ./tests/command_line/runner/specs.sh
+```
+
+This will run the test setup beforehand and the teardown afterwards so the test account data will exist.
 
 ## Notes
 

@@ -1,0 +1,39 @@
+[package]
+name = "sos-vault"
+version = "0.17.0"
+edition = "2021"
+description = "Vault encrypted storage for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[dependencies]
+sos-core.workspace = true
+sos-signer.workspace = true
+sos-vfs.workspace = true
+
+thiserror.workspace = true
+pem.workspace = true
+async-trait.workspace = true
+binary-stream.workspace = true
+serde.workspace = true
+indexmap.workspace = true
+secrecy.workspace = true
+sha2.workspace = true
+urn.workspace = true
+typeshare.workspace = true
+uuid.workspace = true
+futures.workspace = true
+age.workspace = true
+tokio.workspace = true
+bitflags.workspace = true
+vcard4.workspace = true
+totp-rs.workspace = true
+url.workspace = true
+ed25519-dalek.workspace = true
+tracing.workspace = true
+serde_json.workspace = true
+hex.workspace = true
+
+[build-dependencies]
+rustc_version.workspace = true

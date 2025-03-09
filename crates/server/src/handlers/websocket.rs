@@ -1,9 +1,13 @@
+use super::{
+    authenticate_endpoint, parse_account_id, Caller, ConnectionQuery,
+};
+use crate::{Result, ServerBackend, ServerState};
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         Extension, OriginalUri, Query,
     },
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::Response,
 };
 use axum_extra::{
@@ -14,13 +18,9 @@ use futures::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
-
-use sos_protocol::sdk::signer::ecdsa::Address;
+use sos_core::AccountId;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, watch};
-
-use super::{authenticate_endpoint, Caller, ConnectionQuery};
-use crate::{Result, ServerBackend, ServerState};
 
 /// State for the websocket connection for a single
 /// authenticated client.
@@ -84,23 +84,25 @@ pub async fn upgrade(
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> std::result::Result<Response, StatusCode> {
     tracing::debug!("ws_server::upgrade_request");
 
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     let caller = authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         Some(query.clone()),
         Arc::clone(&state),
         Arc::clone(&backend),
-        true,
     )
     .await
     .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let address = caller.address().clone();
+    let account_id = *caller.account_id();
     let connection_id = query.connection_id;
 
     let (close_tx, _) = watch::channel(Message::Close(None));
@@ -111,7 +113,7 @@ pub async fn upgrade(
         let mut writer = state.write().await;
         let account = writer
             .sockets
-            .entry(address.clone())
+            .entry(account_id)
             .or_insert(Default::default());
 
         if account.connections.get(&connection_id).is_some() {
@@ -124,26 +126,26 @@ pub async fn upgrade(
     }
 
     Ok(ws.on_upgrade(move |socket| {
-        handle_socket(socket, state, address, connection_id, conn)
+        handle_socket(socket, state, account_id, connection_id, conn)
     }))
 }
 
 async fn disconnect(
     state: ServerState,
-    address: &Address,
+    account_id: &AccountId,
     connection_id: &str,
 ) {
     let mut writer = state.write().await;
-    tracing::debug!(address = %address, "ws_server::disconnect");
-    if let Some(account) = writer.sockets.get_mut(address) {
+    tracing::debug!(account_id = %account_id, "ws_server::disconnect");
+    if let Some(account) = writer.sockets.get_mut(account_id) {
         tracing::debug!(
-            address = %address,
+            account_id = %account_id,
             "ws_server::disconnect::remove_socket",
         );
 
         if let Some(conn) = account.connections.remove(connection_id) {
             tracing::info!(
-                address = %address,
+                account_id = %account_id,
                 connection_id = %connection_id,
                 "ws_server::disconnect",
             );
@@ -158,12 +160,12 @@ async fn disconnect(
 async fn handle_socket(
     socket: WebSocket,
     state: ServerState,
-    address: Address,
+    account_id: AccountId,
     connection_id: String,
     conn: WebSocketConnection,
 ) {
     tracing::info!(
-        address = %address,
+        account_id = %account_id,
         connection_id = %connection_id,
         "ws_server::connect",
     );
@@ -171,14 +173,14 @@ async fn handle_socket(
     let (writer, reader) = socket.split();
     tokio::spawn(write(
         Arc::clone(&state),
-        address,
+        account_id,
         connection_id.clone(),
         writer,
         conn.clone(),
     ));
     tokio::spawn(read(
         Arc::clone(&state),
-        address,
+        account_id,
         connection_id,
         reader,
         conn,
@@ -187,7 +189,7 @@ async fn handle_socket(
 
 async fn read(
     state: ServerState,
-    address: Address,
+    account_id: AccountId,
     connection_id: String,
     mut stream: SplitStream<WebSocket>,
     conn: WebSocketConnection,
@@ -206,19 +208,19 @@ async fn read(
                         tracing::warn!(error = ?error);
                     }
                     tracing::trace!(
-                        address = %address,
+                        account_id = %account_id,
                         "ws_server::disconnect::close_message",
                     );
-                    disconnect(state, &address, &connection_id).await;
+                    disconnect(state, &account_id, &connection_id).await;
                     return Ok(());
                 }
             },
             Err(e) => {
                 tracing::trace!(
-                    address = %address,
+                    account_id = %account_id,
                     "ws_server::disconnect::read_error",
                 );
-                disconnect(state, &address, &connection_id).await;
+                disconnect(state, &account_id, &connection_id).await;
                 return Err(e.into());
             }
         }
@@ -228,7 +230,7 @@ async fn read(
 
 async fn write(
     state: ServerState,
-    address: Address,
+    account_id: AccountId,
     connection_id: String,
     mut sink: SplitSink<WebSocket, Message>,
     conn: WebSocketConnection,
@@ -246,14 +248,14 @@ async fn write(
             event = outgoing.recv() => {
                 match event {
                     Ok(msg) => {
-                        if sink.send(Message::Binary(msg)).await.is_err() {
+                        if sink.send(Message::Binary(msg.into())).await.is_err() {
                             tracing::trace!(
-                                address = %address,
+                                account_id = %account_id,
                                 "ws_server::disconnect::send_error",
                             );
                             disconnect(
                                 state,
-                                &address,
+                                &account_id,
                                 &connection_id,
                             ).await;
                             break;

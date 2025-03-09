@@ -1,48 +1,48 @@
-//! Adds sync capability to network account.
-use crate::{
-    protocol::{
-        AccountSync, Merge, Origin, RemoteSync, SyncClient, SyncOptions,
-        SyncResult, SyncStatus, SyncStorage, UpdateSet,
-    },
-    sdk::{
-        events::{AccountEventLog, FolderEventLog},
-        prelude::{Account, CommitState},
-        storage::StorageEventLogs,
-        vault::{Summary, VaultId},
-        Result,
-    },
-    NetworkAccount,
-};
+//! Implements syncing for a network account.
+//!
+//! Delegates to the inner local account for merge and
+//! sync status operations.
+use crate::{NetworkAccount, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
-use sos_protocol::MergeOutcome;
+use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
+use sos_core::events::WriteEvent;
+use sos_core::{
+    commit::{CommitState, Comparison},
+    events::patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
+    Origin, VaultId,
+};
+use sos_protocol::{
+    AccountSync, RemoteSync, SyncClient, SyncOptions, SyncResult,
+};
+use sos_sync::{
+    ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
+    SyncStorage, UpdateSet,
+};
+use sos_vault::Summary;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
 use tokio::sync::RwLock;
 
-use sos_sdk::{
-    commit::Comparison,
-    events::{
-        AccountDiff, CheckedPatch, DeviceDiff, DeviceEventLog, FolderDiff,
-        WriteEvent,
-    },
-};
-
 #[cfg(feature = "files")]
-use crate::{
-    protocol::transfer::{FileSet, FileSyncClient, FileTransfersSet},
-    sdk::events::{FileDiff, FileEventLog},
+use {
+    sos_backend::FileEventLog,
+    sos_core::events::patch::FileDiff,
+    sos_protocol::transfer::{FileSet, FileSyncClient, FileTransfersSet},
 };
 
 /// Server status for all remote origins.
-pub type ServerStatus = HashMap<Origin, sos_protocol::Result<SyncStatus>>;
+pub type ServerStatus =
+    HashMap<Origin, std::result::Result<SyncStatus, sos_protocol::Error>>;
 
 /// Transfer status for all remote origins.
 #[cfg(feature = "files")]
-pub type TransferStatus =
-    HashMap<Origin, sos_protocol::Result<FileTransfersSet>>;
+pub type TransferStatus = HashMap<
+    Origin,
+    std::result::Result<FileTransfersSet, sos_protocol::Error>,
+>;
 
 impl NetworkAccount {
     /// Sync status for remote servers.
@@ -59,7 +59,7 @@ impl NetworkAccount {
                 || options.origins.contains(origin);
 
             if sync_remote {
-                match remote.client.sync_status(self.address()).await {
+                match remote.client.sync_status().await {
                     Ok(status) => {
                         server_status.insert(origin.clone(), Ok(status));
                     }
@@ -202,30 +202,32 @@ impl AccountSync for NetworkAccount {
 
 #[async_trait]
 impl StorageEventLogs for NetworkAccount {
+    type Error = crate::Error;
+
     async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
         let account = self.account.lock().await;
-        account.identity_log().await
+        Ok(account.identity_log().await?)
     }
 
     async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
         let account = self.account.lock().await;
-        account.account_log().await
+        Ok(account.account_log().await?)
     }
 
     async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
         let account = self.account.lock().await;
-        account.device_log().await
+        Ok(account.device_log().await?)
     }
 
     #[cfg(feature = "files")]
     async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
         let account = self.account.lock().await;
-        account.file_log().await
+        Ok(account.file_log().await?)
     }
 
     async fn folder_details(&self) -> Result<IndexSet<Summary>> {
         let account = self.account.lock().await;
-        account.folder_details().await
+        Ok(account.folder_details().await?)
     }
 
     async fn folder_log(
@@ -233,19 +235,7 @@ impl StorageEventLogs for NetworkAccount {
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
         let account = self.account.lock().await;
-        account.folder_log(id).await
-    }
-}
-
-#[async_trait]
-impl SyncStorage for NetworkAccount {
-    fn is_client_storage(&self) -> bool {
-        true
-    }
-
-    async fn sync_status(&self) -> Result<SyncStatus> {
-        let account = self.account.lock().await;
-        account.sync_status().await
+        Ok(account.folder_log(id).await?)
     }
 }
 
@@ -335,5 +325,68 @@ impl Merge for NetworkAccount {
     ) -> Result<Comparison> {
         let account = self.account.lock().await;
         Ok(account.compare_folder(folder_id, state).await?)
+    }
+}
+
+#[async_trait]
+impl ForceMerge for NetworkAccount {
+    async fn force_merge_identity(
+        &mut self,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_identity(diff, outcome).await?)
+    }
+
+    async fn force_merge_account(
+        &mut self,
+        diff: AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_account(diff, outcome).await?)
+    }
+
+    async fn force_merge_device(
+        &mut self,
+        diff: DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_device(diff, outcome).await?)
+    }
+
+    /// Force merge changes to the files event log.
+    #[cfg(feature = "files")]
+    async fn force_merge_files(
+        &mut self,
+        diff: FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_files(diff, outcome).await?)
+    }
+
+    async fn force_merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_folder(folder_id, diff, outcome).await?)
+    }
+}
+
+#[async_trait]
+impl SyncStorage for NetworkAccount {
+    fn is_client_storage(&self) -> bool {
+        true
+    }
+
+    async fn sync_status(&self) -> Result<SyncStatus> {
+        let account = self.account.lock().await;
+        Ok(account.sync_status().await?)
     }
 }

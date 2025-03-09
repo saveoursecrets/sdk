@@ -14,20 +14,18 @@
 //!
 //! Requests are limited to the `concurrent_requests` setting guarded
 //! by a semaphore and notifications are sent via [InflightTransfers].
-use crate::{
-    protocol::{
-        network_client::NetworkRetry,
-        transfer::{
-            CancelReason, FileOperation, FileSyncClient,
-            FileTransferQueueRequest, ProgressChannel, TransferOperation,
-        },
-        Origin, SyncClient,
-    },
-    sdk::{storage::files::ExternalFile, vfs, Paths},
-    Error, Result,
-};
-
+use crate::{Error, Result};
 use futures::FutureExt;
+use sos_core::{ExternalFile, Origin, Paths};
+use sos_protocol::{
+    network_client::NetworkRetry,
+    transfer::{
+        CancelReason, FileOperation, FileSyncClient,
+        FileTransferQueueRequest, ProgressChannel, TransferOperation,
+    },
+    SyncClient,
+};
+use sos_vfs as vfs;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
@@ -637,11 +635,7 @@ where
                 for outcome in moved_missing {
                     if let TransferOperation::Move(dest) = &outcome.operation
                     {
-                        let path = request_paths.file_location(
-                            dest.vault_id(),
-                            dest.secret_id(),
-                            dest.file_name().to_string(),
-                        );
+                        let path = request_paths.into_file_path(dest);
 
                         if vfs::try_exists(path).await? {
                             let item = FileOperation(

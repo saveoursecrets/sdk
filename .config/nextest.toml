@@ -1,0 +1,9 @@
+[profile.db]
+slow-timeout = { period = "30s", terminate-after = 1, grace-period = "0s" }
+
+[profile.ci]
+retries = 3
+fail-fast = false
+
+[profile.cli]
+slow-timeout = { period = "300s", terminate-after = 3, grace-period = "60s" }

@@ -1,8 +1,7 @@
 include!(concat!(env!("OUT_DIR"), "/scan.rs"));
 
-use crate::{
-    sdk::commit::CommitProof, Error, EventLogType, ProtoBinding, Result,
-};
+use crate::{Error, ProtoBinding, Result};
+use sos_core::{commit::CommitProof, events::EventLogType};
 
 /// Request commit proofs from an event log.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,0 +1,22 @@
+[package]
+name = "sos-security-report"
+version = "0.17.0"
+edition = "2021"
+description = "Generate a security report for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[dependencies]
+sos-account.workspace = true
+sos-backend.workspace = true
+sos-client-storage.workspace = true
+sos-core.workspace = true
+sos-password.workspace = true
+sos-vault.workspace = true
+
+sha1.workspace = true
+serde.workspace = true
+hex.workspace = true
+zxcvbn.workspace = true
+secrecy.workspace = true

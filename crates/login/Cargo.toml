@@ -1,0 +1,40 @@
+[package]
+name = "sos-login"
+version = "0.17.0"
+edition = "2021"
+description = "Login authentication for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+full = ["files"]
+files = ["sos-backend/files"]
+
+[dependencies]
+sos-core.workspace = true
+sos-backend.workspace = true
+sos-filesystem.workspace = true
+sos-password.workspace = true
+sos-signer.workspace = true
+sos-vault.workspace = true
+sos-vfs.workspace = true
+
+async-trait.workspace = true
+thiserror.workspace = true
+secrecy.workspace = true
+urn.workspace = true
+age.workspace = true
+serde.workspace = true
+futures.workspace = true
+tokio.workspace = true
+typeshare.workspace = true
+ed25519-dalek.workspace = true
+tracing.workspace = true
+
+[build-dependencies]
+rustc_version.workspace = true

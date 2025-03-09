@@ -1,17 +1,14 @@
-use clap::Subcommand;
-
 use crate::{helpers::messages::info, Error, Result};
-use sos_net::sdk::{
-    audit::{AuditData, AuditEvent, AuditLogFile},
-    formats::FormatStreamIterator,
-    signer::ecdsa::Address,
-    vfs::{self, File},
-};
-use std::{path::PathBuf, thread, time};
+use clap::Subcommand;
+use futures::{pin_mut, StreamExt};
+use sos_audit::{AuditData, AuditEvent};
+use sos_core::AccountId;
+use sos_vfs::{self as vfs};
+use std::path::PathBuf;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    /// Print the events in an audit log file
+    /// Print the events in an audit log file.
     Logs {
         /// Print each event as a line of JSON
         #[clap(short, long)]
@@ -25,22 +22,9 @@ pub enum Command {
         #[clap(short, long)]
         count: Option<usize>,
 
-        /// Filter to events that match the given address.
+        /// Filter to events that match account identifiers.
         #[clap(short, long)]
-        address: Vec<Address>,
-
-        /// Audit log file
-        audit_log: PathBuf,
-    },
-    /// Monitor changes to an audit log file
-    Monitor {
-        /// Print each event as a line of JSON
-        #[clap(short, long)]
-        json: bool,
-
-        /// Filter to events that match the given address(es).
-        #[clap(short, long)]
-        address: Vec<Address>,
+        account_id: Vec<AccountId>,
 
         /// Audit log file
         audit_log: PathBuf,
@@ -52,72 +36,21 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Logs {
             audit_log,
             json,
-            address,
+            account_id,
             reverse,
             count,
         } => {
-            logs(audit_log, json, address, reverse, count).await?;
-        }
-        Command::Monitor {
-            audit_log,
-            json,
-            address,
-        } => {
-            monitor(audit_log, json, address).await?;
+            file_logs(audit_log, json, account_id, reverse, count).await?;
         }
     }
     Ok(())
 }
 
-/// Monitor changes in an audit log file.
-pub async fn monitor(
-    audit_log: PathBuf,
-    json: bool,
-    address: Vec<Address>,
-) -> Result<()> {
-    if !vfs::metadata(&audit_log).await?.is_file() {
-        return Err(Error::NotFile(audit_log));
-    }
-
-    // File for iterating
-    let log_file = AuditLogFile::new(&audit_log).await?;
-
-    // File for reading event data
-    let mut file = File::open(&audit_log).await?;
-
-    let mut it = log_file.iter(false).await?;
-    let mut offset = audit_log.metadata()?.len();
-    // Push iteration constraint to the end of the file
-    it.set_offset(offset);
-
-    loop {
-        let step = time::Duration::from_millis(100);
-        thread::sleep(step);
-
-        let len = audit_log.metadata()?.len();
-        if len > offset {
-            while let Some(record) = it.next().await? {
-                let event = log_file.read_event(&mut file, &record).await?;
-                if !address.is_empty() && !is_address_match(&event, &address)
-                {
-                    continue;
-                }
-                print_event(event, json)?;
-            }
-
-            offset = len;
-
-            // Adjust the iterator constraint for the consumer records
-            it.set_offset(len);
-        }
-    }
-}
-
 /// Print events in an audit log file.
-async fn logs(
+async fn file_logs(
     audit_log: PathBuf,
     json: bool,
-    address: Vec<Address>,
+    account_id: Vec<AccountId>,
     reverse: bool,
     count: Option<usize>,
 ) -> Result<()> {
@@ -125,19 +58,17 @@ async fn logs(
         return Err(Error::NotFile(audit_log));
     }
 
-    // File for iterating
-    let log_file = AuditLogFile::new(&audit_log).await?;
-
-    // File for reading event data
-    let mut file = File::open(&audit_log).await?;
-
+    let provider = sos_backend::audit::new_fs_provider(&audit_log);
     let count = count.unwrap_or(usize::MAX);
     let mut c = 0;
 
-    let mut it = log_file.iter(reverse).await?;
-    while let Some(record) = it.next().await? {
-        let event = log_file.read_event(&mut file, &record).await?;
-        if !address.is_empty() && !is_address_match(&event, &address) {
+    let stream = provider.audit_stream(reverse).await?;
+    pin_mut!(stream);
+    while let Some(event) = stream.next().await {
+        let event = event?;
+
+        if !account_id.is_empty() && !is_account_id_match(&event, &account_id)
+        {
             continue;
         }
         c += 1;
@@ -161,7 +92,7 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
                     "{} {} by {}, vault = {}",
                     event.time().to_rfc3339()?,
                     event.event_kind(),
-                    event.address(),
+                    event.account_id(),
                     vault_id,
                 ));
             }
@@ -170,7 +101,7 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
                     "{} {} by {}, vault = {}, secret = {}",
                     event.time().to_rfc3339()?,
                     event.event_kind(),
-                    event.address(),
+                    event.account_id(),
                     vault_id,
                     secret_id,
                 ));
@@ -185,11 +116,20 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
                     "{} {} by {}, from = {}/{}, to = {}/{}",
                     event.time().to_rfc3339()?,
                     event.event_kind(),
-                    event.address(),
+                    event.account_id(),
                     from_vault_id,
                     from_secret_id,
                     to_vault_id,
                     to_secret_id,
+                ));
+            }
+            AuditData::Device(public_key) => {
+                info(format!(
+                    "{} {} by {}, device = {}",
+                    event.time().to_rfc3339()?,
+                    event.event_kind(),
+                    event.account_id(),
+                    public_key,
                 ));
             }
         }
@@ -198,12 +138,12 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
             "{} {} by {}",
             event.time().to_rfc3339()?,
             event.event_kind(),
-            event.address(),
+            event.account_id(),
         ));
     }
     Ok(())
 }
 
-fn is_address_match(event: &AuditEvent, address: &[Address]) -> bool {
-    address.iter().any(|addr| addr == event.address())
+fn is_account_id_match(event: &AuditEvent, ids: &[AccountId]) -> bool {
+    ids.into_iter().any(|addr| addr == event.account_id())
 }

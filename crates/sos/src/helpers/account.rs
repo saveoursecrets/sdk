@@ -1,33 +1,25 @@
 //! Helpers for creating and switching accounts.
-use std::{borrow::Cow, sync::Arc};
-
-use parking_lot::Mutex;
-use sos_net::{
-    sdk::{
-        account::Account,
-        constants::DEFAULT_VAULT_NAME,
-        crypto::AccessKey,
-        identity::{AccountRef, Identity, PublicIdentity},
-        passwd::diceware::generate_passphrase,
-        secrecy::{ExposeSecret, SecretString},
-        signer::ecdsa::Address,
-        vault::{FolderRef, Summary},
-        Paths,
-    },
-    NetworkAccount, NetworkAccountSwitcher,
-};
-use terminal_banner::{Banner, Padding};
-use tokio::sync::RwLock;
-
 use crate::helpers::{
     display_passphrase,
     messages::success,
     readline::{choose, choose_password, read_flag, read_password, Choice},
 };
-
-use once_cell::sync::Lazy;
-
 use crate::{Error, Result};
+use once_cell::sync::Lazy;
+use parking_lot::Mutex;
+use secrecy::{ExposeSecret, SecretString};
+use sos_account::Account;
+use sos_backend::BackendTarget;
+use sos_core::{
+    constants::DEFAULT_VAULT_NAME, crypto::AccessKey, AccountId, AccountRef,
+    FolderRef, Paths, PublicIdentity,
+};
+use sos_net::{NetworkAccount, NetworkAccountSwitcher};
+use sos_password::diceware::generate_passphrase;
+use sos_vault::Summary;
+use std::{borrow::Cow, sync::Arc};
+use terminal_banner::{Banner, Padding};
+use tokio::sync::RwLock;
 
 /// Account owner.
 pub type Owner = Arc<RwLock<NetworkAccountSwitcher>>;
@@ -47,7 +39,9 @@ enum AccountPasswordOption {
 
 /// Choose an account.
 pub async fn choose_account() -> Result<Option<PublicIdentity>> {
-    let mut accounts = Identity::list_accounts(None).await?;
+    let paths = Paths::new_client(Paths::data_dir()?);
+    let target = BackendTarget::from_paths(&paths).await?;
+    let mut accounts = target.list_accounts().await?;
     if accounts.is_empty() {
         Ok(None)
     } else if accounts.len() == 1 {
@@ -110,7 +104,7 @@ pub async fn resolve_user_with_password(
 ) -> Result<(Owner, SecretString)> {
     let is_shell = *SHELL.lock();
     let account = resolve_account(account)
-        .await
+        .await?
         .ok_or_else(|| Error::NoAccountFound)?;
 
     let password = sign_in(&account).await?;
@@ -137,45 +131,49 @@ pub async fn resolve_user_with_password(
 /// account use it.
 pub async fn resolve_account(
     account: Option<&AccountRef>,
-) -> Option<AccountRef> {
+) -> Result<Option<AccountRef>> {
     let is_shell = *SHELL.lock();
     if account.is_none() {
         if is_shell {
             let owner = USER.read().await;
             if let Some(owner) = owner.selected_account() {
                 if owner.is_authenticated().await {
-                    return Some((&*owner).into());
+                    return Ok(Some((&*owner).into()));
                 }
             }
         }
 
-        if let Ok(mut accounts) = Identity::list_accounts(None).await {
+        let paths = Paths::new_client(Paths::data_dir()?);
+        let target = BackendTarget::from_paths(&paths).await?;
+        if let Ok(mut accounts) = target.list_accounts().await {
             if accounts.len() == 1 {
-                return Some(accounts.remove(0).into());
+                return Ok(Some(accounts.remove(0).into()));
             }
         }
     }
-    account.cloned()
+    Ok(account.cloned())
 }
 
 pub async fn resolve_account_address(
     account: Option<&AccountRef>,
-) -> Result<Address> {
+) -> Result<AccountId> {
     let account = resolve_account(account)
-        .await
+        .await?
         .ok_or_else(|| Error::NoAccountFound)?;
 
-    let accounts = Identity::list_accounts(None).await?;
+    let paths = Paths::new_client(Paths::data_dir()?);
+    let target = BackendTarget::from_paths(&paths).await?;
+    let accounts = target.list_accounts().await?;
     for info in accounts {
         match account {
             AccountRef::Name(ref name) => {
                 if info.label() == name {
-                    return Ok(*info.address());
+                    return Ok(*info.account_id());
                 }
             }
-            AccountRef::Address(address) => {
-                if info.address() == &address {
-                    return Ok(*info.address());
+            AccountRef::Id(address) => {
+                if info.account_id() == &address {
+                    return Ok(*info.account_id());
                 }
             }
         }
@@ -191,15 +189,10 @@ pub async fn resolve_folder(
     let owner = user.read().await;
     let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
     if let Some(vault) = folder {
-        let storage = owner
-            .storage()
-            .await
-            .ok_or(sos_net::sdk::Error::NoStorage)?;
-        let reader = storage.read().await;
         Ok(Some(
-            reader
+            owner
                 .find_folder(vault)
-                .cloned()
+                .await
                 .ok_or(Error::FolderNotFound(vault.to_string()))?,
         ))
     } else if is_shell {
@@ -212,12 +205,7 @@ pub async fn resolve_folder(
             .ok_or(Error::NoVaultSelected)?;
         Ok(Some(summary.clone()))
     } else {
-        let storage = owner
-            .storage()
-            .await
-            .ok_or(sos_net::sdk::Error::NoStorage)?;
-        let reader = storage.read().await;
-        Ok(reader.find(|s| s.flags().is_default()).cloned())
+        Ok(owner.find(|s| s.flags().is_default()).await)
     }
 }
 
@@ -226,27 +214,22 @@ pub async fn cd_folder(folder: Option<&FolderRef>) -> Result<()> {
         let owner = USER.read().await;
         let owner =
             owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-        let storage = owner
-            .storage()
-            .await
-            .ok_or(sos_net::sdk::Error::NoStorage)?;
-        let reader = storage.read().await;
         let summary = if let Some(vault) = folder {
             Some(
-                reader
+                owner
                     .find_folder(vault)
-                    .cloned()
+                    .await
                     .ok_or(Error::FolderNotFound(vault.to_string()))?,
             )
         } else {
-            reader.find(|s| s.flags().is_default()).cloned()
+            owner.find(|s| s.flags().is_default()).await
         };
 
         summary.ok_or(Error::NoFolderFound)?
     };
     let owner = USER.read().await;
     let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-    owner.open_folder(&summary).await?;
+    owner.open_folder(summary.id()).await?;
     Ok(())
 }
 
@@ -260,10 +243,12 @@ pub async fn verify(user: Owner) -> Result<bool> {
 
 /// List local accounts.
 pub async fn list_accounts(verbose: bool) -> Result<()> {
-    let accounts = Identity::list_accounts(None).await?;
+    let paths = Paths::new_client(Paths::data_dir()?);
+    let target = BackendTarget::from_paths(&paths).await?;
+    let accounts = target.list_accounts().await?;
     for account in &accounts {
         if verbose {
-            println!("{} {}", account.address(), account.label());
+            println!("{} {}", account.account_id(), account.label());
         } else {
             println!("{}", account.label());
         }
@@ -277,10 +262,12 @@ pub async fn list_accounts(verbose: bool) -> Result<()> {
 pub async fn find_account(
     account: &AccountRef,
 ) -> Result<Option<PublicIdentity>> {
-    let accounts = Identity::list_accounts(None).await?;
+    let paths = Paths::new_client(Paths::data_dir()?);
+    let target = BackendTarget::from_paths(&paths).await?;
+    let accounts = target.list_accounts().await?;
     match account {
-        AccountRef::Address(address) => {
-            Ok(accounts.into_iter().find(|a| a.address() == address))
+        AccountRef::Id(id) => {
+            Ok(accounts.into_iter().find(|a| a.account_id() == id))
         }
         AccountRef::Name(label) => {
             Ok(accounts.into_iter().find(|a| a.label() == label))
@@ -297,8 +284,9 @@ pub async fn sign_in(account: &AccountRef) -> Result<SecretString> {
     let mut owner = USER.write().await;
 
     let is_authenticated = {
-        if let Some(current) =
-            owner.iter().find(|a| a.address() == account.address())
+        if let Some(current) = owner
+            .iter()
+            .find(|a| a.account_id() == account.account_id())
         {
             current.is_authenticated().await
         } else {
@@ -306,10 +294,14 @@ pub async fn sign_in(account: &AccountRef) -> Result<SecretString> {
         }
     };
 
+    let paths = Paths::new_client(Paths::data_dir()?)
+        .with_account_id(account.account_id());
+
     let passphrase = if !is_authenticated {
+        let target = BackendTarget::from_paths(&paths).await?;
         let mut current_account = NetworkAccount::new_unauthenticated(
-            *account.address(),
-            None,
+            *account.account_id(),
+            target,
             Default::default(),
         )
         .await?;
@@ -324,7 +316,7 @@ pub async fn sign_in(account: &AccountRef) -> Result<SecretString> {
         SecretString::new("".into())
     };
 
-    owner.switch_account(account.address());
+    owner.switch_account(account.account_id());
 
     Ok(passphrase)
 }
@@ -445,10 +437,13 @@ pub async fn new_account(
             );
         }
 
+        let paths = Paths::new_client(Paths::data_dir()?);
+        let target = BackendTarget::from_paths(&paths).await?;
+
         let mut owner = NetworkAccount::new_account_with_builder(
             account_name.clone(),
             passphrase.clone(),
-            None,
+            target,
             Default::default(),
             |builder| {
                 builder
@@ -459,7 +454,7 @@ pub async fn new_account(
             },
         )
         .await?;
-        let address = owner.address().to_string();
+        let account_id = owner.account_id().to_string();
 
         let key: AccessKey = passphrase.into();
         owner.sign_in(&key).await?;
@@ -469,7 +464,7 @@ pub async fn new_account(
             r#"* Account: {} ({})
 * Storage: {}"#,
             account_name,
-            address,
+            account_id,
             data_dir.display(),
         );
 

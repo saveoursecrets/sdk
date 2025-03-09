@@ -1,9 +1,4 @@
-use terminal_banner::{Banner, Padding};
-
-use sos_net::sdk::{
-    account::Account, identity::AccountRef, vault::FolderRef, vfs, Paths,
-};
-
+use super::repl::exec;
 use crate::{
     helpers::{
         account::{cd_folder, choose_account, sign_in, SHELL, USER},
@@ -12,8 +7,10 @@ use crate::{
     },
     Error, Result,
 };
-
-use super::repl::exec;
+use sos_account::Account;
+use sos_core::{AccountRef, FolderRef, Paths};
+use sos_vfs as vfs;
+use terminal_banner::{Banner, Padding};
 
 const WELCOME: &str = include_str!("welcome.txt");
 
@@ -95,7 +92,7 @@ pub async fn run(
                 let owner = owner
                     .selected_account()
                     .ok_or(Error::NoSelectedAccount)?;
-                let account_name = owner.account_label().await?;
+                let account_name = owner.account_name().await?;
                 if let Some(current) = owner.current_folder().await? {
                     format!("{}@{}> ", account_name, current.name())
                 } else {

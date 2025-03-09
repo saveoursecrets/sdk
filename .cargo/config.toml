@@ -1,2 +1,5 @@
 [target.aarch64-apple-darwin]
 rustflags = ["--cfg", "aes_armv8"]
+
+[env]
+LIBSQLITE3_FLAGS = "-DSQLITE_SECURE_DELETE"

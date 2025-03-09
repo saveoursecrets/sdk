@@ -1,0 +1,64 @@
+[package]
+name = "sos-unit-tests"
+version = "0.17.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[features]
+default = ["listen", "files"]
+listen = []
+files = []
+interactive-keychain-tests = []
+
+[dependencies]
+keychain_parser.workspace = true
+xclipboard.workspace = true
+
+sos-account = { workspace = true, features = ["full"] }
+sos-artifact.workspace = true
+sos-backend.workspace = true
+sos-core.workspace = true
+sos-client-storage = { workspace = true, features = ["full"] }
+sos-database = { workspace = true, features = ["full"] }
+sos-filesystem = { workspace = true, features = ["full"] }
+sos-integrity = { workspace = true, features = ["full"] }
+sos-login = { workspace = true, features = ["full"] }
+sos-password.workspace = true
+sos-migrate = { workspace = true, features = ["full"] }
+sos-net = { workspace = true, features = ["full"] }
+sos-protocol = { workspace = true, features = ["full"] }
+# sos-recovery.workspace = true
+sos-reducers.workspace = true
+sos-preferences.workspace = true
+sos-search.workspace = true
+sos-signer.workspace = true
+sos-sync = { workspace = true, features = ["full"] }
+sos-server-storage = { workspace = true, features = ["full"] }
+sos-test-utils.workspace = true
+sos-vault.workspace = true
+sos-vfs.workspace = true
+
+anyhow.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+time.workspace = true
+hex.workspace = true
+uuid.workspace = true
+indexmap.workspace = true
+url.workspace = true
+bytes.workspace = true
+secrecy.workspace = true
+serde_json.workspace = true
+sha3.workspace = true
+k256.workspace = true
+age.workspace = true
+urn.workspace = true
+serde.workspace = true
+vcard4.workspace = true
+pem.workspace = true
+totp-rs.workspace = true
+futures.workspace = true
+binary-stream.workspace = true
+async-sqlite.workspace = true
+rand.workspace = true

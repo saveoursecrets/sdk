@@ -1,0 +1,56 @@
+[package]
+name = "sos-migrate"
+version = "0.17.0"
+edition = "2021"
+description = "Import and export for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+full = [
+  "authenticator",
+  "import",
+  "export",
+]
+authenticator = []
+import = []
+export = []
+keychain-access = ["dep:security-framework", "dep:keychain_parser"]
+interactive-keychain-tests = []
+
+[dependencies]
+sos-core.workspace = true
+sos-backend = { workspace = true, features = ["full"] }
+sos-database.workspace = true
+sos-search.workspace = true
+sos-vault.workspace = true
+sos-vfs.workspace = true
+
+thiserror.workspace = true
+enum-iterator.workspace = true
+serde_json.workspace = true
+async_zip.workspace = true
+csv-async.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+async-trait.workspace = true
+hex.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+futures.workspace = true
+time.workspace = true
+url.workspace = true
+totp-rs.workspace = true
+vcard4.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = { version = "3.1", optional = true }
+keychain_parser = { workspace = true, optional = true }
+
+[build-dependencies]
+rustc_version.workspace = true

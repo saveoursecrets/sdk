@@ -1,0 +1,25 @@
+[package]
+name = "sos-recovery"
+version = "0.16.1"
+edition = "2021"
+description = "Types and traits for social recovery."
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[dependencies]
+sos-core.workspace = true
+sos-signer.workspace = true
+
+thiserror.workspace = true
+k256.workspace = true
+serde_with.workspace = true
+secrecy.workspace = true
+uuid.workspace = true
+serde.workspace = true
+binary-stream.workspace = true
+hex.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+vsss-rs.workspace = true
+

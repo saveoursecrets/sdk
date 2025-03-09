@@ -1,0 +1,88 @@
+[package]
+name = "sos-account"
+version = "0.17.0"
+edition = "2021"
+description = "Local accounts for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+full = [
+  "audit",
+  "archive",
+  "clipboard",
+  "contacts",
+  "files",
+  "migrate",
+  "search",
+]
+audit = ["sos-audit", "sos-client-storage/audit"]
+archive = [
+  "sos-filesystem/archive",
+  "sos-database/archive",
+  "sos-client-storage/archive",
+]
+clipboard = ["dep:xclipboard", "dep:serde_json_path", "dep:time-tz"]
+contacts = ["dep:vcard4"]
+migrate = ["sos-migrate/import", "sos-migrate/export"]
+files = [
+  "sos-external-files",
+  "sos-backend/files",
+  "sos-login/files",
+  "sos-client-storage/files",
+  "dep:walkdir",
+]
+search = ["sos-search", "sos-client-storage/search"]
+
+[dependencies]
+sos-core.workspace = true
+sos-backend.workspace = true
+sos-database.workspace = true
+sos-filesystem.workspace = true
+sos-login.workspace = true
+sos-password.workspace = true
+sos-sync.workspace = true
+sos-client-storage.workspace = true
+sos-reducers.workspace = true
+sos-signer.workspace = true
+sos-vault.workspace = true
+sos-vfs.workspace = true
+
+sos-audit = { workspace = true, optional = true }
+sos-external-files = { workspace = true, optional = true }
+sos-migrate = { workspace = true, optional = true }
+
+thiserror.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+tracing.workspace = true
+typeshare.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+indexmap.workspace = true
+uuid.workspace = true
+time.workspace = true
+hex.workspace = true
+serde_json.workspace = true
+
+sos-search = { workspace = true, optional = true }
+
+sha2 = { workspace = true, optional = true }
+# tokio-util = { workspace = true, optional = true }
+# async_zip = { workspace = true, optional = true }
+xclipboard = { workspace = true, optional = true }
+serde_json_path = { workspace = true, optional = true }
+walkdir = { workspace = true, optional = true }
+tokio = { version = "1", default-features = false, features = ["rt", "sync", "macros", "io-util"] }
+# sanitize-filename = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
+vcard4 = { workspace = true, optional = true }
+time-tz = { workspace = true, optional = true }
+
+[build-dependencies]
+rustc_version.workspace = true

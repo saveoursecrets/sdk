@@ -1,0 +1,27 @@
+[package]
+name = "sos-signer"
+version = "0.17.0"
+edition = "2021"
+description = "Message signing for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[dependencies]
+sos-core.workspace = true
+
+thiserror.workspace = true
+async-trait.workspace = true
+k256.workspace = true
+serde.workspace = true
+rand.workspace = true
+sha3.workspace = true
+ed25519-dalek.workspace = true
+hex.workspace = true
+bs58.workspace = true
+sha2.workspace = true
+binary-stream.workspace = true
+tokio.workspace = true
+
+[build-dependencies]
+rustc_version.workspace = true

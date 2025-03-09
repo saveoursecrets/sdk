@@ -31,7 +31,7 @@ pub type Result<T> = std::result::Result<T, error::Error>;
 pub async fn run() -> Result<()> {
     use kdam::term;
     use sos_cli_helpers::messages::{fail, warn};
-    use sos_net::sdk::logs::Logger;
+    use sos_logs::Logger;
 
     let logger: Logger = Default::default();
     logger.init_subscriber(None)?;

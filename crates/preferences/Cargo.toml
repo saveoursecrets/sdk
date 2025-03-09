@@ -1,0 +1,23 @@
+[package]
+name = "sos-preferences"
+version = "0.17.0"
+edition = "2021"
+description = "Preferences for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+sos-core.workspace = true
+
+thiserror.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+serde.workspace = true
+
+[build-dependencies]
+rustc_version.workspace = true

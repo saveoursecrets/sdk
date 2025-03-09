@@ -6,10 +6,8 @@ use crate::{
     Error, Result,
 };
 use clap::Subcommand;
-use sos_net::{
-    protocol::{AccountSync, Origin, SyncOptions},
-    sdk::{identity::AccountRef, url::Url},
-};
+use sos_core::{AccountRef, Origin};
+use url::Url;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -49,19 +47,15 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .selected_account_mut()
                 .ok_or(Error::NoSelectedAccount)?;
             let origin: Origin = url.into();
-            owner.add_server(origin.clone()).await?;
-            let options = SyncOptions {
-                origins: vec![origin.clone()],
-                ..Default::default()
-            };
+            let sync_result = owner.add_server(origin.clone()).await?;
 
-            let sync_result = owner.sync_with_options(&options).await;
-            if let Some(err) = sync_result.first_error() {
-                owner.remove_server(&origin).await?;
-                return Err(Error::InitialSync(err));
-            } else {
-                success(format!("Added {}", origin.url()));
+            if let Some(res) = sync_result {
+                if let Err(err) = res.result {
+                    return Err(Error::InitialSync(err));
+                }
             }
+
+            success(format!("Added {}", origin.url()));
         }
         Command::List { account } => {
             let user = resolve_user(account.as_ref(), false).await?;

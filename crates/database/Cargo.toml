@@ -1,0 +1,64 @@
+[package]
+name = "sos-database"
+version = "0.17.0"
+edition = "2021"
+description = "Database backend for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+full = [
+  "archive",
+  "audit",
+  "files",
+  "preferences",
+  "system-messages",
+]
+archive = ["sos-archive"]
+audit = ["sos-audit"]
+files = ["sos-external-files/files"]
+preferences = ["sos-preferences"]
+system-messages = ["sos-system-messages", "urn"]
+
+[dependencies]
+sos-core.workspace = true
+sos-external-files.workspace = true
+sos-vault.workspace = true
+sos-vfs.workspace = true
+
+sos-archive = { workspace = true, optional = true }
+sos-audit = { workspace = true, optional = true }
+sos-preferences = { workspace = true, optional = true }
+sos-system-messages = { workspace = true, optional = true }
+
+thiserror.workspace = true
+futures.workspace = true
+tracing.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+indexmap.workspace = true
+binary-stream.workspace = true
+async-trait.workspace = true
+secrecy.workspace = true
+sha2.workspace = true
+serde.workspace = true
+tokio.workspace = true
+url.workspace = true
+tokio-stream.workspace = true
+tempfile.workspace = true
+
+# sqlite
+async-sqlite = { workspace = true, features = ["backup"] }
+refinery = { workspace = true }
+sql_query_builder = { workspace = true }
+
+# system-messages
+urn = { workspace = true, optional = true }
+
+[build-dependencies]
+rustc_version.workspace = true

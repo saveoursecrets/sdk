@@ -5,14 +5,11 @@ mod files {
     use super::*;
     use crate::{
         decode_uuid, encode_uuid,
-        sdk::{
-            storage::files::{ExternalFile, ExternalFileName},
-            vault::secret::SecretPath,
-        },
         transfer::{FileSet, FileTransfersSet},
         Error, ProtoBinding, Result,
     };
     use indexmap::IndexSet;
+    use sos_core::{ExternalFile, ExternalFileName, SecretPath};
 
     impl ProtoBinding for ExternalFile {
         type Inner = WireExternalFile;

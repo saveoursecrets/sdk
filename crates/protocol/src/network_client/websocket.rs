@@ -1,32 +1,31 @@
 //! Listen for change notifications on a websocket connection.
+use crate::{
+    network_client::{NetworkRetry, WebSocketRequest},
+    transfer::CancelReason,
+    ChangeNotification, Error, Result, WireEncodeDecode,
+};
 use futures::{
     stream::{Map, SplitStream},
     Future, FutureExt, StreamExt,
 };
 use prost::bytes::Bytes;
-use std::{borrow::Cow, pin::Pin};
+use sos_core::{AccountId, Origin};
+use sos_signer::ed25519::BoxedEd25519Signer;
+use std::pin::Pin;
+use tokio::{net::TcpStream, sync::watch, time::Duration};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
         self,
-        protocol::{frame::coding::CloseCode, CloseFrame, Message},
+        protocol::{
+            frame::{coding::CloseCode, Utf8Bytes},
+            CloseFrame, Message,
+        },
     },
     MaybeTlsStream, WebSocketStream,
 };
 
-use tokio::{net::TcpStream, sync::watch, time::Duration};
-
-use sos_sdk::signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
-
-use crate::{
-    network_client::{NetworkRetry, WebSocketRequest},
-    transfer::CancelReason,
-    ChangeNotification, Error, Origin, Result, WireEncodeDecode,
-};
-
-use super::{
-    bearer_prefix, encode_account_signature, encode_device_signature,
-};
+use super::{bearer_prefix, encode_device_signature};
 
 /// Options used when listening for change notifications.
 #[derive(Clone)]
@@ -69,20 +68,16 @@ impl ListenOptions {
 /// Get the URI for a websocket changes connection.
 async fn request_bearer(
     request: &mut WebSocketRequest,
-    signer: &BoxedEcdsaSigner,
     device: &BoxedEd25519Signer,
     connection_id: &str,
 ) -> Result<String> {
     //let endpoint = changes_endpoint_url(remote)?;
     let sign_url = request.uri.path();
 
-    let account_signature =
-        encode_account_signature(signer.sign(sign_url.as_bytes()).await?)
-            .await?;
     let device_signature =
         encode_device_signature(device.sign(sign_url.as_bytes()).await?)
             .await?;
-    let auth = bearer_prefix(&account_signature, Some(&device_signature));
+    let auth = bearer_prefix(&device_signature);
 
     request
         .uri
@@ -97,17 +92,19 @@ pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 /// Create the websocket connection and listen for events.
 pub async fn connect(
+    account_id: AccountId,
     origin: Origin,
-    signer: BoxedEcdsaSigner,
     device: BoxedEd25519Signer,
     connection_id: String,
 ) -> Result<WsStream> {
-    let mut request =
-        WebSocketRequest::new(origin.url(), "api/v1/sync/changes")?;
+    let mut request = WebSocketRequest::new(
+        account_id,
+        origin.url(),
+        "api/v1/sync/changes",
+    )?;
 
     let bearer =
-        request_bearer(&mut request, &signer, &device, &connection_id)
-            .await?;
+        request_bearer(&mut request, &device, &connection_id).await?;
     request.set_bearer(bearer);
 
     tracing::debug!(uri = %request.uri, "ws_client::connect");
@@ -181,8 +178,8 @@ impl WebSocketHandle {
 /// Creates a websocket that listens for changes emitted by a remote
 /// server and invokes a handler with the change notifications.
 pub struct WebSocketChangeListener {
+    account_id: AccountId,
     origin: Origin,
-    signer: BoxedEcdsaSigner,
     device: BoxedEd25519Signer,
     options: ListenOptions,
     shutdown: watch::Sender<()>,
@@ -192,16 +189,16 @@ pub struct WebSocketChangeListener {
 impl WebSocketChangeListener {
     /// Create a new websocket changes listener.
     pub fn new(
+        account_id: AccountId,
         origin: Origin,
-        signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
         options: ListenOptions,
     ) -> Self {
         let (shutdown, _) = watch::channel(());
         let (cancel_retry, _) = watch::channel(Default::default());
         Self {
+            account_id,
             origin,
-            signer,
             device,
             options,
             shutdown,
@@ -247,7 +244,7 @@ impl WebSocketChangeListener {
                     // Perform close handshake
                     if let Err(error) = stream.close(Some(CloseFrame {
                         code: CloseCode::Normal,
-                        reason: Cow::Borrowed("closed"),
+                        reason: Utf8Bytes::from_static("closed"),
                     })).await {
                         tracing::warn!(error = ?error);
                     }
@@ -282,8 +279,8 @@ impl WebSocketChangeListener {
 
     async fn stream(&self) -> Result<WsStream> {
         connect(
+            self.account_id.clone(),
             self.origin.clone(),
-            self.signer.clone(),
             self.device.clone(),
             self.options.connection_id.clone(),
         )

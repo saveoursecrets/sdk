@@ -1,14 +1,10 @@
 //! HTTP transport trait and implementations.
 use super::{Error, Result};
 use crate::transfer::CancelReason;
-use sos_sdk::{
-    encode,
-    signer::{
-        ecdsa::{BinaryEcdsaSignature, Signature},
-        ed25519::{BinaryEd25519Signature, Signature as Ed25519Signature},
-    },
+use sos_core::encode;
+use sos_signer::ed25519::{
+    BinaryEd25519Signature, Signature as Ed25519Signature,
 };
-
 use std::{
     future::Future,
     sync::{
@@ -23,7 +19,7 @@ mod http;
 #[cfg(feature = "listen")]
 mod websocket;
 
-pub use self::http::HttpClient;
+pub use self::http::{set_user_agent, HttpClient};
 
 #[cfg(feature = "listen")]
 pub use websocket::{changes, connect, ListenOptions, WebSocketHandle};
@@ -137,13 +133,6 @@ impl NetworkRetry {
     }
 }
 
-pub(crate) async fn encode_account_signature(
-    signature: Signature,
-) -> Result<String> {
-    let signature: BinaryEcdsaSignature = signature.into();
-    Ok(bs58::encode(encode(&signature).await?).into_string())
-}
-
 pub(crate) async fn encode_device_signature(
     signature: Ed25519Signature,
 ) -> Result<String> {
@@ -151,27 +140,25 @@ pub(crate) async fn encode_device_signature(
     Ok(bs58::encode(encode(&signature).await?).into_string())
 }
 
-pub(crate) fn bearer_prefix(
-    account_signature: &str,
-    device_signature: Option<&str>,
-) -> String {
-    if let Some(device_signature) = device_signature {
-        format!("Bearer {}.{}", account_signature, device_signature)
-    } else {
-        format!("Bearer {}", account_signature)
-    }
+pub(crate) fn bearer_prefix(device_signature: &str) -> String {
+    format!("Bearer {}", device_signature)
 }
 
 #[cfg(any(feature = "listen", feature = "pairing"))]
 mod websocket_request {
+    use crate::constants::X_SOS_ACCOUNT_ID;
+
     use super::Result;
-    use sos_sdk::url::Url;
+    use sos_core::AccountId;
     use tokio_tungstenite::tungstenite::{
         self, client::IntoClientRequest, handshake::client::generate_key,
     };
+    use url::Url;
 
     /// Build a websocket connection request.
     pub struct WebSocketRequest {
+        /// Account identifier.
+        pub account_id: AccountId,
         /// Remote URI.
         pub uri: Url,
         /// Remote host.
@@ -184,7 +171,11 @@ mod websocket_request {
 
     impl WebSocketRequest {
         /// Create a new websocket request.
-        pub fn new(url: &Url, path: &str) -> Result<Self> {
+        pub fn new(
+            account_id: AccountId,
+            url: &Url,
+            path: &str,
+        ) -> Result<Self> {
             let origin = url.origin();
             let host = url.host_str().unwrap().to_string();
 
@@ -201,6 +192,7 @@ mod websocket_request {
                 .expect("failed to set websocket scheme");
 
             Ok(Self {
+                account_id,
                 host,
                 uri,
                 origin,
@@ -231,6 +223,7 @@ mod websocket_request {
                 .header("host", self.host)
                 .header("origin", origin)
                 .header("connection", "keep-alive, Upgrade")
+                .header(X_SOS_ACCOUNT_ID, self.account_id.to_string())
                 .header("upgrade", "websocket");
             Ok(request.body(())?)
         }

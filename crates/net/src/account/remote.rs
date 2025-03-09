@@ -1,23 +1,20 @@
 //! Connect a remote data source with a local account.
-use crate::{
-    protocol::{
-        network_client::HttpClient, AutoMerge, Origin, RemoteResult,
-        RemoteSync, SyncClient, SyncDirection, SyncOptions, UpdateSet,
-    },
-    sdk::{
-        account::LocalAccount,
-        prelude::Address,
-        signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    },
-    Result,
-};
+use crate::Result;
 use async_trait::async_trait;
-use sos_protocol::RemoteSyncHandler;
+use sos_account::LocalAccount;
+use sos_core::{AccountId, Origin};
+use sos_protocol::{
+    network_client::HttpClient, RemoteResult, RemoteSync, SyncClient,
+    SyncOptions,
+};
+use sos_remote_sync::{AutoMerge, RemoteSyncHandler};
+use sos_signer::ed25519::BoxedEd25519Signer;
+use sos_sync::{SyncDirection, UpdateSet};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
 #[cfg(feature = "files")]
-use crate::protocol::transfer::{
+use sos_protocol::transfer::{
     FileOperation, FileSet, FileSyncClient, FileTransferQueueRequest,
     FileTransferQueueSender, TransferOperation,
 };
@@ -28,8 +25,8 @@ pub(crate) type Remotes = HashMap<Origin, RemoteBridge>;
 /// Bridge between a local account and a remote.
 #[derive(Clone)]
 pub struct RemoteBridge {
-    /// Address of the account.
-    address: Address,
+    /// Account identifier.
+    account_id: AccountId,
     /// Account so we can replay events
     /// when a remote diff is merged.
     pub(super) account: Arc<Mutex<LocalAccount>>,
@@ -44,23 +41,23 @@ impl RemoteBridge {
     /// Create a new remote bridge that updates the given
     /// local account.
     pub fn new(
+        account_id: AccountId,
         account: Arc<Mutex<LocalAccount>>,
         origin: Origin,
-        signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
         connection_id: String,
     ) -> Result<Self> {
-        let address = signer.address()?;
-        let client = HttpClient::new(origin, signer, device, connection_id)?;
+        let client =
+            HttpClient::new(account_id, origin, device, connection_id)?;
 
         #[cfg(feature = "files")]
         let (file_transfer_queue, _) =
             tokio::sync::broadcast::channel::<FileTransferQueueRequest>(32);
 
         Ok(Self {
+            account_id,
             account,
             client,
-            address,
             #[cfg(feature = "files")]
             file_transfer_queue,
         })
@@ -85,8 +82,8 @@ impl RemoteSyncHandler for RemoteBridge {
         self.client.origin()
     }
 
-    fn address(&self) -> &Address {
-        &self.address
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 
     fn account(&self) -> Arc<Mutex<Self::Account>> {
@@ -100,15 +97,26 @@ impl RemoteSyncHandler for RemoteBridge {
 
     #[cfg(feature = "files")]
     async fn execute_sync_file_transfers(&self) -> Result<()> {
-        use sos_sdk::storage::StorageEventLogs;
+        use sos_sync::StorageEventLogs;
         let external_files = {
             let account = self.account();
             let account = account.lock().await;
             account.canonical_files().await?
         };
 
+        tracing::debug!(
+            canonical_len = %external_files.len(),
+            "sync_file_transfers",
+        );
+
         let file_set = FileSet(external_files);
         let file_transfers = self.client().compare_files(file_set).await?;
+
+        tracing::debug!(
+            uploads_len = %file_transfers.uploads.0.len(),
+            downloads_len = %file_transfers.downloads.0.len(),
+            "sync_file_transfers",
+        );
 
         let mut ops = Vec::new();
         for file in file_transfers.uploads.0 {
@@ -118,6 +126,12 @@ impl RemoteSyncHandler for RemoteBridge {
         for file in file_transfers.downloads.0 {
             ops.push(FileOperation(file, TransferOperation::Download));
         }
+
+        tracing::debug!(
+            operations_len = %ops.len(),
+            receiver_count = %self.file_transfer_queue.receiver_count(),
+            "sync_file_transfers",
+        );
 
         if !ops.is_empty() && self.file_transfer_queue.receiver_count() > 0 {
             let _ = self.file_transfer_queue.send(ops);
@@ -158,11 +172,7 @@ impl RemoteSync for RemoteBridge {
         &self,
         account_data: UpdateSet,
     ) -> RemoteResult<Self::Error> {
-        match self
-            .client
-            .update_account(&self.address, account_data)
-            .await
-        {
+        match self.client.update_account(account_data).await {
             Ok(_) => RemoteResult {
                 origin: self.origin().clone(),
                 result: Ok(None),
@@ -191,12 +201,10 @@ impl RemoteSync for RemoteBridge {
 
 #[cfg(feature = "listen")]
 mod listen {
-    use crate::{
-        protocol::{
-            network_client::{ListenOptions, WebSocketHandle},
-            ChangeNotification,
-        },
-        RemoteBridge,
+    use crate::RemoteBridge;
+    use sos_protocol::{
+        network_client::{ListenOptions, WebSocketHandle},
+        ChangeNotification,
     };
     use tokio::sync::mpsc;
 

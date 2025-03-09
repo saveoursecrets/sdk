@@ -1,16 +1,18 @@
 //! Server configuration.
+use super::backend::Backend;
+use super::{Error, Result};
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use sos_backend::BackendTarget;
+use sos_core::{AccountId, Paths};
+use sos_database::{migrations::migrate_client, open_file};
+use sos_vfs as vfs;
 use std::{
     collections::HashSet,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::{Path, PathBuf},
 };
 use url::Url;
-
-use super::backend::Backend;
-use super::{Error, Result};
-
-use sos_protocol::sdk::{signer::ecdsa::Address, vfs};
 
 /// Configuration for the web server.
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -40,36 +42,36 @@ pub struct ServerConfig {
 /// deny the same address it will be denied.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct AccessControlConfig {
-    /// Addresses that are explicitly allowed.
-    pub allow: Option<HashSet<Address>>,
-    /// Addresses that are explicitly denied.
-    pub deny: Option<HashSet<Address>>,
+    /// AccountIdes that are explicitly allowed.
+    pub allow: Option<HashSet<AccountId>>,
+    /// AccountIdes that are explicitly denied.
+    pub deny: Option<HashSet<AccountId>>,
 }
 
 impl AccessControlConfig {
     /// Determine if a signing key address is allowed access
     /// to this server.
-    pub fn is_allowed_access(&self, address: &Address) -> bool {
+    pub fn is_allowed_access(&self, account_id: &AccountId) -> bool {
         let has_definitions = self.allow.is_some() || self.deny.is_some();
         if has_definitions {
             match (&self.deny, &self.allow) {
                 (Some(deny), None) => {
-                    if deny.iter().any(|a| a == address) {
+                    if deny.iter().any(|a| a == account_id) {
                         return false;
                     }
                     true
                 }
                 (None, Some(allow)) => {
-                    if allow.iter().any(|a| a == address) {
+                    if allow.iter().any(|a| a == account_id) {
                         return true;
                     }
                     false
                 }
                 (Some(deny), Some(allow)) => {
-                    if allow.iter().any(|a| a == address) {
+                    if allow.iter().any(|a| a == account_id) {
                         return true;
                     }
-                    if deny.iter().any(|a| a == address) {
+                    if deny.iter().any(|a| a == account_id) {
                         return false;
                     }
                     false
@@ -172,16 +174,76 @@ pub struct CorsConfig {
 }
 
 /// Configuration for storage locations.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageConfig {
     /// URL for the backend storage.
     pub path: PathBuf,
+
+    /// Database file.
+    ///
+    /// When this field is given the server will use
+    /// the database backend.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub database: Option<String>,
+
+    /// Parsed database URI.
+    #[serde(skip)]
+    pub database_uri: Option<UriOrPath>,
+}
+
+/// URI or path reference.
+#[derive(Debug, Clone)]
+pub enum UriOrPath {
+    /// URI reference.
+    Uri(http::Uri),
+    /// Path reference.
+    Path(PathBuf),
+}
+
+impl UriOrPath {
+    /// URI string representation.
+    pub fn as_uri_string(&self) -> String {
+        match self {
+            UriOrPath::Uri(uri) => uri.to_string(),
+            UriOrPath::Path(path) => format!("file:{}", path.display()),
+        }
+    }
+}
+
+impl StorageConfig {
+    /// Set the database URI.
+    #[doc(hidden)]
+    fn set_database_uri(
+        &mut self,
+        db: &str,
+        base_dir: impl AsRef<Path>,
+    ) -> Result<()> {
+        let uri = if db.starts_with("file:") {
+            UriOrPath::Uri(db.parse()?)
+        } else {
+            let path = PathBuf::from(db);
+            if path.is_relative() {
+                let path = base_dir.as_ref().join(path);
+                if !path.exists() {
+                    std::fs::File::create(&path)?;
+                }
+                UriOrPath::Path(path.canonicalize()?)
+            } else {
+                UriOrPath::Path(path)
+            }
+        };
+
+        self.database_uri = Some(uri);
+        Ok(())
+    }
 }
 
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
             path: PathBuf::from("."),
+            database: None,
+            database_uri: None,
         }
     }
 }
@@ -217,6 +279,10 @@ impl ServerConfig {
 
             tls.cert = tls.cert.canonicalize()?;
             tls.key = tls.key.canonicalize()?;
+        }
+
+        if let Some(db) = &config.storage.database.clone() {
+            config.storage.set_database_uri(db, config.directory())?;
         }
 
         Ok(config)
@@ -255,8 +321,35 @@ impl ServerConfig {
         };
         let path = path.canonicalize()?;
 
-        let mut backend = Backend::new(path);
-        backend.read_dir().await?;
+        let paths = Paths::new_server(&path);
+
+        let target = if let Some(uri) = &self.storage.database_uri {
+            tracing::debug!(
+                database_uri = % uri.as_uri_string(),
+                "server::db",
+            );
+            let mut client = open_file(uri.as_uri_string()).await?;
+            tracing::debug!("server::db::migrate",);
+            let report = migrate_client(&mut client).await?;
+            for migration in report.applied_migrations() {
+                tracing::debug!(
+                    name = %migration.name(),
+                    version = %migration.version(),
+                    "server::db::migration",);
+
+                println!(
+                    "Migration      {} {}",
+                    migration.name().green(),
+                    format!("v{}", migration.version()).green(),
+                );
+            }
+            BackendTarget::Database(paths.clone(), client)
+        } else {
+            BackendTarget::FileSystem(paths.clone())
+        };
+
+        let mut backend = Backend::new(paths, target);
+        backend.load_accounts().await?;
         Ok(backend)
     }
 }

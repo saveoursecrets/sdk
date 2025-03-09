@@ -1,34 +1,21 @@
-use clap::Subcommand;
-use enum_iterator::all;
-use sos_net::{
-    sdk::{
-        account::{
-            archive::{
-                AccountBackup, ExtractFilesLocation, Inventory,
-                RestoreOptions,
-            },
-            Account,
-        },
-        identity::{AccountRef, PublicIdentity},
-        migrate::import::{ImportFormat, ImportTarget},
-        vfs, Paths,
-    },
-    NetworkAccount,
-};
-use std::{path::PathBuf, sync::Arc};
-use tokio::io::BufReader;
-
 use crate::{
     helpers::{
         account::{
-            find_account, list_accounts, new_account, resolve_account,
-            resolve_user, sign_in, verify, Owner, SHELL, USER,
+            list_accounts, new_account, resolve_account, resolve_user,
+            verify, Owner, SHELL, USER,
         },
         messages::success,
         readline::read_flag,
     },
     Error, Result,
 };
+use clap::Subcommand;
+use enum_iterator::all;
+use sos_account::Account;
+use sos_core::AccountRef;
+use sos_migrate::import::{ImportFormat, ImportTarget};
+use sos_vfs as vfs;
+use std::{path::PathBuf, sync::Arc};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -61,24 +48,6 @@ pub enum Command {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
-    },
-    /// Create secure backup as a zip archive.
-    Backup {
-        /// Force overwrite of existing file.
-        #[clap(long)]
-        force: bool,
-
-        /// Account name or address.
-        #[clap(short, long)]
-        account: Option<AccountRef>,
-
-        /// Output zip archive.
-        output: PathBuf,
-    },
-    /// Restore account from secure backup.
-    Restore {
-        /// Input zip archive.
-        input: PathBuf,
     },
     /// Rename an account.
     Rename {
@@ -200,19 +169,6 @@ pub async fn run(cmd: Command) -> Result<()> {
         } => {
             account_info(account, verbose, json).await?;
         }
-        Command::Backup {
-            account,
-            output,
-            force,
-        } => {
-            account_backup(account, output, force).await?;
-            success("Backup archive created");
-        }
-        Command::Restore { input } => {
-            if let Some(account) = account_restore(input).await? {
-                success(format!("Account restored {}", account.label()));
-            }
-        }
         Command::Rename { name, account } => {
             account_rename(account, name).await?;
             success("Account renamed");
@@ -257,7 +213,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     .contacts_folder()
                     .await
                     .ok_or_else(|| Error::NoContactsFolder)?;
-                owner.open_folder(&contacts).await?;
+                owner.open_folder(contacts.id()).await?;
                 current
             };
 
@@ -270,7 +226,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         let owner = owner
                             .selected_account()
                             .ok_or(Error::NoSelectedAccount)?;
-                        owner.open_folder(&folder).await?;
+                        owner.open_folder(folder.id()).await?;
                     }
                 }
                 ContactsCommand::Import { input } => {
@@ -281,7 +237,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         let owner = owner
                             .selected_account()
                             .ok_or(Error::NoSelectedAccount)?;
-                        owner.open_folder(&folder).await?;
+                        owner.open_folder(folder.id()).await?;
                     }
                 }
             }
@@ -361,7 +317,7 @@ async fn account_info(
     if json {
         serde_json::to_writer_pretty(&mut std::io::stdout(), &data)?;
     } else {
-        println!("{} {}", data.account.address(), data.account.label());
+        println!("{} {}", data.account.account_id(), data.account.label());
         for summary in &data.folders {
             if verbose {
                 println!("{} {}", summary.id(), summary.name());
@@ -371,89 +327,6 @@ async fn account_info(
         }
     }
     Ok(())
-}
-
-/// Create a backup zip archive.
-async fn account_backup(
-    account: Option<AccountRef>,
-    output: PathBuf,
-    force: bool,
-) -> Result<()> {
-    let account = resolve_account(account.as_ref())
-        .await
-        .ok_or_else(|| Error::NoAccountFound)?;
-
-    if !force && vfs::try_exists(&output).await? {
-        return Err(Error::FileExists(output));
-    }
-
-    let account = find_account(&account)
-        .await?
-        .ok_or(Error::NoAccount(account.to_string()))?;
-    let address = account.address();
-    let paths = Paths::new(Paths::data_dir()?, address.to_string());
-
-    AccountBackup::export_archive_file(&output, address, &paths).await?;
-    Ok(())
-}
-
-/// Restore from a zip archive.
-async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
-    if !vfs::try_exists(&input).await?
-        || !vfs::metadata(&input).await?.is_file()
-    {
-        return Err(Error::NotFile(input));
-    }
-
-    let reader = vfs::File::open(&input).await?;
-    let inventory: Inventory =
-        AccountBackup::restore_archive_inventory(BufReader::new(reader))
-            .await?;
-    let account_ref = AccountRef::Address(inventory.manifest.address);
-
-    let account = find_account(&account_ref).await?;
-
-    let mut password = if let Some(account) = account {
-        let confirmed = read_flag(Some(
-            "Overwrite all account data from backup? (y/n) ",
-        ))?;
-        if !confirmed {
-            return Ok(None);
-        }
-
-        let account = AccountRef::Name(account.label().to_owned());
-        let password = sign_in(&account).await?;
-        Some(password)
-    } else {
-        None
-    };
-
-    let account = if let Some(password) = password.take() {
-        let mut owner = USER.write().await;
-        let owner = owner
-            .selected_account_mut()
-            .ok_or(Error::NoSelectedAccount)?;
-        let paths = owner.paths();
-        let files_dir = paths.files_dir();
-        let options = RestoreOptions {
-            selected: inventory.vaults,
-            files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
-        };
-        owner
-            .restore_backup_archive(&input, password, options, None)
-            .await?
-    } else {
-        let address = inventory.manifest.address.to_string();
-        let paths = Paths::new(Paths::data_dir()?, &address);
-        let files_dir = paths.files_dir();
-        let options = RestoreOptions {
-            selected: inventory.vaults,
-            files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
-        };
-        NetworkAccount::import_backup_archive(&input, options, None).await?
-    };
-
-    Ok(Some(account))
 }
 
 /// Rename an account.
@@ -479,7 +352,7 @@ async fn account_delete(account: Option<AccountRef>) -> Result<bool> {
         account.as_ref().ok_or_else(|| Error::ExplicitAccount)?;
 
         resolve_account(account.as_ref())
-            .await
+            .await?
             .ok_or_else(|| Error::NoAccountFound)?
     } else {
         // Shell users can only delete their own account
@@ -505,7 +378,7 @@ async fn account_delete(account: Option<AccountRef>) -> Result<bool> {
 
     let prompt = format!(
         r#"Delete account "{}" (y/n)? "#,
-        owner.account_label().await?,
+        owner.account_name().await?,
     );
     let result = if read_flag(Some(&prompt))? {
         owner.delete_account().await?;
@@ -532,7 +405,7 @@ async fn migrate_export(
 
     let prompt = format!(
         r#"Export UNENCRYPTED account "{}" (y/n)? "#,
-        owner.account_label().await?,
+        owner.account_name().await?,
     );
 
     let result = if read_flag(Some(&prompt))? {

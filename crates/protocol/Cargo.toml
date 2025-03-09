@@ -1,6 +1,6 @@
 [package]
 name = "sos-protocol"
-version = "0.16.3"
+version = "0.17.0"
 edition = "2021"
 description = "Networking and sync protocol types for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -12,18 +12,34 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
+full = [
+  "listen",
+  "hashcheck",
+  "network-client",
+  "pairing",
+  "contacts",
+  "files",
+  "migrate",
+  "search",
+]
 listen = ["tokio-tungstenite"]
 hashcheck = ["reqwest"]
-network-client = ["reqwest", "bs58", "async-stream", "tokio-util"]
+network-client = ["reqwest", "bs58", "tokio-util", "tokio-stream"]
 pairing = []
-account = ["sos-sdk/account"]
-archive = ["sos-sdk/archive"]
-contacts = ["sos-sdk/contacts"]
-files = ["sos-sdk/files"]
-migrate = ["sos-sdk/migrate"]
-search = ["sos-sdk/search"]
+contacts = []
+files = ["sos-external-files/files", "sos-core/files", "sos-sync/files"]
+migrate = []
+search = []
 
 [dependencies]
+sos-core.workspace = true
+sos-backend.workspace = true
+sos-signer.workspace = true
+sos-sync.workspace = true
+sos-vfs.workspace = true
+
+sos-external-files = { workspace = true, optional = true }
+
 thiserror.workspace = true
 tracing.workspace = true
 async-trait.workspace = true
@@ -31,6 +47,8 @@ serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
 url.workspace = true
+time.workspace = true
+hex.workspace = true
 futures.workspace = true
 indexmap.workspace = true
 rs_merkle.workspace = true
@@ -39,35 +57,26 @@ http.workspace = true
 bytes.workspace = true
 binary-stream.workspace = true
 typeshare.workspace = true
+sha2.workspace = true
 tokio = { version = "1", features = ["rt",  "macros"] }
 
 # network-client
-# reqwest = { workspace = true, optional = true }
 tokio-tungstenite = { workspace = true, optional = true }
 bs58 = { workspace = true, optional = true }
-async-stream = { workspace = true, optional = true }
+tokio-stream = { workspace = true, optional = true }
 tokio-util = { workspace = true, optional = true }
 
-[dependencies.sos-sdk]
-version = "0.16"
-path = "../sdk"
-
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.reqwest]
-version = "0.12.5"
-default-features = false
+workspace = true
 features = ["json", "rustls-tls", "stream"]
 optional = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.reqwest]
-version = "0.12.5"
-default-features = false
+workspace = true
 features = ["json", "stream"]
 optional = true
 
-[dev-dependencies]
-anyhow = "1"
-
 [build-dependencies]
-rustc_version = "0.4.1"
-prost-build = "0.13"
-protoc-bin-vendored = "3"
+rustc_version.workspace = true
+prost-build.workspace = true
+protoc-bin-vendored.workspace = true

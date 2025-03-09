@@ -1,21 +1,15 @@
-use std::ffi::OsString;
-
-use clap::{CommandFactory, Parser, Subcommand};
-
-use sos_net::sdk::{
-    account::Account, identity::AccountRef, vault::FolderRef,
-};
-
 use crate::{
     commands::{
         AccountCommand, EnvironmentCommand, FolderCommand, PreferenceCommand,
-        SecretCommand, ServerCommand, SyncCommand,
+        SecretCommand, ServerCommand, SyncCommand, ToolsCommand,
     },
     helpers::account::{cd_folder, switch, USER},
-    Error,
+    Error, Result,
 };
-
-use crate::Result;
+use clap::{CommandFactory, Parser, Subcommand};
+use sos_account::Account;
+use sos_core::{AccountRef, FolderRef};
+use std::ffi::OsString;
 
 /// Secret storage shell.
 #[derive(Parser, Debug)]
@@ -71,6 +65,12 @@ enum ShellCommand {
     Cd {
         /// Folder name or id.
         folder: Option<FolderRef>,
+    },
+    /// Utility tools.
+    #[clap(alias = "tools")]
+    Tool {
+        #[clap(subcommand)]
+        cmd: ToolsCommand,
     },
     /// Switch account.
     #[clap(alias = "su")]
@@ -198,6 +198,7 @@ async fn exec_program(program: Shell) -> Result<()> {
         ShellCommand::Environment { cmd } => {
             crate::commands::environment::run(cmd).await
         }
+        ShellCommand::Tool { cmd } => crate::commands::tools::run(cmd).await,
         ShellCommand::Cd { folder } => cd_folder(folder.as_ref()).await,
 
         /*
@@ -287,7 +288,11 @@ async fn exec_program(program: Shell) -> Result<()> {
             let owner = USER.read().await;
             let owner =
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-            println!("{} {}", owner.account_label().await?, owner.address());
+            println!(
+                "{} {}",
+                owner.account_name().await?,
+                owner.account_id()
+            );
             Ok(())
         }
         ShellCommand::Pwd => {
