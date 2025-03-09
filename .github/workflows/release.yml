@@ -11,6 +11,9 @@ env:
   CHANNEL: ${{ vars.DISTRIBUTION_CHANNEL }}
 
 jobs:
+  # checks:
+  #   uses: ./.github/workflows/checks.yml
+
   publish:
     uses: ./.github/workflows/publish.yml
     # needs:
@@ -27,6 +30,7 @@ jobs:
     #if: ${{ false }}
     runs-on: ubuntu-latest
     needs:
+      # - checks
       - publish
       - homebrew
     steps:

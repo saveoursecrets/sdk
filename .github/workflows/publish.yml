@@ -86,7 +86,7 @@ jobs:
       - name: Update rust
         run: |
           rustup override set stable
-          rustup update stable
+          rustup update --no-self-update stable
           rustup target add ${{ matrix.binary_target }}
 
       # Build client
