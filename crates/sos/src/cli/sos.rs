@@ -141,20 +141,9 @@ pub async fn run() -> Result<()> {
         Paths::set_data_dir(storage.clone());
     }
 
-    Paths::scaffold(args.storage.as_ref()).await?;
     let paths = Paths::new_client(Paths::data_dir()?);
-    let target = BackendTarget::from_paths(&paths).await?;
-    let provider = match target {
-        BackendTarget::FileSystem(paths) => {
-            sos_backend::audit::new_fs_provider(paths.audit_file().to_owned())
-        }
-        BackendTarget::Database(_, mut client) => {
-            sos_backend::database::migrations::migrate_client(&mut client)
-                .await?;
-            sos_backend::audit::new_db_provider(client)
-        }
-    };
-    sos_backend::audit::init_providers(vec![provider]);
+    let target = BackendTarget::infer(&paths).await?;
+    target.dump_info().await?;
 
     let user_agent = format!("sos-cli/{}", env!("CARGO_PKG_VERSION"));
     set_user_agent(user_agent);

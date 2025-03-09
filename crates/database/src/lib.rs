@@ -49,31 +49,11 @@ pub async fn open_file(path: impl AsRef<Path>) -> Result<Client> {
         path = %path.as_ref().display(),
         "database::open_file",
     );
-    let client = ClientBuilder::new()
+    Ok(ClientBuilder::new()
         .path(path.as_ref())
         .journal_mode(JournalMode::Wal)
         .open()
-        .await?;
-
-    /*
-    let sqlite_version = client
-        .conn(|conn| {
-            conn.execute("PRAGMA foreign_keys = ON", [])?;
-            let version: String =
-                conn.query_row("SELECT sqlite_version()", [], |row| {
-                    row.get(0)
-                })?;
-            Ok(version)
-        })
-        .await?;
-
-    tracing::debug!(
-        version = %sqlite_version,
-        "database::sqlite",
-    );
-    */
-
-    Ok(client)
+        .await?)
 }
 
 /// Open a database file from a specific journal mode.

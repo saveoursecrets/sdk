@@ -77,6 +77,105 @@ impl fmt::Display for BackendTarget {
 }
 
 impl BackendTarget {
+    /// Infer and initialize a new backend target.
+    ///
+    /// A database backend will be used if a database file already
+    /// exists or if there are no accounts. If a database backend
+    /// is selected migrations are run otherwise paths are scaffolded
+    /// for the file system backend.
+    ///
+    /// If the `audit` feature is enabled the corresponding audit
+    /// provider for the backend is initialized.
+    pub async fn infer<T: AsRef<Paths>>(paths: T) -> Result<Self> {
+        let target = BackendTarget::from_paths(paths).await?;
+
+        // If there are zero accounts select the database backend
+        let accounts = target.list_accounts().await?;
+        let mut target = if accounts.is_empty() {
+            let paths = target.paths().clone();
+            let client = open_file(paths.as_ref().database_file()).await?;
+            BackendTarget::Database(paths, client)
+        } else {
+            target
+        };
+
+        match &mut target {
+            BackendTarget::FileSystem(paths) => {
+                // File system accounts must have
+                // the directories scaffolded
+                Paths::scaffold(paths.documents_dir()).await?;
+            }
+            BackendTarget::Database(_, client) => {
+                // Database backend must run migrations
+                crate::database::migrations::migrate_client(client).await?;
+            }
+        };
+
+        #[cfg(feature = "audit")]
+        {
+            let provider = match &target {
+                BackendTarget::FileSystem(paths) => {
+                    crate::audit::new_fs_provider(
+                        paths.audit_file().to_owned(),
+                    )
+                }
+                BackendTarget::Database(_, client) => {
+                    crate::audit::new_db_provider(client.clone())
+                }
+            };
+            crate::audit::init_providers(vec![provider]);
+        }
+
+        Ok(target)
+    }
+
+    /// Trace information about the backend.
+    ///
+    /// Typically used when an application starts.
+    pub async fn dump_info(&self) -> Result<()> {
+        tracing::debug!(
+            backend_target = %self,
+            data_dir = %self.paths().documents_dir().display(),
+            "backend::dump_info",
+        );
+
+        match self {
+            Self::Database(_, client) => {
+                let (sqlite_version, compile_options) = client
+                    .conn_and_then(|conn| {
+                        conn.execute("PRAGMA foreign_keys = ON", [])?;
+                        let version: String = conn.query_row(
+                            "SELECT sqlite_version()",
+                            [],
+                            |row| row.get(0),
+                        )?;
+
+                        let mut stmt =
+                            conn.prepare("PRAGMA compile_options")?;
+                        let mut compile_options = Vec::new();
+                        let rows = stmt
+                            .query_map([], |row| row.get::<_, String>(0))?;
+                        for option in rows {
+                            compile_options.push(option?);
+                        }
+
+                        Ok::<_, sos_database::Error>((
+                            version,
+                            compile_options,
+                        ))
+                    })
+                    .await?;
+                tracing::debug!(
+                    version = %sqlite_version,
+                    compile_options = ?compile_options,
+                    "backend::database::sqlite",
+                );
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
     /// Create a backend target from paths.
     pub async fn from_paths<T: AsRef<Paths>>(
         paths: T,
