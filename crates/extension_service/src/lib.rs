@@ -1,5 +1,5 @@
 use sos_account::AccountSwitcherOptions;
-use sos_backend::BackendTarget;
+use sos_backend::{BackendTarget, InferOptions};
 use sos_core::Paths;
 use sos_ipc::{
     extension_helper::server::{
@@ -42,8 +42,9 @@ pub async fn run() -> anyhow::Result<()> {
                 Box::pin(async move {
                     let paths = Paths::new_client(Paths::data_dir()?)
                         .with_account_id(identity.account_id());
-                    let target = BackendTarget::FileSystem(paths);
-
+                    let target =
+                        BackendTarget::infer(paths, InferOptions::default())
+                            .await?;
                     Ok(NetworkAccount::new_unauthenticated(
                         *identity.account_id(),
                         target,
