@@ -706,7 +706,7 @@ impl Account for LocalAccount {
             .authenticated_user_mut()
             .ok_or(AuthenticationError::NotAuthenticated)?;
 
-        let signer = DeviceSigner::new_random();
+        let signer = DeviceSigner::random();
         let target = self.target.clone();
         let manager = authenticated_user
             .identity_mut()?

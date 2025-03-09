@@ -24,7 +24,7 @@ pub struct DeviceSigner(pub(crate) BoxedEd25519Signer);
 
 impl DeviceSigner {
     /// Create a new random device signing key.
-    pub fn new_random() -> Self {
+    pub fn random() -> Self {
         let key = SingleParty::new_random();
         Self(Box::new(key))
     }

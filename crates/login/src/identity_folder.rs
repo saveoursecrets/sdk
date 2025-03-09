@@ -214,7 +214,7 @@ impl IdentityFolder {
 
             device_manager
         } else {
-            self.new_device_manager(&target, DeviceSigner::new_random())
+            self.new_device_manager(&target, DeviceSigner::random())
                 .await?
         };
         self.devices = Some(device_manager);

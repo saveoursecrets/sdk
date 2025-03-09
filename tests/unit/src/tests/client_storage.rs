@@ -429,7 +429,7 @@ async fn assert_client_storage(
     assert_eq!(1, ids.len());
 
     // Device patch and revoke
-    let device_signer = DeviceSigner::new_random();
+    let device_signer = DeviceSigner::random();
     let device_public_key = device_signer.public_key();
     let user_device = TrustedDevice::new(device_public_key, None, None);
     let event = DeviceEvent::Trust(user_device);
