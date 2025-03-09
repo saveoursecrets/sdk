@@ -7,13 +7,12 @@ use crate::{
 };
 use async_trait::async_trait;
 use sos_backend::StorageError;
-use sos_core::events::{ReadEvent, WriteEvent};
-use sos_core::{AuthenticationError, SecretId, VaultId};
-use sos_vault::Summary;
-use sos_vault::{
-    secret::{Secret, SecretMeta, SecretRow},
-    VaultCommit,
+use sos_core::{
+    events::{ReadEvent, WriteEvent},
+    AuthenticationError, SecretId, VaultCommit, VaultId,
 };
+use sos_vault::secret::{Secret, SecretMeta, SecretRow};
+use sos_vault::Summary;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

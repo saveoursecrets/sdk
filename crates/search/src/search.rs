@@ -3,10 +3,10 @@ use crate::{Error, Result};
 use probly_search::{score::bm25, Index, QueryResult};
 use serde::{Deserialize, Serialize};
 use sos_backend::AccessPoint;
-use sos_core::crypto::AccessKey;
+use sos_core::{crypto::AccessKey, VaultId};
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRef, SecretType},
-    SecretAccess, Summary, Vault, VaultId,
+    SecretAccess, Summary, Vault,
 };
 use std::{
     borrow::Cow,

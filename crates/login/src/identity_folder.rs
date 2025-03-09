@@ -15,14 +15,13 @@ use sos_backend::{
 };
 use sos_core::{
     constants::LOGIN_AGE_KEY_URN, crypto::AccessKey, encode, AccountId,
-    AuthenticationError,
+    AuthenticationError, VaultFlags, VaultId,
 };
 use sos_filesystem::write_exclusive;
 use sos_vault::Summary;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
-    BuilderCredentials, SecretAccess, Vault, VaultBuilder, VaultFlags,
-    VaultId,
+    BuilderCredentials, SecretAccess, Vault, VaultBuilder,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;

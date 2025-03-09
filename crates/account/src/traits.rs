@@ -13,17 +13,16 @@ use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
     events::{AccountEvent, DeviceEvent, EventRecord, ReadEvent, WriteEvent},
     AccountId, ErrorExt, FolderRef, Paths, SecretId, UtcDateTime,
-    VaultCommit, VaultId,
+    VaultCommit, VaultFlags, VaultId,
 };
 use sos_login::{
     device::{DeviceManager, DeviceSigner},
     PublicIdentity,
 };
 use sos_sync::CreateSet;
-use sos_vault::secret::SecretType;
 use sos_vault::{
-    secret::{Secret, SecretMeta, SecretPath, SecretRow},
-    Summary, Vault, VaultFlags,
+    secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
+    Summary, Vault,
 };
 use std::{collections::HashMap, path::Path, sync::Arc};
 

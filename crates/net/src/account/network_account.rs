@@ -20,7 +20,7 @@ use sos_core::{
     },
     AccountId, AccountRef, AuthenticationError, FolderRef, Origin, Paths,
     PublicIdentity, RemoteOrigins, SecretId, StorageError, UtcDateTime,
-    VaultId,
+    VaultCommit, VaultFlags, VaultId,
 };
 use sos_login::{
     device::{DeviceManager, DeviceSigner},
@@ -34,7 +34,7 @@ use sos_remote_sync::RemoteSyncHandler;
 use sos_sync::{CreateSet, StorageEventLogs, UpdateSet};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow, SecretType},
-    Summary, Vault, VaultCommit, VaultFlags,
+    Summary, Vault,
 };
 use std::{
     collections::{HashMap, HashSet},

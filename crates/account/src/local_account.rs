@@ -27,7 +27,7 @@ use sos_core::{
         ReadEvent, WriteEvent,
     },
     AccountId, AccountRef, AuthenticationError, FolderRef, Paths, SecretId,
-    UtcDateTime, VaultCommit, VaultId,
+    UtcDateTime, VaultCommit, VaultFlags, VaultId,
 };
 use sos_filesystem::write_exclusive;
 use sos_login::{
@@ -39,7 +39,6 @@ use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
     BuilderCredentials, Header, SecretAccess, Summary, Vault, VaultBuilder,
-    VaultFlags,
 };
 use sos_vfs as vfs;
 use std::{

@@ -5,9 +5,9 @@ use sos_core::{
     crypto::AccessKey,
     encode,
     events::{EventLog, EventRecord, ReadEvent, WriteEvent},
-    AccountId, VaultFlags,
+    AccountId, VaultFlags, VaultId,
 };
-use sos_core::{constants::EVENT_LOG_EXT, decode};
+use sos_core::{constants::EVENT_LOG_EXT, decode, VaultCommit};
 use sos_database::{
     entity::{FolderEntity, FolderRecord, SecretRecord},
     VaultDatabaseWriter,
@@ -17,7 +17,7 @@ use sos_reducers::FolderReducer;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow},
     AccessPoint as VaultAccessPoint, EncryptedEntry, SecretAccess, Vault,
-    VaultCommit, VaultId, VaultMeta,
+    VaultMeta,
 };
 use sos_vfs as vfs;
 use std::{path::Path, sync::Arc};
