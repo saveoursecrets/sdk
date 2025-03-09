@@ -12,10 +12,6 @@ categories = [
   "authentication"
 ]
 
-[features]
-default = []
-enable-cli-tests = []
-
 [dependencies]
 sos-account = { workspace = true, features = ["full"] }
 sos-audit.workspace = true
