@@ -1,5 +1,6 @@
 export SOS_PROMPT='➜ '
 export SOS_OFFLINE=1
+export SOS_TEST=1
 export DEMO_SERVER="http://demo.saveoursecrets.co:5053"
 export RUST_LOG="sos_net=error,sos_sdk=error,sos=info"
 

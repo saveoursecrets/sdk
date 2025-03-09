@@ -56,6 +56,28 @@ use std::{fmt, sync::Arc};
 #[cfg(feature = "files")]
 use {indexmap::IndexSet, sos_core::ExternalFile};
 
+/// Options for backend target inference.
+pub struct InferOptions {
+    /// Select the database backend when no accounts.
+    pub use_database_when_accounts_empty: bool,
+    /// Apply database migrations.
+    pub apply_migrations: bool,
+    /// Select the backend target audit provider.
+    #[cfg(feature = "audit")]
+    pub select_audit_provider: bool,
+}
+
+impl Default for InferOptions {
+    fn default() -> Self {
+        Self {
+            use_database_when_accounts_empty: true,
+            apply_migrations: true,
+            #[cfg(feature = "audit")]
+            select_audit_provider: true,
+        }
+    }
+}
+
 /// Target backend.
 #[derive(Clone)]
 pub enum BackendTarget {
@@ -86,15 +108,23 @@ impl BackendTarget {
     ///
     /// If the `audit` feature is enabled the corresponding audit
     /// provider for the backend is initialized.
-    pub async fn infer<T: AsRef<Paths>>(paths: T) -> Result<Self> {
+    pub async fn infer<T: AsRef<Paths>>(
+        paths: T,
+        options: InferOptions,
+    ) -> Result<Self> {
         let target = BackendTarget::from_paths(paths).await?;
 
-        // If there are zero accounts select the database backend
-        let accounts = target.list_accounts().await?;
-        let mut target = if accounts.is_empty() {
-            let paths = target.paths().clone();
-            let client = open_file(paths.as_ref().database_file()).await?;
-            BackendTarget::Database(paths, client)
+        let mut target = if options.use_database_when_accounts_empty {
+            // If there are zero accounts select the database backend
+            let accounts = target.list_accounts().await?;
+            if accounts.is_empty() {
+                let paths = target.paths().clone();
+                let client =
+                    open_file(paths.as_ref().database_file()).await?;
+                BackendTarget::Database(paths, client)
+            } else {
+                target
+            }
         } else {
             target
         };
@@ -106,13 +136,16 @@ impl BackendTarget {
                 Paths::scaffold(paths.documents_dir()).await?;
             }
             BackendTarget::Database(_, client) => {
-                // Database backend must run migrations
-                crate::database::migrations::migrate_client(client).await?;
+                if options.apply_migrations {
+                    // Database backend must run migrations
+                    crate::database::migrations::migrate_client(client)
+                        .await?;
+                }
             }
         };
 
         #[cfg(feature = "audit")]
-        {
+        if options.select_audit_provider {
             let provider = match &target {
                 BackendTarget::FileSystem(paths) => {
                     crate::audit::new_fs_provider(

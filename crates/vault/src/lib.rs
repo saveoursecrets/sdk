@@ -42,6 +42,10 @@ pub async fn list_accounts(
         Paths::new_client(Paths::data_dir()?)
     };
 
+    if !vfs::try_exists(paths.identity_dir()).await? {
+        return Ok(Vec::new());
+    }
+
     let mut dir = vfs::read_dir(paths.identity_dir()).await?;
     while let Some(entry) = dir.next_entry().await? {
         if let Some(ident) = read_public_identity(entry.path()).await? {

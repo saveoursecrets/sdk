@@ -9,7 +9,7 @@ use crate::{
     CommandTree, Result,
 };
 use clap::{CommandFactory, Parser, Subcommand};
-use sos_backend::BackendTarget;
+use sos_backend::{BackendTarget, InferOptions};
 use sos_core::{AccountRef, FolderRef, Paths};
 use sos_protocol::network_client::set_user_agent;
 use std::path::PathBuf;
@@ -142,7 +142,17 @@ pub async fn run() -> Result<()> {
     }
 
     let paths = Paths::new_client(Paths::data_dir()?);
-    let target = BackendTarget::infer(&paths).await?;
+    let options = if std::env::var("SOS_TEST").ok().is_some() {
+        InferOptions {
+            // When testing don't automatically use database
+            // backend so we can respect SOS_TEST_CLIENT_DB
+            use_database_when_accounts_empty: false,
+            ..Default::default()
+        }
+    } else {
+        InferOptions::default()
+    };
+    let target = BackendTarget::infer(&paths, options).await?;
     target.dump_info().await?;
 
     let user_agent = format!("sos-cli/{}", env!("CARGO_PKG_VERSION"));

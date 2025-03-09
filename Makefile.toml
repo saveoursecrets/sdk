@@ -111,6 +111,7 @@ mkdir -p target/demo
 
 [tasks.test-command-line]
 script = '''
+export SOS_TEST=1
 export PATH="../../target/debug:$PATH"
 cargo nextest run command_line -p sos-command-line-tests \
   --nocapture --profile cli
