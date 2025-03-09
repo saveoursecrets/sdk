@@ -48,42 +48,42 @@ members = [
 ]
 
 [workspace.dependencies]
-sos-account = { version = "0.16", path = "crates/account" }
+sos-account = { version = "0.17", path = "crates/account" }
 sos-artifact = { version = "0.8", path = "crates/artifact" }
-sos-audit = { version = "0.16", path = "crates/audit" }
-sos-archive = { version = "0.16", path = "crates/archive" }
-sos-backend  = { version = "0.16", path = "crates/backend" }
+sos-audit = { version = "0.17", path = "crates/audit" }
+sos-archive = { version = "0.17", path = "crates/archive" }
+sos-backend  = { version = "0.17", path = "crates/backend" }
 sos-cli-helpers = { version = "0.1", path = "crates/cli_helpers" }
-sos-core = { version = "0.16", path = "crates/core" }
-sos-database = { version = "0.16", path = "crates/database" }
-sos-database-upgrader = { version = "0.16", path = "crates/database_upgrader" }
-sos-external-files = { version = "0.16.4", path = "crates/external_files" }
-sos-filesystem = { version = "0.16", path = "crates/filesystem" }
-sos-integrity = { version = "0.16", path = "crates/integrity" }
-sos-ipc = { version = "0.16", path = "crates/ipc" }
-sos-login = { version = "0.16", path = "crates/login" }
-sos-logs = { version = "0.16", path = "crates/logs" }
-sos-migrate = { version = "0.16", path = "crates/migrate" }
-sos-net = { version = "0.16", path = "crates/net" }
-sos-password = { version = "0.16", path = "crates/password" }
-sos-platform-authenticator = { version = "0.1", path = "crates/platform_authenticator" }
-sos-protocol = { version = "0.16", path = "crates/protocol" }
+sos-core = { version = "0.17", path = "crates/core" }
+sos-database = { version = "0.17", path = "crates/database" }
+sos-database-upgrader = { version = "0.17", path = "crates/database_upgrader" }
+sos-external-files = { version = "0.17.0", path = "crates/external_files" }
+sos-filesystem = { version = "0.17", path = "crates/filesystem" }
+sos-integrity = { version = "0.17", path = "crates/integrity" }
+sos-ipc = { version = "0.17", path = "crates/ipc" }
+sos-login = { version = "0.17", path = "crates/login" }
+sos-logs = { version = "0.17", path = "crates/logs" }
+sos-migrate = { version = "0.17", path = "crates/migrate" }
+sos-net = { version = "0.17", path = "crates/net" }
+sos-password = { version = "0.17", path = "crates/password" }
+sos-platform-authenticator = { version = "0.17", path = "crates/platform_authenticator" }
+sos-protocol = { version = "0.17", path = "crates/protocol" }
 # sos-recovery = { version = "0.16", path = "crates/recovery" }
-sos-reducers = { version = "0.16", path = "crates/reducers" }
-sos-remote-sync = { version = "0.16", path = "crates/remote_sync" }
-sos-search = { version = "0.16", path = "crates/search" }
-sos-server = { version = "0.16", path = "crates/server" }
-sos-security-report = { version = "0.16", path = "crates/security_report" }
-sos-system-messages = { version = "0.16", path = "crates/system_messages" }
-sos-client-storage = { version = "0.16", path = "crates/storage/client" }
-sos-server-storage = { version = "0.16", path = "crates/storage/server" }
-sos-preferences = { version = "0.16", path = "crates/preferences" }
-sos-signer = { version = "0.16", path = "crates/signer" }
-sos-sync = { version = "0.16", path = "crates/sync" }
-sos-sdk = { version = "0.16", path = "crates/sdk" }
+sos-reducers = { version = "0.17", path = "crates/reducers" }
+sos-remote-sync = { version = "0.17", path = "crates/remote_sync" }
+sos-search = { version = "0.17", path = "crates/search" }
+sos-server = { version = "0.17", path = "crates/server" }
+sos-security-report = { version = "0.17", path = "crates/security_report" }
+sos-system-messages = { version = "0.17", path = "crates/system_messages" }
+sos-client-storage = { version = "0.17", path = "crates/storage/client" }
+sos-server-storage = { version = "0.17", path = "crates/storage/server" }
+sos-preferences = { version = "0.17", path = "crates/preferences" }
+sos-signer = { version = "0.17", path = "crates/signer" }
+sos-sync = { version = "0.17", path = "crates/sync" }
+sos-sdk = { version = "0.17", path = "crates/sdk" }
 sos-vfs = { version = "0.2", path = "crates/vfs" }
-sos-web = { version = "0.16", path = "crates/web" }
-sos-vault = { version = "0.16", path = "crates/vault" }
+sos-web = { version = "0.17", path = "crates/web" }
+sos-vault = { version = "0.17", path = "crates/vault" }
 
 sos-test-utils = { path = "tests/utils" }
 

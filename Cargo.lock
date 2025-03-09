@@ -4941,7 +4941,7 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.16.3"
+version = "0.17.0"
 dependencies = [
  "arboard",
  "async-recursion",
@@ -5005,7 +5005,7 @@ dependencies = [
 
 [[package]]
 name = "sos-account"
-version = "0.16.4"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -5048,7 +5048,7 @@ dependencies = [
 
 [[package]]
 name = "sos-archive"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "async_zip",
  "sanitize-filename",
@@ -5075,7 +5075,7 @@ dependencies = [
 
 [[package]]
 name = "sos-audit"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5090,7 +5090,7 @@ dependencies = [
 
 [[package]]
 name = "sos-backend"
-version = "0.16.3"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5128,7 +5128,7 @@ dependencies = [
 
 [[package]]
 name = "sos-client-storage"
-version = "0.16.3"
+version = "0.17.0"
 dependencies = [
  "age",
  "async-trait",
@@ -5164,7 +5164,7 @@ dependencies = [
 
 [[package]]
 name = "sos-command-line-tests"
-version = "0.1.1"
+version = "0.17.0"
 dependencies = [
  "anticipate-runner",
  "anyhow",
@@ -5176,7 +5176,7 @@ dependencies = [
 
 [[package]]
 name = "sos-core"
-version = "0.16.7"
+version = "0.17.0"
 dependencies = [
  "aes-gcm",
  "age",
@@ -5212,7 +5212,7 @@ dependencies = [
 
 [[package]]
 name = "sos-database"
-version = "0.16.6"
+version = "0.17.0"
 dependencies = [
  "async-sqlite",
  "async-trait",
@@ -5246,7 +5246,7 @@ dependencies = [
 
 [[package]]
 name = "sos-database-upgrader"
-version = "0.16.2"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5281,7 +5281,7 @@ dependencies = [
 
 [[package]]
 name = "sos-external-files"
-version = "0.16.7"
+version = "0.17.0"
 dependencies = [
  "indexmap 2.7.1",
  "rustc_version",
@@ -5293,7 +5293,7 @@ dependencies = [
 
 [[package]]
 name = "sos-filesystem"
-version = "0.16.3"
+version = "0.17.0"
 dependencies = [
  "async-fd-lock",
  "async-trait",
@@ -5328,7 +5328,7 @@ dependencies = [
 
 [[package]]
 name = "sos-integration-tests"
-version = "0.1.1"
+version = "0.17.0"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -5386,7 +5386,7 @@ dependencies = [
 
 [[package]]
 name = "sos-integrity"
-version = "0.16.2"
+version = "0.17.0"
 dependencies = [
  "binary-stream",
  "futures",
@@ -5410,7 +5410,7 @@ dependencies = [
 
 [[package]]
 name = "sos-ipc"
-version = "0.16.11"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -5456,7 +5456,7 @@ dependencies = [
 
 [[package]]
 name = "sos-login"
-version = "0.16.4"
+version = "0.17.0"
 dependencies = [
  "age",
  "async-trait",
@@ -5481,7 +5481,7 @@ dependencies = [
 
 [[package]]
 name = "sos-logs"
-version = "0.16.2"
+version = "0.17.0"
 dependencies = [
  "rev_buf_reader",
  "rustc_version",
@@ -5494,7 +5494,7 @@ dependencies = [
 
 [[package]]
 name = "sos-migrate"
-version = "0.16.3"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "async_zip",
@@ -5525,7 +5525,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.16.9"
+version = "0.17.0"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -5575,7 +5575,7 @@ dependencies = [
 
 [[package]]
 name = "sos-password"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "chbs",
  "once_cell",
@@ -5589,7 +5589,7 @@ dependencies = [
 
 [[package]]
 name = "sos-platform-authenticator"
-version = "0.1.1"
+version = "0.17.0"
 dependencies = [
  "http",
  "keyring",
@@ -5603,7 +5603,7 @@ dependencies = [
 
 [[package]]
 name = "sos-preferences"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "rustc_version",
@@ -5615,7 +5615,7 @@ dependencies = [
 
 [[package]]
 name = "sos-protocol"
-version = "0.16.5"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5654,7 +5654,7 @@ dependencies = [
 
 [[package]]
 name = "sos-reducers"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "futures",
  "indexmap 2.7.1",
@@ -5666,7 +5666,7 @@ dependencies = [
 
 [[package]]
 name = "sos-remote-sync"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "indexmap 2.7.1",
@@ -5684,7 +5684,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.16.8"
+version = "0.17.0"
 dependencies = [
  "rustc_version",
  "sos-core",
@@ -5697,7 +5697,7 @@ dependencies = [
 
 [[package]]
 name = "sos-search"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "probly-search",
  "rustc_version",
@@ -5716,7 +5716,7 @@ dependencies = [
 
 [[package]]
 name = "sos-security-report"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "hex",
  "secrecy",
@@ -5733,7 +5733,7 @@ dependencies = [
 
 [[package]]
 name = "sos-server"
-version = "0.16.3"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -5785,7 +5785,7 @@ dependencies = [
 
 [[package]]
 name = "sos-server-storage"
-version = "0.16.2"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5815,7 +5815,7 @@ dependencies = [
 
 [[package]]
 name = "sos-signer"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5835,7 +5835,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sync"
-version = "0.16.2"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "indexmap 2.7.1",
@@ -5852,7 +5852,7 @@ dependencies = [
 
 [[package]]
 name = "sos-system-messages"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "rustc_version",
@@ -5867,7 +5867,7 @@ dependencies = [
 
 [[package]]
 name = "sos-test-utils"
-version = "0.1.1"
+version = "0.17.0"
 dependencies = [
  "age",
  "anyhow",
@@ -5915,7 +5915,7 @@ dependencies = [
 
 [[package]]
 name = "sos-unit-tests"
-version = "0.1.1"
+version = "0.17.0"
 dependencies = [
  "age",
  "anyhow",
@@ -5968,7 +5968,7 @@ dependencies = [
 
 [[package]]
 name = "sos-vault"
-version = "0.16.4"
+version = "0.17.0"
 dependencies = [
  "age",
  "async-trait",
@@ -6013,7 +6013,7 @@ dependencies = [
 
 [[package]]
 name = "sos-web"
-version = "0.16.6"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "indexmap 2.7.1",

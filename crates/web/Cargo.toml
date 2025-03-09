@@ -1,6 +1,6 @@
 [package]
 name = "sos-web"
-version = "0.16.6"
+version = "0.17.0"
 edition = "2021"
 description = "Thin client for webassembly bindings to the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"

@@ -1,6 +1,6 @@
 [package]
 name = "sos-account"
-version = "0.16.4"
+version = "0.17.0"
 edition = "2021"
 description = "Local accounts for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
