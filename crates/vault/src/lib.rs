@@ -32,6 +32,7 @@ use std::{
 };
 
 /// List account information for the identity vaults.
+#[doc(hidden)]
 pub async fn list_accounts(
     paths: Option<&Paths>,
 ) -> Result<Vec<PublicIdentity>> {
@@ -57,6 +58,7 @@ pub async fn list_accounts(
 }
 
 /// Read the public identity from an identity vault file.
+#[doc(hidden)]
 pub async fn read_public_identity(
     path: impl AsRef<Path>,
 ) -> Result<Option<PublicIdentity>> {
@@ -79,6 +81,7 @@ pub async fn read_public_identity(
 
 /// List the folders in an account by inspecting
 /// the vault files in the vaults directory.
+#[doc(hidden)]
 pub async fn list_local_folders(
     paths: &Paths,
 ) -> Result<Vec<(Summary, PathBuf)>> {
