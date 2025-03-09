@@ -168,7 +168,7 @@ impl BackendTarget {
                 tracing::debug!(
                     version = %sqlite_version,
                     compile_options = ?compile_options,
-                    "backend::database::sqlite",
+                    "backend::dump_info::sqlite",
                 );
             }
             _ => {}
