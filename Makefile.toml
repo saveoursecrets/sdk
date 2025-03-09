@@ -118,15 +118,15 @@ cargo nextest run command_line -p sos-command-line-tests \
 dependencies = ["clean-cli", "debug"]
 
 [tasks.test-cli]
-script = { file = "./scripts/cli/specs.sh" }
+script = { file = "./tests/command_line/runner/specs.sh" }
 dependencies = ["clean-cli", "debug" ]
 
 [tasks.test-shell]
-script = { file = "./scripts/cli/shell.sh" }
+script = { file = "./tests/command_line/runner/shell.sh" }
 dependencies = ["clean-cli", "debug"]
 
 [tasks.demos]
-script = { file = "./scripts/cli/demos.sh" }
+script = { file = "./tests/command_line/runner/demos.sh" }
 dependencies = ["clean-cli"]
 
 # build test helper executables

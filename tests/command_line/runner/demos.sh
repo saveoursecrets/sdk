@@ -2,7 +2,7 @@
 
 set -e
 
-source scripts/cli/env.sh
+source tests/command_line/runner/env.sh
 
 scripts=crates/integration_tests/tests/command_line/scripts
 SPECS=($scripts/demos/*.sh)

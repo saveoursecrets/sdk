@@ -64,7 +64,7 @@ ANTICIPATE_ECHO=true cargo make test-shell
 Use the `SPEC` variable to debug a specific test:
 
 ```
-cargo make clean-cli && SPEC=tests/command_line/scripts/secret/add-note.sh ANTICIPATE_ECHO=true ./scripts/cli/specs.sh
+cargo make clean-cli && SPEC=tests/command_line/scripts/secret/add-note.sh ANTICIPATE_ECHO=true ./tests/command_line/runner/specs.sh
 ```
 
 This will run the test setup beforehand and the teardown afterwards so the test account data will exist.
