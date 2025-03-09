@@ -5004,7 +5004,7 @@ dependencies = [
 
 [[package]]
 name = "sos-account"
-version = "0.17.2"
+version = "0.17.3"
 dependencies = [
  "async-trait",
  "futures",
@@ -5088,7 +5088,7 @@ dependencies = [
 
 [[package]]
 name = "sos-backend"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5126,7 +5126,7 @@ dependencies = [
 
 [[package]]
 name = "sos-client-storage"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "age",
  "async-trait",
@@ -5397,7 +5397,7 @@ dependencies = [
 
 [[package]]
 name = "sos-integrity"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "binary-stream",
  "futures",
@@ -5466,7 +5466,7 @@ dependencies = [
 
 [[package]]
 name = "sos-login"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "age",
  "async-trait",
@@ -5535,7 +5535,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.17.2"
+version = "0.17.3"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -5706,7 +5706,7 @@ dependencies = [
 
 [[package]]
 name = "sos-search"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "probly-search",
  "rustc_version",
@@ -5725,7 +5725,7 @@ dependencies = [
 
 [[package]]
 name = "sos-security-report"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "hex",
  "secrecy",
@@ -5977,7 +5977,7 @@ dependencies = [
 
 [[package]]
 name = "sos-vault"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "age",
  "async-trait",
