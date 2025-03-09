@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [dependencies]
-sos-account.workspace = true
+sos-account = { workspace = true, features = ["clipboard"] }
 sos-backend.workspace = true
 sos-core.workspace = true
 sos-ipc.workspace = true
