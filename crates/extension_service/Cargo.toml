@@ -2,7 +2,7 @@
 name = "sos-extension-service"
 version = "0.17.0"
 edition = "2021"
-description = "Browser extension service using the Native Messaging API for the Save Our Secrets SDK."
+description = "Browser extension service for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
