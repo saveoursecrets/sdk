@@ -11,6 +11,7 @@ members = [
   "crates/core",
   "crates/database",
   "crates/database_upgrader",
+  "crates/extension_service",
   "crates/external_files",
   "crates/filesystem",
   "crates/keychain_parser",

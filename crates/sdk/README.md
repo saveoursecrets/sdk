@@ -27,6 +27,7 @@ This crate exports a prelude of common types for low-level access but we encoura
 | [sos-core](https://docs.rs/sos-core/latest/sos_core/)                                                         | Core types and traits; cryptography functions, commit trees and event definitions. |
 | [sos-database](https://docs.rs/sos-database/latest/sos_database/)                                             | SQLite database backend |
 | [sos-database-upgrader](https://docs.rs/sos-database-upgrader/latest/sos_database_upgrader/)                  | Upgrade filesystem backend to database backend |
+| [sos-extension-service](https://docs.rs/sos-extension/latest/sos_extension_service/)                          | Browser extension helper service |
 | [sos-external-files](https://docs.rs/sos-external-files/latest/sos_external_files/)                           | Helper functions for managing external encrypted file blobs |
 | [sos-filesystem](https://docs.rs/sos-filesystem/latest/sos_filesystem/)                                       | Legacy filesystem backend |
 | [sos-integrity](https://docs.rs/sos-integrity/latest/sos_integrity/)                                          | Vault, event log and external file blob integrity checks |

@@ -1,0 +1,22 @@
+[package]
+name = "sos-extension-service"
+version = "0.17.0"
+edition = "2021"
+description = "Browser extension service using the Native Messaging API for the Save Our Secrets SDK."
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[dependencies]
+sos-account.workspace = true
+sos-backend.workspace = true
+sos-core.workspace = true
+sos-ipc.workspace = true
+sos-net.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+xclipboard.workspace = true
+
+[[bin]]
+name = "sos-extension-helper"
+path = "src/main.rs"

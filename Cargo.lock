@@ -5279,6 +5279,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-extension-service"
+version = "0.17.0"
+dependencies = [
+ "anyhow",
+ "sos-account",
+ "sos-backend",
+ "sos-core",
+ "sos-ipc",
+ "sos-net",
+ "tokio",
+ "xclipboard",
+]
+
+[[package]]
 name = "sos-external-files"
 version = "0.17.0"
 dependencies = [
