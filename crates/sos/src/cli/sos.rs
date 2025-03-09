@@ -148,7 +148,9 @@ pub async fn run() -> Result<()> {
         BackendTarget::FileSystem(paths) => {
             sos_backend::audit::new_fs_provider(paths.audit_file().to_owned())
         }
-        BackendTarget::Database(_, client) => {
+        BackendTarget::Database(_, mut client) => {
+            sos_backend::database::migrations::migrate_client(&mut client)
+                .await?;
             sos_backend::audit::new_db_provider(client)
         }
     };
