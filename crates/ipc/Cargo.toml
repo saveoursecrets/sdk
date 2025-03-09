@@ -33,7 +33,6 @@ extension-helper-server = [
   "memory-http-server",
   "open",
   "tokio/io-std",
-  "once_cell",
   "local-transport",
   "hyper/http1",
   "hyper/client",
@@ -87,7 +86,6 @@ sos-logs = { workspace = true, optional = true }
 sos-platform-authenticator = { workspace = true, optional = true }
 
 futures = { workspace = true, optional = true }
-once_cell = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
