@@ -95,8 +95,6 @@ impl ServerDatabaseStorage {
                 .into());
             }
 
-            paths.ensure_db().await?;
-
             let account_row =
                 Self::lookup_account(client, account_id).await?;
             (paths, client, account_row)

@@ -76,8 +76,6 @@ async fn db_client_storage() -> Result<()> {
     let account_id = AccountId::random();
 
     let paths = Paths::new_client(&data_dir).with_account_id(&account_id);
-    paths.ensure_db().await?;
-
     let mut client = open_file(paths.database_file()).await?;
     sos_database::migrations::migrate_client(&mut client).await?;
     let target = BackendTarget::Database(paths.clone(), client);

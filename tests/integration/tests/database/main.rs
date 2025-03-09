@@ -78,9 +78,6 @@ pub async fn assert_import_archive(
     std::fs::remove_file(paths.database_file())?;
     std::fs::remove_dir_all(paths.blobs_dir())?;
 
-    // Re-create top-level empty blobs dir
-    paths.ensure_db().await?;
-
     // let mut target_db = Connection::open(paths.database_file())?;
     let mut import =
         archive::import_backup_archive(paths.database_file(), paths, zip)

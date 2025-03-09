@@ -322,9 +322,7 @@ impl AccountBuilder {
             BackendTarget::FileSystem(_) => {
                 paths.ensure().await?;
             }
-            BackendTarget::Database(_, _) => {
-                paths.ensure_db().await?;
-            }
+            BackendTarget::Database(_, _) => {}
         }
 
         let mut user = Identity::new(self.target.clone());

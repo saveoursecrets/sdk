@@ -186,6 +186,9 @@ impl ErrorExt for Error {
         matches!(
             self,
             Error::Authentication(AuthenticationError::NotAuthenticated)
+                | Error::Storage(sos_client_storage::Error::Authentication(
+                    AuthenticationError::NotAuthenticated
+                ))
         )
     }
 

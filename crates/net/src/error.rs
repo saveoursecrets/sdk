@@ -177,6 +177,10 @@ impl ErrorExt for Error {
             self,
             Error::Account(sos_account::Error::Authentication(
                 AuthenticationError::NotAuthenticated
+            )) | Error::Account(sos_account::Error::Storage(
+                sos_client_storage::Error::Authentication(
+                    AuthenticationError::NotAuthenticated
+                )
             ))
         )
     }

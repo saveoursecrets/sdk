@@ -156,20 +156,6 @@ impl Paths {
         Ok(())
     }
 
-    /// Ensure the local storage directories exist
-    /// for version 2 database storage.
-    pub async fn ensure_db(&self) -> Result<()> {
-        // Version 2 just needs the blobs directory
-        vfs::create_dir_all(&self.blobs_dir).await?;
-
-        if !self.is_global() {
-            // Version 2 database backend needs a blobs folder
-            // for the account
-            vfs::create_dir_all(self.blobs_account_dir()).await?;
-        }
-        Ok(())
-    }
-
     /// Determine if a database file exists.
     pub fn is_using_db(&self) -> bool {
         self.database_file().exists()

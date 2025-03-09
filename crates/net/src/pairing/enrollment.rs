@@ -59,9 +59,7 @@ impl DeviceEnrollment {
                 sos_core::Paths::scaffold(paths.documents_dir()).await?;
                 paths.ensure().await?;
             }
-            BackendTarget::Database(paths, _) => {
-                paths.ensure_db().await?;
-            }
+            BackendTarget::Database(_, _) => {}
         }
 
         let accounts = target.list_accounts().await?;

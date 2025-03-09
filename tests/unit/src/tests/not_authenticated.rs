@@ -541,8 +541,7 @@ async fn not_authenticated_client_storage() -> Result<()> {
             Paths::scaffold(&data_dir).await?;
             paths.ensure().await?;
         }
-        BackendTarget::Database(paths, client) => {
-            paths.ensure_db().await?;
+        BackendTarget::Database(_, client) => {
             make_database_account_with_login(client, &account_id).await?;
         }
     }
