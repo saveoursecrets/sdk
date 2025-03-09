@@ -153,11 +153,6 @@ pub enum Error {
     #[error(transparent)]
     TimeZone(#[from] time_tz::system::Error),
 
-    /// Error generated when walking a directory.
-    #[cfg(feature = "files")]
-    #[error(transparent)]
-    Walk(#[from] walkdir::Error),
-
     /// Error generated when stripping a prefix from a path.
     #[cfg(feature = "files")]
     #[error(transparent)]

@@ -5004,7 +5004,7 @@ dependencies = [
 
 [[package]]
 name = "sos-account"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "async-trait",
  "futures",
@@ -5041,7 +5041,6 @@ dependencies = [
  "typeshare",
  "uuid",
  "vcard4",
- "walkdir",
  "xclipboard",
 ]
 
@@ -5536,7 +5535,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "async-recursion",
  "async-trait",
