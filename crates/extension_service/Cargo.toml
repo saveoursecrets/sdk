@@ -11,7 +11,7 @@ repository = "https://github.com/saveoursecrets/sdk"
 sos-account = { workspace = true, features = ["clipboard"] }
 sos-backend.workspace = true
 sos-core.workspace = true
-sos-ipc.workspace = true
+sos-ipc = { workspace = true, features = ["extension-helper-server"] }
 sos-net = { workspace = true, features = ["clipboard"] }
 tokio.workspace = true
 anyhow.workspace = true
