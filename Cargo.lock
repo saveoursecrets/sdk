@@ -5694,7 +5694,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "rustc_version",
  "sos-core",
