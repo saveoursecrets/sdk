@@ -7,7 +7,7 @@ pub mod archive;
 #[cfg(feature = "audit")]
 pub mod audit_provider;
 pub mod entity;
-pub mod event_log;
+mod event_log;
 pub mod migrations;
 #[cfg(feature = "preferences")]
 mod preferences;
