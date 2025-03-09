@@ -139,8 +139,6 @@ ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
 sha1 = "0.10.6"
 sha2 = "0.10.6"
 sha3 = "0.10.6"
-once_cell = "1"
-async-once-cell = "0.5"
 rand = "0.8"
 semver = { version = "1", features = ["serde"] }
 url = { version = "2", features = ["serde"] }

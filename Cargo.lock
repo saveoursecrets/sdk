@@ -4956,7 +4956,6 @@ dependencies = [
  "hex",
  "human_bytes",
  "kdam",
- "once_cell",
  "parking_lot",
  "rustls",
  "rustyline",
@@ -5340,7 +5339,6 @@ dependencies = [
  "http",
  "indexmap 2.7.1",
  "maplit2",
- "once_cell",
  "parking_lot",
  "pretty_assertions",
  "secrecy",
@@ -5577,7 +5575,6 @@ name = "sos-password"
 version = "0.17.0"
 dependencies = [
  "chbs",
- "once_cell",
  "rand 0.8.5",
  "rustc_version",
  "secrecy",
@@ -6005,7 +6002,6 @@ dependencies = [
  "async-recursion",
  "bitflags 2.9.0",
  "futures",
- "once_cell",
  "parking_lot",
  "tokio",
 ]

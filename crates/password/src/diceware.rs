@@ -7,10 +7,10 @@ use chbs::{
     word::{WordList, WordSampler},
 };
 use secrecy::SecretString;
+use std::sync::LazyLock;
 
-use once_cell::sync::Lazy;
-
-static WORD_LIST: Lazy<WordList> = Lazy::new(WordList::builtin_eff_large);
+static WORD_LIST: LazyLock<WordList> =
+    LazyLock::new(WordList::builtin_eff_large);
 
 /// Generate a passphrase using the given config.
 pub fn generate_passphrase_config(
