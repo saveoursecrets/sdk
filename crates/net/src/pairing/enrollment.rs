@@ -9,8 +9,7 @@ use sos_client_storage::{
     ClientAccountStorage, ClientBaseStorage, ClientStorage,
 };
 use sos_core::{
-    crypto::AccessKey, AccountId, Origin, Paths, PublicIdentity,
-    RemoteOrigins,
+    crypto::AccessKey, AccountId, Origin, PublicIdentity, RemoteOrigins,
 };
 use sos_login::device::DeviceSigner;
 use sos_protocol::{network_client::HttpClient, SyncClient};
@@ -57,7 +56,7 @@ impl DeviceEnrollment {
         match &target {
             BackendTarget::FileSystem(paths) => {
                 #[cfg(debug_assertions)]
-                Paths::scaffold(paths.documents_dir()).await?;
+                sos_core::Paths::scaffold(paths.documents_dir()).await?;
                 paths.ensure().await?;
             }
             BackendTarget::Database(paths, _) => {
