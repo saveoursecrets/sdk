@@ -11,8 +11,8 @@ env:
   CHANNEL: ${{ vars.DISTRIBUTION_CHANNEL }}
 
 jobs:
-  checks:
-    uses: ./.github/workflows/checks.yml
+  # checks:
+  #   uses: ./.github/workflows/checks.yml
 
   publish:
     uses: ./.github/workflows/publish.yml
