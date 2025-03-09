@@ -1,4 +1,6 @@
-#$ include ../check/vault.sh
-#$ include ../check/keys.sh
-#$ include ../check/header.sh
-#$ include ../check/events.sh
+#$ include ../check/print-login.sh
+#$ include ../check/print-device.sh
+#$ include ../check/print-header.sh
+#$ include ../check/print-vault.sh
+#$ include ../check/verify-vault.sh
+#$ include ../check/verify-events.sh

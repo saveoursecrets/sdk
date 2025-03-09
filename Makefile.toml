@@ -100,23 +100,22 @@ dependencies = ["clean-doc"]
 command = "cargo"
 args = ["test", "-p", "sos-unit-tests", "--lib"]
 
-[tasks.test-command-line]
-script = '''
-export PATH="target/debug:$PATH"
-cargo nextest run command_line -p sos-command-line-tests --nocapture
-'''
-dependencies = ["clean-cli"]
-
 [tasks.clean-cli]
 script_runner = "@shell"
 script = '''
 rm -rf target/accounts
 rm -rf target/demo
-# rm -f target/*.{zip,vcf,heic,txt,toml,csv,json}
-
 mkdir -p target/accounts
 mkdir -p target/demo
 '''
+
+[tasks.test-command-line]
+script = '''
+export PATH="../../target/debug:$PATH"
+cargo nextest run command_line -p sos-command-line-tests \
+  --nocapture --profile cli
+'''
+dependencies = ["clean-cli", "debug"]
 
 [tasks.test-cli]
 script = { file = "./scripts/cli/specs.sh" }

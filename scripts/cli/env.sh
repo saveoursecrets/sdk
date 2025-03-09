@@ -52,3 +52,5 @@ export MIGRATE_DASHLANE="tests/fixtures/migrate/dashlane-export.zip"
 export MIGRATE_BITWARDEN="tests/fixtures/migrate/bitwarden-export.csv"
 export MIGRATE_FIREFOX="tests/fixtures/migrate/firefox-export.csv"
 export MIGRATE_MACOS="tests/fixtures/migrate/macos-export.csv"
+
+export SECURITY_REPORT_CSV="target/demo/report.csv"

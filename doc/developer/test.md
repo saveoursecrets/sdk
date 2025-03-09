@@ -30,7 +30,7 @@ To run just the command line tests which would be included in test coverage:
 cargo make test-command-line
 ```
 
-These tests always use a debug version of the executable. Run with `ANTICIPATE_ECHO` to debug:
+Run with `ANTICIPATE_ECHO` to debug:
 
 ```
 ANTICIPATE_ECHO=true cargo make test-command-line
