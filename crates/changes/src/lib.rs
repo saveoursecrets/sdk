@@ -6,6 +6,7 @@
 mod error;
 
 pub use error::Error;
+use sos_core::{events::EventLogType, AccountId};
 
 #[cfg(feature = "changes-consumer")]
 pub mod consumer;
@@ -13,3 +14,20 @@ pub mod consumer;
 pub mod producer;
 
 pub(crate) type Result<T> = std::result::Result<T, Error>;
+
+/// Change event sent over a local socket.
+pub struct LocalChangeEvent {
+    /// Account identifier.
+    pub account_id: AccountId,
+    /// Detail about the event.
+    pub detail: LocalChangeDetail,
+}
+
+/// Detail for the event.
+pub enum LocalChangeDetail {
+    /// Change to an event log.
+    EventLog {
+        /// Type of the event log.
+        log_type: EventLogType,
+    },
+}

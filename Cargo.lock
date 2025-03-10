@@ -5147,6 +5147,7 @@ name = "sos-changes"
 version = "0.17.0"
 dependencies = [
  "interprocess",
+ "rustc_version",
  "sos-core",
  "thiserror 2.0.12",
  "tracing",
