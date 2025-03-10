@@ -1,4 +1,5 @@
 use crate::{commit::CommitSpan, events::EventLogType, AccountId};
+use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 use tokio::sync::watch;
 
@@ -13,7 +14,8 @@ static CHANGES_FEED: OnceLock<watch::Sender<LocalChangeEvent>> =
 /// For example, the browser extension helper executable
 /// can detect changes made by the app and update it's
 /// view.
-#[derive(Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub enum LocalChangeEvent {
     /// Changes feed was initialized.
     #[default]

@@ -4,9 +4,7 @@
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 
 mod error;
-
 pub use error::Error;
-use sos_core::{commit::CommitSpan, events::EventLogType, AccountId};
 
 #[cfg(feature = "changes-consumer")]
 pub mod consumer;
@@ -14,3 +12,26 @@ pub mod consumer;
 pub mod producer;
 
 pub(crate) type Result<T> = std::result::Result<T, Error>;
+
+use std::path::PathBuf;
+
+/// Socket file.
+pub(crate) struct SocketFile(PathBuf);
+
+impl From<PathBuf> for SocketFile {
+    fn from(value: PathBuf) -> Self {
+        Self(value)
+    }
+}
+
+impl AsRef<PathBuf> for SocketFile {
+    fn as_ref(&self) -> &PathBuf {
+        &self.0
+    }
+}
+
+impl Drop for SocketFile {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}

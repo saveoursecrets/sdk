@@ -33,8 +33,11 @@ pub use read::ReadEvent;
 pub use record::EventRecord;
 pub use write::WriteEvent;
 
+use serde::{Deserialize, Serialize};
+
 /// Types of event logs.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub enum EventLogType {
     /// Identity folder event log.
     Identity,

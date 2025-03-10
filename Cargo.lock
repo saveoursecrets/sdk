@@ -5146,10 +5146,14 @@ dependencies = [
 name = "sos-changes"
 version = "0.17.0"
 dependencies = [
+ "futures",
  "interprocess",
  "rustc_version",
+ "serde_json",
  "sos-core",
  "thiserror 2.0.12",
+ "tokio",
+ "tokio-util",
  "tracing",
 ]
 

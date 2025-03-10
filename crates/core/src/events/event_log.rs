@@ -1,5 +1,5 @@
 use crate::{
-    commit::{CommitHash, CommitProof, CommitSpan, CommitTree},
+    commit::{CommitHash, CommitProof, CommitTree},
     events::{
         patch::{CheckedPatch, Diff, Patch},
         EventRecord,
