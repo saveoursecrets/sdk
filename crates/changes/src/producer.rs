@@ -1,9 +1,11 @@
 //! Producer for change notifications on a local socket.
-use crate::{Error, Result};
+use std::path::PathBuf;
+
+use crate::Error;
 use futures::sink::SinkExt;
-use interprocess::local_socket::{tokio::prelude::*, GenericNamespaced};
+use interprocess::local_socket::{tokio::prelude::*, GenericFilePath};
 use sos_core::events::changes_feed;
-use tokio::{select, sync::watch};
+use tokio::{select, sync::watch, sync::Mutex};
 use tokio_util::codec::LengthDelimitedCodec;
 
 /// Handle to a producer.
@@ -19,28 +21,19 @@ impl ProducerHandle {
 }
 
 /// Producer socket connection for change events.
-pub struct ChangeProducer {
-    socket_name: String,
-}
+pub struct ChangeProducer;
 
 impl ChangeProducer {
-    /// Create a connection to the socket.
-    pub fn new(socket_name: &str) -> Result<Self> {
-        Ok(Self {
-            socket_name: socket_name.to_owned(),
-        })
-    }
-
-    /// Listen to the changes feed.
+    /// Listen to the changes feed and send change events to
+    /// active sockets.
     ///
-    /// For each event try to send it over the local socket,
-    /// returns a handle that can be used to cancel the listener.
+    /// Returns a handle that can be used to cancel the listener.
     #[allow(unreachable_code)]
-    pub fn listen(&self) -> ProducerHandle {
+    pub fn listen(&self, sockets: Vec<PathBuf>) -> ProducerHandle {
         let (cancel_tx, mut cancel_rx) = watch::channel(false);
         let tx = changes_feed();
         let mut rx = tx.subscribe();
-        let socket_name = self.socket_name.clone();
+        let sockets = Mutex::new(sockets);
         tokio::task::spawn(async move {
             loop {
                 select! {
@@ -53,19 +46,20 @@ impl ChangeProducer {
                         match event {
                             Ok(_) => {
                                 let event = rx.borrow_and_update().clone();
-                                let name = socket_name
-                                    .clone()
-                                    .to_ns_name::<GenericNamespaced>()?;
-                                match LocalSocketStream::connect(name).await {
-                                    Ok(socket) => {
-                                        let mut writer =
-                                            LengthDelimitedCodec::builder()
-                                                .native_endian()
-                                                .new_write(socket);
-                                        let message = serde_json::to_vec(&event)?;
-                                        writer.send(message.into()).await?;
+                                let sockets = sockets.lock().await;
+                                for path in &*sockets {
+                                    let name = path.as_os_str().to_fs_name::<GenericFilePath>()?;
+                                    match LocalSocketStream::connect(name).await {
+                                        Ok(socket) => {
+                                            let mut writer =
+                                                LengthDelimitedCodec::builder()
+                                                    .native_endian()
+                                                    .new_write(socket);
+                                            let message = serde_json::to_vec(&event)?;
+                                            writer.send(message.into()).await?;
+                                        }
+                                        Err(_) => {}
                                     }
-                                    Err(_) => {}
                                 }
                             }
                             Err(_) => {}
