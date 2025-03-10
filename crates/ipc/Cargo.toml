@@ -16,6 +16,7 @@ local-transport = [
   "serde_with",
   "async-trait",
 ]
+
 memory-http-server = []
 clipboard = ["sos-account/clipboard"]
 contacts = ["sos-protocol/contacts"]

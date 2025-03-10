@@ -1,0 +1,17 @@
+[package]
+name = "sos-changes"
+version = "0.17.0"
+edition = "2021"
+description = "Local socket change notification producer and consumer for the Save Our Secrets SDK."
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[features]
+changes-consumer = ["dep:interprocess"]
+changes-producer = ["dep:interprocess"]
+
+[dependencies]
+thiserror.workspace = true
+sos-core.workspace = true
+interprocess = { workspace = true, optional = true, features = ["tokio"] }
