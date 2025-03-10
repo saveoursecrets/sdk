@@ -140,7 +140,7 @@ ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
 sha1 = "0.10.6"
 sha2 = "0.10.6"
 sha3 = "0.10.6"
-rand = "0.8"
+rand = "0.9"
 semver = { version = "1", features = ["serde"] }
 url = { version = "2", features = ["serde"] }
 time = { version = "0.3.19", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
