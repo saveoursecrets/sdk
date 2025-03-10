@@ -29,9 +29,12 @@ use sos_core::{
     encode,
     encoding::{encoding_options, VERSION1},
     events::{
+        changes_feed,
         patch::{CheckedPatch, Diff, Patch},
-        AccountEvent, DeviceEvent, EventRecord, WriteEvent,
+        AccountEvent, DeviceEvent, EventLogType, EventRecord,
+        LocalChangeEvent, WriteEvent,
     },
+    AccountId,
 };
 use sos_vfs::{self as vfs, File, OpenOptions};
 use std::result::Result as StdResult;
@@ -103,6 +106,8 @@ where
         + Sync
         + 'static,
 {
+    account_id: AccountId,
+    log_type: EventLogType,
     tree: CommitTree,
     data: PathBuf,
     identity: &'static [u8],
@@ -279,10 +284,7 @@ where
         Ok(())
     }
 
-    async fn apply(
-        &mut self,
-        events: &[T],
-    ) -> StdResult<CommitSpan, Self::Error> {
+    async fn apply(&mut self, events: &[T]) -> StdResult<(), Self::Error> {
         let mut records = Vec::with_capacity(events.len());
         for event in events {
             records.push(EventRecord::encode_event(event).await?);
@@ -293,9 +295,9 @@ where
     async fn apply_records(
         &mut self,
         records: Vec<EventRecord>,
-    ) -> StdResult<CommitSpan, Self::Error> {
+    ) -> StdResult<(), Self::Error> {
         if records.is_empty() {
-            return Ok(CommitSpan::default());
+            return Ok(());
         }
 
         let mut span = CommitSpan {
@@ -343,7 +345,15 @@ where
 
                 span.after = self.tree.last_commit();
 
-                Ok(span)
+                changes_feed().send_replace(
+                    LocalChangeEvent::AccountModified {
+                        account_id: self.account_id,
+                        log_type: self.log_type,
+                        commit_span: span,
+                    },
+                );
+
+                Ok(())
             }
             Err(e) => Err(e.into()),
         }
@@ -427,7 +437,7 @@ where
     async fn patch_unchecked(
         &mut self,
         patch: &Patch<T>,
-    ) -> StdResult<CommitSpan, Self::Error> {
+    ) -> StdResult<(), Self::Error> {
         /*
         if let Some(record) = patch.records().first() {
             self.check_event_time_ahead(record).await?;
@@ -677,7 +687,11 @@ where
         + 'static,
 {
     /// Create a new folder event log file.
-    pub async fn new_folder<P: AsRef<Path>>(path: P) -> StdResult<Self, E> {
+    pub async fn new_folder<P: AsRef<Path>>(
+        path: P,
+        account_id: AccountId,
+        log_type: EventLogType,
+    ) -> StdResult<Self, E> {
         use sos_core::constants::FOLDER_EVENT_LOG_IDENTITY;
         // Note that for backwards compatibility we don't
         // encode a version, later we will need to upgrade
@@ -695,6 +709,8 @@ where
         Ok(Self {
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
+            log_type,
+            account_id,
             identity: &FOLDER_EVENT_LOG_IDENTITY,
             version: None,
             phantom: std::marker::PhantomData,
@@ -714,7 +730,10 @@ where
         + 'static,
 {
     /// Create a new account event log file.
-    pub async fn new_account<P: AsRef<Path>>(path: P) -> StdResult<Self, E> {
+    pub async fn new_account<P: AsRef<Path>>(
+        path: P,
+        account_id: AccountId,
+    ) -> StdResult<Self, E> {
         use sos_core::{
             constants::ACCOUNT_EVENT_LOG_IDENTITY, encoding::VERSION,
         };
@@ -729,6 +748,8 @@ where
             .await?;
 
         Ok(Self {
+            account_id,
+            log_type: EventLogType::Account,
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &ACCOUNT_EVENT_LOG_IDENTITY,
@@ -750,7 +771,10 @@ where
         + 'static,
 {
     /// Create a new device event log file.
-    pub async fn new_device(path: impl AsRef<Path>) -> StdResult<Self, E> {
+    pub async fn new_device(
+        path: impl AsRef<Path>,
+        account_id: AccountId,
+    ) -> StdResult<Self, E> {
         use sos_core::{
             constants::DEVICE_EVENT_LOG_IDENTITY, encoding::VERSION,
         };
@@ -766,6 +790,8 @@ where
             .await?;
 
         Ok(Self {
+            log_type: EventLogType::Device,
+            account_id,
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &DEVICE_EVENT_LOG_IDENTITY,
@@ -788,7 +814,10 @@ where
         + 'static,
 {
     /// Create a new file event log file.
-    pub async fn new_file(path: impl AsRef<Path>) -> StdResult<Self, E> {
+    pub async fn new_file(
+        path: impl AsRef<Path>,
+        account_id: AccountId,
+    ) -> StdResult<Self, E> {
         use sos_core::{
             constants::FILE_EVENT_LOG_IDENTITY, encoding::VERSION,
         };
@@ -804,6 +833,8 @@ where
             .await?;
 
         Ok(Self {
+            account_id,
+            log_type: EventLogType::Files,
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &FILE_EVENT_LOG_IDENTITY,

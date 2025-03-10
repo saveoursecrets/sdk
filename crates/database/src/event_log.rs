@@ -25,9 +25,10 @@ use sos_core::{
     commit::{CommitHash, CommitProof, CommitSpan, CommitTree, Comparison},
     encoding::VERSION1,
     events::{
+        changes_feed,
         patch::{CheckedPatch, Diff, Patch},
         AccountEvent, DeviceEvent, EventLog, EventLogType, EventRecord,
-        WriteEvent,
+        LocalChangeEvent, WriteEvent,
     },
     AccountId, VaultId,
 };
@@ -37,16 +38,26 @@ use sos_core::{
 #[doc(hidden)]
 pub enum EventLogOwner {
     /// Event log owned by an account.
-    Account(i64),
+    Account(AccountId, i64),
     /// Event log owned by a folder.
-    Folder(FolderRecord),
+    Folder(AccountId, FolderRecord),
+}
+
+impl EventLogOwner {
+    /// Account idenifier.
+    pub fn account_id(&self) -> &AccountId {
+        match self {
+            EventLogOwner::Account(account_id, _) => account_id,
+            EventLogOwner::Folder(account_id, _) => account_id,
+        }
+    }
 }
 
 impl From<&EventLogOwner> for i64 {
     fn from(value: &EventLogOwner) -> Self {
         match value {
-            EventLogOwner::Account(id) => *id,
-            EventLogOwner::Folder(folder) => folder.row_id,
+            EventLogOwner::Account(_, id) => *id,
+            EventLogOwner::Folder(_, folder) => folder.row_id,
         }
     }
 }
@@ -143,8 +154,11 @@ where
             .await?;
 
         Ok(match result {
-            (account_row, None) => EventLogOwner::Account(account_row.row_id),
+            (account_row, None) => {
+                EventLogOwner::Account(account_id, account_row.row_id)
+            }
             (_, Some(folder_row)) => EventLogOwner::Folder(
+                account_id,
                 FolderRecord::from_row(folder_row).await?,
             ),
         })
@@ -154,9 +168,9 @@ where
         &mut self,
         records: &[EventRecord],
         delete_before: bool,
-    ) -> Result<CommitSpan, E> {
+    ) -> Result<(), E> {
         if records.is_empty() {
-            return Ok(CommitSpan::default());
+            return Ok(());
         }
 
         let mut span = CommitSpan {
@@ -205,7 +219,13 @@ where
 
         span.after = self.tree.last_commit();
 
-        Ok(span)
+        changes_feed().send_replace(LocalChangeEvent::AccountModified {
+            account_id: *self.owner.account_id(),
+            log_type: self.log_type,
+            commit_span: span,
+        });
+
+        Ok(())
     }
 }
 
@@ -535,10 +555,7 @@ where
         Ok(())
     }
 
-    async fn apply(
-        &mut self,
-        events: &[T],
-    ) -> Result<CommitSpan, Self::Error> {
+    async fn apply(&mut self, events: &[T]) -> Result<(), Self::Error> {
         let mut records = Vec::with_capacity(events.len());
         for event in events {
             records.push(EventRecord::encode_event(event).await?);
@@ -549,7 +566,7 @@ where
     async fn apply_records(
         &mut self,
         records: Vec<EventRecord>,
-    ) -> Result<CommitSpan, Self::Error> {
+    ) -> Result<(), Self::Error> {
         self.insert_records(records.as_slice(), false).await
     }
 
@@ -605,7 +622,7 @@ where
     async fn patch_unchecked(
         &mut self,
         patch: &Patch<T>,
-    ) -> Result<CommitSpan, Self::Error> {
+    ) -> Result<(), Self::Error> {
         self.apply_records(patch.records().to_vec()).await
     }
 
@@ -644,8 +661,8 @@ where
 
     fn version(&self) -> u16 {
         match &self.owner {
-            EventLogOwner::Folder(folder) => *folder.summary.version(),
-            EventLogOwner::Account(_) => VERSION1,
+            EventLogOwner::Folder(_, folder) => *folder.summary.version(),
+            EventLogOwner::Account(_, _) => VERSION1,
         }
     }
 }

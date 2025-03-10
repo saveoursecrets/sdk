@@ -22,7 +22,7 @@ mod record;
 mod write;
 
 pub use account::AccountEvent;
-pub use change::{LocalChangeDetail, LocalChangeEvent};
+pub use change::{changes_feed, LocalChangeEvent};
 pub use device::DeviceEvent;
 pub use event::Event;
 pub use event_kind::EventKind;

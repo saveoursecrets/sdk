@@ -3,10 +3,11 @@ use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use futures::stream::BoxStream;
 use sos_core::{
-    commit::{CommitHash, CommitProof, CommitSpan, CommitTree},
+    commit::{CommitHash, CommitProof, CommitTree},
     events::{
         patch::{CheckedPatch, Diff, Patch},
-        AccountEvent, DeviceEvent, EventLog, EventRecord, WriteEvent,
+        AccountEvent, DeviceEvent, EventLog, EventLogType, EventRecord,
+        WriteEvent,
     },
     AccountId, VaultId,
 };
@@ -50,6 +51,7 @@ impl BackendEventLog<AccountEvent> {
             BackendTarget::FileSystem(paths) => BackendEventLog::FileSystem(
                 FileSystemEventLog::<AccountEvent, Error>::new_account(
                     paths.with_account_id(account_id).account_events(),
+                    *account_id,
                 )
                 .await?,
             ),
@@ -77,6 +79,8 @@ impl BackendEventLog<WriteEvent> {
                     paths
                         .with_account_id(account_id)
                         .event_log_path(folder_id),
+                    *account_id,
+                    EventLogType::Folder(*folder_id),
                 )
                 .await?,
             ),
@@ -100,6 +104,8 @@ impl BackendEventLog<WriteEvent> {
             BackendTarget::FileSystem(paths) => BackendEventLog::FileSystem(
                 FileSystemEventLog::<WriteEvent, Error>::new_folder(
                     paths.with_account_id(account_id).identity_events(),
+                    *account_id,
+                    EventLogType::Identity,
                 )
                 .await?,
             ),
@@ -139,6 +145,7 @@ impl BackendEventLog<DeviceEvent> {
             BackendTarget::FileSystem(paths) => BackendEventLog::FileSystem(
                 FileSystemEventLog::<DeviceEvent, Error>::new_device(
                     paths.with_account_id(account_id).device_events(),
+                    *account_id,
                 )
                 .await?,
             ),
@@ -164,6 +171,7 @@ impl BackendEventLog<FileEvent> {
             BackendTarget::FileSystem(paths) => BackendEventLog::FileSystem(
                 FileSystemEventLog::<FileEvent, Error>::new_file(
                     paths.with_account_id(account_id).file_events(),
+                    *account_id,
                 )
                 .await?,
             ),
@@ -293,10 +301,7 @@ where
         }
     }
 
-    async fn apply(
-        &mut self,
-        events: &[T],
-    ) -> Result<CommitSpan, Self::Error> {
+    async fn apply(&mut self, events: &[T]) -> Result<(), Self::Error> {
         match self {
             Self::Database(inner) => inner.apply(events).await,
             Self::FileSystem(inner) => inner.apply(events).await,
@@ -306,7 +311,7 @@ where
     async fn apply_records(
         &mut self,
         records: Vec<EventRecord>,
-    ) -> Result<CommitSpan, Self::Error> {
+    ) -> Result<(), Self::Error> {
         match self {
             Self::Database(inner) => inner.apply_records(records).await,
             Self::FileSystem(inner) => inner.apply_records(records).await,
@@ -341,7 +346,7 @@ where
     async fn patch_unchecked(
         &mut self,
         patch: &Patch<T>,
-    ) -> Result<CommitSpan, Self::Error> {
+    ) -> Result<(), Self::Error> {
         match self {
             Self::Database(inner) => inner.patch_unchecked(patch).await,
             Self::FileSystem(inner) => inner.patch_unchecked(patch).await,

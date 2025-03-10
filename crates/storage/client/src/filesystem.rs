@@ -16,7 +16,7 @@ use sos_core::{
     decode,
     device::TrustedDevice,
     encode,
-    events::{DeviceEvent, Event, EventLog, ReadEvent},
+    events::{DeviceEvent, Event, EventLog, EventLogType, ReadEvent},
     AccountId, Paths, SecretId, VaultFlags, VaultId,
 };
 use sos_filesystem::write_exclusive;
@@ -324,8 +324,14 @@ impl ClientFolderStorage for ClientFileSystemStorage {
     }
 
     async fn new_folder(&self, vault: &Vault, _: Internal) -> Result<Folder> {
-        let vault_path = self.paths.vault_path(vault.id());
-        Ok(Folder::from_path(&vault_path).await?)
+        let folder_id = *vault.id();
+        let vault_path = self.paths.vault_path(&folder_id);
+        Ok(Folder::from_path(
+            &vault_path,
+            self.account_id(),
+            EventLogType::Folder(folder_id),
+        )
+        .await?)
     }
 
     async fn read_vault(&self, id: &VaultId) -> Result<Vault> {

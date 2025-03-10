@@ -91,10 +91,7 @@ where
 
     /// Append a collection of events and commit the tree hashes
     /// only if all the events were successfully written.
-    async fn apply(
-        &mut self,
-        events: &[E],
-    ) -> Result<CommitSpan, Self::Error>;
+    async fn apply(&mut self, events: &[E]) -> Result<(), Self::Error>;
 
     /// Append raw event records to the event log.
     ///
@@ -103,7 +100,7 @@ where
     async fn apply_records(
         &mut self,
         records: Vec<EventRecord>,
-    ) -> Result<CommitSpan, Self::Error>;
+    ) -> Result<(), Self::Error>;
 
     /// Append a patch to this event log only if the
     /// head of the tree matches the given proof.
@@ -137,7 +134,7 @@ where
     async fn patch_unchecked(
         &mut self,
         patch: &Patch<E>,
-    ) -> Result<CommitSpan, Self::Error>;
+    ) -> Result<(), Self::Error>;
 
     /// Diff of event records until a specific commit.
     ///
