@@ -9,6 +9,7 @@
 //! an audit trail of actions.
 
 mod account;
+mod change;
 mod device;
 mod event;
 mod event_kind;
@@ -21,6 +22,7 @@ mod record;
 mod write;
 
 pub use account::AccountEvent;
+pub use change::{LocalChangeDetail, LocalChangeEvent};
 pub use device::DeviceEvent;
 pub use event::Event;
 pub use event_kind::EventKind;

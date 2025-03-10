@@ -1172,8 +1172,6 @@ impl Account for LocalAccount {
             vault
         };
 
-        // TODO: do we need to re-import the identity vault here?
-
         let event = {
             let event = AccountEvent::UpdateIdentity(encode(&vault).await?);
             let log = self.account_log().await?;
