@@ -14,8 +14,9 @@ use tokio_util::codec::LengthDelimitedCodec;
 
 /// Handle to a consumer.
 ///
-/// Can be used to listen to incoming change events and
-/// close the server task.
+/// Provides access to a receive channel for
+/// incoming change events and can also be
+/// used to cancel the listener.
 pub struct ConsumerHandle {
     receiver: mpsc::Receiver<LocalChangeEvent>,
     cancel_tx: watch::Sender<bool>,
@@ -37,11 +38,16 @@ impl ConsumerHandle {
 pub struct ChangeConsumer;
 
 impl ChangeConsumer {
-    /// Listen on change events.
+    /// Listen for incoming change events.
     ///
     /// Returns a handle that can be used to consume the
     /// incoming events and stop listening.
     pub async fn listen(path: PathBuf) -> Result<ConsumerHandle> {
+        tracing::trace!(
+            socket_file = %path.display(),
+            "changes::consumer",
+        );
+
         let file = SocketFile::from(path);
         let name =
             file.as_ref().as_os_str().to_fs_name::<GenericFilePath>()?;

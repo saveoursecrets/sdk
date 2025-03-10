@@ -15,8 +15,8 @@ pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 use std::path::PathBuf;
 
-const SOCKS: &str = "socks";
-const SOCK_EXT: &str = "sock";
+pub(crate) const SOCKS: &str = "socks";
+pub(crate) const SOCK_EXT: &str = "sock";
 
 /// Socket file.
 pub(crate) struct SocketFile(PathBuf);
@@ -40,8 +40,13 @@ impl Drop for SocketFile {
 }
 
 /// Standard path for a consumer socket file.
+///
+/// If the parent directory for socket files does not
+/// exist it is created.
 #[cfg(feature = "changes-consumer")]
-pub fn socket_file(paths: &sos_core::Paths) -> Result<PathBuf> {
+pub fn socket_file(
+    paths: std::sync::Arc<sos_core::Paths>,
+) -> Result<PathBuf> {
     let socks = paths.documents_dir().join(SOCKS);
     if !socks.exists() {
         std::fs::create_dir(&socks)?;
@@ -50,15 +55,4 @@ pub fn socket_file(paths: &sos_core::Paths) -> Result<PathBuf> {
     let mut path = socks.join(pid.to_string());
     path.set_extension(SOCK_EXT);
     Ok(path)
-}
-
-/// Find active socket files for a producer.
-#[cfg(feature = "changes-producer")]
-pub fn find_active_sockets(paths: &sos_core::Paths) -> Result<Vec<PathBuf>> {
-    let socks = paths.documents_dir().join(SOCKS);
-    if socks.exists() {
-        todo!();
-    } else {
-        Ok(Vec::new())
-    }
 }
