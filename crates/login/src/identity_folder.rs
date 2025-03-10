@@ -14,8 +14,9 @@ use sos_backend::{
     AccessPoint, BackendTarget, Folder, FolderEventLog,
 };
 use sos_core::{
-    constants::LOGIN_AGE_KEY_URN, crypto::AccessKey, encode, AccountId,
-    AuthenticationError, VaultFlags, VaultId,
+    constants::LOGIN_AGE_KEY_URN, crypto::AccessKey, encode,
+    events::EventLogType, AccountId, AuthenticationError, VaultFlags,
+    VaultId,
 };
 use sos_filesystem::write_exclusive;
 use sos_vault::Summary;
@@ -66,7 +67,12 @@ impl IdentityFolder {
             BackendTarget::FileSystem(paths) => {
                 let buffer = encode(&vault).await?;
                 write_exclusive(paths.identity_vault(), buffer).await?;
-                Folder::from_path(paths.identity_vault()).await?
+                Folder::from_path(
+                    paths.identity_vault(),
+                    &account_id,
+                    EventLogType::Identity,
+                )
+                .await?
             }
             BackendTarget::Database(_, client) => {
                 let account_row = AccountRow::new_insert(&account_id, name)?;
@@ -466,7 +472,12 @@ impl IdentityFolder {
         let target = target.clone().with_account_id(account_id);
         let mut folder = match &target {
             BackendTarget::FileSystem(paths) => {
-                Folder::from_path(paths.identity_vault()).await?
+                Folder::from_path(
+                    paths.identity_vault(),
+                    account_id,
+                    EventLogType::Identity,
+                )
+                .await?
             }
             BackendTarget::Database(_, client) => {
                 let (_, login_folder) =
