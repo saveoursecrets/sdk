@@ -40,7 +40,7 @@ tokio = { workspace = true, features = ["rt-multi-thread"] }
 http.workspace = true
 anyhow.workspace = true
 
-[dependences.sos-changes]
+[dependencies.sos-changes]
 workspace = true
 features = [
   "changes-producer",

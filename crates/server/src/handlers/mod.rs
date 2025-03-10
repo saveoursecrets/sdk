@@ -28,7 +28,7 @@ pub(crate) mod websocket;
 const BODY_LIMIT: usize = 33554432;
 
 #[cfg(feature = "listen")]
-use sos_protocol::{ChangeNotification, WireEncodeDecode};
+use sos_protocol::{NetworkChangeEvent, WireEncodeDecode};
 
 use crate::server::{ServerState, State};
 
@@ -133,7 +133,7 @@ async fn authenticate_endpoint(
 pub(crate) async fn send_notification(
     reader: &State,
     caller: &Caller,
-    notification: ChangeNotification,
+    notification: NetworkChangeEvent,
 ) {
     // Send notification on the websockets channel
     match notification.encode().await {

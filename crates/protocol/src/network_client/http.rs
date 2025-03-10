@@ -34,7 +34,7 @@ use crate::{
     network_client::websocket::{
         ListenOptions, WebSocketChangeListener, WebSocketHandle,
     },
-    ChangeNotification,
+    NetworkChangeEvent,
 };
 
 #[cfg(feature = "files")]
@@ -118,7 +118,7 @@ impl HttpClient {
     pub fn listen<F>(
         &self,
         options: ListenOptions,
-        handler: impl Fn(ChangeNotification) -> F + Send + Sync + 'static,
+        handler: impl Fn(NetworkChangeEvent) -> F + Send + Sync + 'static,
     ) -> WebSocketHandle
     where
         F: Future<Output = ()> + Send + 'static,

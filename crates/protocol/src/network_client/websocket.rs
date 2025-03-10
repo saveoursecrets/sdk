@@ -2,7 +2,7 @@
 use crate::{
     network_client::{NetworkRetry, WebSocketRequest},
     transfer::CancelReason,
-    ChangeNotification, Error, Result, WireEncodeDecode,
+    NetworkChangeEvent, Error, Result, WireEncodeDecode,
 };
 use futures::{
     stream::{Map, SplitStream},
@@ -123,13 +123,13 @@ pub fn changes(
     impl FnMut(
         std::result::Result<Message, tungstenite::Error>,
     ) -> Result<
-        Pin<Box<dyn Future<Output = Result<ChangeNotification>> + Send>>,
+        Pin<Box<dyn Future<Output = Result<NetworkChangeEvent>> + Send>>,
     >,
 > {
     let (_, read) = stream.split();
     read.map(
         move |message| -> Result<
-            Pin<Box<dyn Future<Output = Result<ChangeNotification>> + Send>>,
+            Pin<Box<dyn Future<Output = Result<NetworkChangeEvent>> + Send>>,
         > {
             match message {
                 Ok(message) => Ok(Box::pin(async move {
@@ -141,11 +141,11 @@ pub fn changes(
     )
 }
 
-async fn decode_notification(message: Message) -> Result<ChangeNotification> {
+async fn decode_notification(message: Message) -> Result<NetworkChangeEvent> {
     match message {
         Message::Binary(buffer) => {
             let buf: Bytes = buffer.into();
-            let notification = ChangeNotification::decode(buf).await?;
+            let notification = NetworkChangeEvent::decode(buf).await?;
             Ok(notification)
         }
         _ => Err(Error::NotBinaryWebsocketMessageType),
@@ -210,7 +210,7 @@ impl WebSocketChangeListener {
     /// the handler with the notifications.
     pub fn spawn<F>(
         self,
-        handler: impl Fn(ChangeNotification) -> F + Send + Sync + 'static,
+        handler: impl Fn(NetworkChangeEvent) -> F + Send + Sync + 'static,
     ) -> WebSocketHandle
     where
         F: Future<Output = ()> + Send + 'static,
@@ -229,7 +229,7 @@ impl WebSocketChangeListener {
     async fn listen<F>(
         &self,
         mut stream: WsStream,
-        handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
+        handler: &(impl Fn(NetworkChangeEvent) -> F + Send + Sync + 'static),
     ) -> Result<()>
     where
         F: Future<Output = ()> + Send + 'static,
@@ -289,7 +289,7 @@ impl WebSocketChangeListener {
 
     async fn connect_loop<F>(
         &self,
-        handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
+        handler: &(impl Fn(NetworkChangeEvent) -> F + Send + Sync + 'static),
     ) -> Result<()>
     where
         F: Future<Output = ()> + Send + 'static,

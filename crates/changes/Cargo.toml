@@ -14,4 +14,5 @@ changes-producer = ["dep:interprocess"]
 [dependencies]
 thiserror.workspace = true
 sos-core.workspace = true
+tracing.workspace = true
 interprocess = { workspace = true, optional = true, features = ["tokio"] }

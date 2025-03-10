@@ -5149,6 +5149,7 @@ dependencies = [
  "interprocess",
  "sos-core",
  "thiserror 2.0.12",
+ "tracing",
 ]
 
 [[package]]
@@ -5396,6 +5397,7 @@ dependencies = [
  "sos-account",
  "sos-audit",
  "sos-backend",
+ "sos-changes",
  "sos-client-storage",
  "sos-core",
  "sos-database",
