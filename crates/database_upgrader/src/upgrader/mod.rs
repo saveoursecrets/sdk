@@ -193,8 +193,6 @@ pub async fn upgrade_accounts(
       options = ?options,
       "upgrade_accounts");
 
-    options.paths.ensure_db().await?;
-
     let db_file = options.paths.database_file();
     if db_file.exists() && !options.dry_run {
         return Err(Error::DatabaseExists(db_file.to_owned()));

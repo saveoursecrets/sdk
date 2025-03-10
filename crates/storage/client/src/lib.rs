@@ -5,9 +5,9 @@
 use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     events::WriteEvent,
-    AccountId, VaultId,
+    AccountId, VaultFlags, VaultId,
 };
-use sos_vault::{Vault, VaultFlags};
+use sos_vault::Vault;
 
 mod database;
 mod error;

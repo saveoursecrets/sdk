@@ -1,10 +1,10 @@
-use crate::{Result, Vault, EncryptedEntry, VaultFlags, VaultMeta};
+use crate::{EncryptedEntry, Result, Vault, VaultMeta};
 use age::x25519::{Identity, Recipient};
 use secrecy::SecretString;
 use sos_core::{
     constants::DEFAULT_VAULT_NAME,
     crypto::{Cipher, KeyDerivation, PrivateKey, Seed},
-    encode, VaultId,
+    encode, VaultFlags, VaultId,
 };
 
 /// Credentials for a new vault.

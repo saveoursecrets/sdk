@@ -13,7 +13,6 @@ mem-fs = []
 [dependencies]
 bitflags.workspace = true
 futures.workspace = true
-once_cell.workspace = true
 parking_lot.workspace = true
 async-recursion.workspace = true
 

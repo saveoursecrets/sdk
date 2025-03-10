@@ -1,6 +1,6 @@
 [package]
 name = "sos-core"
-version = "0.17.0"
+version = "0.17.1"
 edition = "2021"
 description = "Core types for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"

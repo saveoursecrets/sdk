@@ -1,13 +1,9 @@
 use anyhow::Result;
 use sos_backend::{AccessPoint, BackendTarget};
-use sos_core::AccountId;
-use sos_core::Paths;
-use sos_core::{crypto::AccessKey, encode};
+use sos_core::{crypto::AccessKey, encode, AccountId, Paths, VaultFlags};
 use sos_login::IdentityFolder;
 use sos_password::diceware::generate_passphrase;
-use sos_vault::{
-    BuilderCredentials, SecretAccess, Vault, VaultBuilder, VaultFlags,
-};
+use sos_vault::{BuilderCredentials, SecretAccess, Vault, VaultBuilder};
 use sos_vfs as vfs;
 use tempfile::tempdir_in;
 

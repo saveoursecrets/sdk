@@ -5,7 +5,6 @@ use crate::helpers::{
     readline::{choose, choose_password, read_flag, read_password, Choice},
 };
 use crate::{Error, Result};
-use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use secrecy::{ExposeSecret, SecretString};
 use sos_account::Account;
@@ -17,7 +16,10 @@ use sos_core::{
 use sos_net::{NetworkAccount, NetworkAccountSwitcher};
 use sos_password::diceware::generate_passphrase;
 use sos_vault::Summary;
-use std::{borrow::Cow, sync::Arc};
+use std::{
+    borrow::Cow,
+    sync::{Arc, LazyLock},
+};
 use terminal_banner::{Banner, Padding};
 use tokio::sync::RwLock;
 
@@ -25,11 +27,11 @@ use tokio::sync::RwLock;
 pub type Owner = Arc<RwLock<NetworkAccountSwitcher>>;
 
 /// Current user for the shell REPL.
-pub static USER: Lazy<Owner> =
-    Lazy::new(|| Arc::new(RwLock::new(NetworkAccountSwitcher::new())));
+pub static USER: LazyLock<Owner> =
+    LazyLock::new(|| Arc::new(RwLock::new(NetworkAccountSwitcher::new())));
 
 /// Flag used to test is we are running a shell context.
-pub static SHELL: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
+pub static SHELL: LazyLock<Mutex<bool>> = LazyLock::new(|| Mutex::new(false));
 
 #[derive(Copy, Clone)]
 enum AccountPasswordOption {

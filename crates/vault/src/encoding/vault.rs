@@ -1,6 +1,5 @@
 use crate::{
-    Auth, Contents, Header, SharedAccess, Summary, Vault, VaultCommit,
-    VaultFlags, VaultMeta,
+    Auth, Contents, Header, SharedAccess, Summary, Vault, VaultMeta,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{
@@ -11,7 +10,7 @@ use sos_core::{
     crypto::{AeadPack, Seed},
     encoding::{decode_uuid, encoding_error},
     file_identity::FileIdentity,
-    SecretId, UtcDateTime,
+    SecretId, UtcDateTime, VaultCommit, VaultFlags,
 };
 use std::io::{Error, ErrorKind, Result, SeekFrom};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};

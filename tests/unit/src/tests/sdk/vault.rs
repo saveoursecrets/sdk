@@ -1,10 +1,15 @@
 use anyhow::Result;
 use secrecy::ExposeSecret;
 use sos_backend::AccessPoint;
-use sos_core::{crypto::AccessKey, decode, encode, SecretId};
+use sos_core::{
+    crypto::AccessKey, decode, encode, SecretId, VaultCommit, VaultEntry,
+};
 use sos_password::diceware::generate_passphrase;
 use sos_test_utils::mock;
-use sos_vault::{secret::*, *};
+use sos_vault::{
+    secret::*, BuilderCredentials, EncryptedEntry, Error, SecretAccess,
+    Vault, VaultBuilder,
+};
 
 #[tokio::test]
 async fn vault_encode_decode_empty() -> Result<()> {

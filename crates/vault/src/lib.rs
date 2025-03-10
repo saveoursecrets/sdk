@@ -18,9 +18,6 @@ pub use vault::{
     Contents, EncryptedEntry, Header, SharedAccess, Summary, Vault, VaultMeta,
 };
 
-// DO NOT USE: these re-exports will be removed in the future
-pub use sos_core::{VaultCommit, VaultEntry, VaultFlags, VaultId};
-
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 pub(crate) use vault::Auth;
 
@@ -32,6 +29,7 @@ use std::{
 };
 
 /// List account information for the identity vaults.
+#[doc(hidden)]
 pub async fn list_accounts(
     paths: Option<&Paths>,
 ) -> Result<Vec<PublicIdentity>> {
@@ -57,6 +55,7 @@ pub async fn list_accounts(
 }
 
 /// Read the public identity from an identity vault file.
+#[doc(hidden)]
 pub async fn read_public_identity(
     path: impl AsRef<Path>,
 ) -> Result<Option<PublicIdentity>> {
@@ -79,6 +78,7 @@ pub async fn read_public_identity(
 
 /// List the folders in an account by inspecting
 /// the vault files in the vaults directory.
+#[doc(hidden)]
 pub async fn list_local_folders(
     paths: &Paths,
 ) -> Result<Vec<(Summary, PathBuf)>> {

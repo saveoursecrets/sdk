@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.17.0"
+version = "0.17.3"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -36,6 +36,7 @@ archive = [
   "sos-database/archive",
 ]
 files = [
+  "sos-account/files",
   "sos-core/files",
   "sos-external-files/files",
   "sos-protocol/files", 

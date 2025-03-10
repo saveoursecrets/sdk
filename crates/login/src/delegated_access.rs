@@ -7,7 +7,7 @@ use sos_password::diceware::generate_passphrase_words;
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
 
-/// Delegated access to folder access keys.
+/// Delegated access to folder keys.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait DelegatedAccess {

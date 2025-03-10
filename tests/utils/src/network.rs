@@ -6,8 +6,9 @@ use sha2::{Digest, Sha256};
 use sos_account::{Account, AccountBuilder};
 use sos_backend::BackendTarget;
 use sos_client_storage::{ClientFolderStorage, ClientStorage};
-use sos_core::{crypto::AccessKey, events::EventLog, Paths};
-use sos_core::{ExternalFile, Origin};
+use sos_core::{
+    crypto::AccessKey, events::EventLog, ExternalFile, Origin, Paths, VaultId,
+};
 use sos_net::{
     InflightNotification, InflightTransfers, NetworkAccount, RemoteBridge,
 };
@@ -19,7 +20,7 @@ use sos_protocol::{
 use sos_remote_sync::RemoteSyncHandler;
 use sos_server_storage::{ServerAccountStorage, ServerStorage};
 use sos_sync::SyncStorage;
-use sos_vault::{Summary, VaultId};
+use sos_vault::Summary;
 use sos_vfs as vfs;
 use std::{
     path::PathBuf,

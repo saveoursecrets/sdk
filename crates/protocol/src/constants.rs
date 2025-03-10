@@ -1,11 +1,5 @@
 //! Constants for the networking protocols.
 
-/// Name for GUI IPC sockets.
-pub const IPC_GUI_SOCKET_NAME: &str = "com.saveoursecrets.gui.sock";
-
-/// Name for CLI IPC sockets.
-pub const IPC_CLI_SOCKET_NAME: &str = "com.saveoursecrets.cli.sock";
-
 /// Constants for MIME types.
 mod mime {
     /// Mime type for protocol buffers.

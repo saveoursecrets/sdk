@@ -76,8 +76,6 @@ async fn db_client_storage() -> Result<()> {
     let account_id = AccountId::random();
 
     let paths = Paths::new_client(&data_dir).with_account_id(&account_id);
-    paths.ensure_db().await?;
-
     let mut client = open_file(paths.database_file()).await?;
     sos_database::migrations::migrate_client(&mut client).await?;
     let target = BackendTarget::Database(paths.clone(), client);
@@ -431,7 +429,7 @@ async fn assert_client_storage(
     assert_eq!(1, ids.len());
 
     // Device patch and revoke
-    let device_signer = DeviceSigner::new_random();
+    let device_signer = DeviceSigner::random();
     let device_public_key = device_signer.public_key();
     let user_device = TrustedDevice::new(device_public_key, None, None);
     let event = DeviceEvent::Trust(user_device);

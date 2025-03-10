@@ -5,10 +5,10 @@ use crate::{
 use futures::{pin_mut, StreamExt};
 use sos_backend::BackendTarget;
 use sos_core::{
-    commit::CommitHash, events::EventRecord, AccountId, SecretId,
+    commit::CommitHash, events::EventRecord, AccountId, SecretId, VaultId,
 };
 use sos_database::entity::FolderEntity;
-use sos_vault::{Summary, VaultId};
+use sos_vault::Summary;
 use sos_vfs as vfs;
 use std::sync::Arc;
 use tokio::sync::{

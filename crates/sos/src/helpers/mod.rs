@@ -1,7 +1,7 @@
 use crate::Result;
 use arboard::Clipboard;
-use once_cell::sync::Lazy;
 use parking_lot::Mutex;
+use std::sync::LazyLock;
 use terminal_banner::{Banner, Padding};
 use tokio::sync::broadcast::Sender;
 
@@ -18,12 +18,12 @@ pub use account::USER;
 ///
 /// Used for ctrlc handling to quit the progress monitor
 /// before quitting the shell.
-pub(crate) static PROGRESS_MONITOR: Lazy<Mutex<Option<Sender<()>>>> =
-    Lazy::new(|| Mutex::new(None));
+pub(crate) static PROGRESS_MONITOR: LazyLock<Mutex<Option<Sender<()>>>> =
+    LazyLock::new(|| Mutex::new(None));
 
 /// Global clipboard singleton.
-pub(crate) static CLIPBOARD: Lazy<Mutex<Option<Clipboard>>> =
-    Lazy::new(|| Mutex::new(Clipboard::new().ok()));
+pub(crate) static CLIPBOARD: LazyLock<Mutex<Option<Clipboard>>> =
+    LazyLock::new(|| Mutex::new(Clipboard::new().ok()));
 
 pub(crate) fn set_clipboard_text(text: &str) -> Result<bool> {
     let mut clipboard = CLIPBOARD.lock();

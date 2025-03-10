@@ -1,27 +1,23 @@
 //! File system backed by in-memory buffers.
-
+use super::{File, Metadata, Permissions};
 use async_recursion::async_recursion;
 use bitflags::bitflags;
-use once_cell::sync::Lazy;
 use parking_lot::Mutex as SyncMutex;
-use std::path::MAIN_SEPARATOR;
 use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
     fmt,
     io::{self, Cursor, Error, ErrorKind, Result},
     iter::Enumerate,
+    path::MAIN_SEPARATOR,
     path::{Component, Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
     vec::IntoIter,
 };
-
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     sync::{Mutex, RwLock},
 };
-
-use super::{File, Metadata, Permissions};
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use super::meta_data::FileTime;
@@ -44,7 +40,8 @@ pub(super) type Fd = Arc<RwLock<MemoryFd>>;
 pub(super) type FileContent = Arc<SyncMutex<Cursor<Vec<u8>>>>;
 
 // File system contents.
-static mut ROOT_DIR: Lazy<MemoryDir> = Lazy::new(|| MemoryDir::new_root());
+static mut ROOT_DIR: LazyLock<MemoryDir> =
+    LazyLock::new(|| MemoryDir::new_root());
 
 // Lock for when we need to modify the file system by adding
 // or removing paths.

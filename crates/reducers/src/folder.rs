@@ -141,11 +141,6 @@ impl FolderReducer {
     ///
     /// Note that compaction is lossy; log record
     /// timestamps are reset.
-    ///
-    /// The commit tree returned here will be invalid once
-    /// the new series of events have been applied so callers
-    /// must generate a new commit tree once the new event log has
-    /// been created.
     pub async fn compact(self) -> Result<Vec<WriteEvent>> {
         if let Some(vault) = self.vault {
             let mut events = Vec::new();

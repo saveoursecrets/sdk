@@ -1,6 +1,6 @@
 [package]
 name = "sos-database-upgrader"
-version = "0.17.0"
+version = "0.17.1"
 edition = "2021"
 description = "Upgrade from file system to database storage for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"

@@ -4956,7 +4956,6 @@ dependencies = [
  "hex",
  "human_bytes",
  "kdam",
- "once_cell",
  "parking_lot",
  "rustls",
  "rustyline",
@@ -5005,7 +5004,7 @@ dependencies = [
 
 [[package]]
 name = "sos-account"
-version = "0.17.0"
+version = "0.17.3"
 dependencies = [
  "async-trait",
  "futures",
@@ -5042,7 +5041,6 @@ dependencies = [
  "typeshare",
  "uuid",
  "vcard4",
- "walkdir",
  "xclipboard",
 ]
 
@@ -5090,7 +5088,7 @@ dependencies = [
 
 [[package]]
 name = "sos-backend"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5128,7 +5126,7 @@ dependencies = [
 
 [[package]]
 name = "sos-client-storage"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "age",
  "async-trait",
@@ -5176,7 +5174,7 @@ dependencies = [
 
 [[package]]
 name = "sos-core"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "aes-gcm",
  "age",
@@ -5246,7 +5244,7 @@ dependencies = [
 
 [[package]]
 name = "sos-database-upgrader"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5277,6 +5275,20 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "sos-extension-service"
+version = "0.17.0"
+dependencies = [
+ "anyhow",
+ "sos-account",
+ "sos-backend",
+ "sos-core",
+ "sos-ipc",
+ "sos-net",
+ "tokio",
+ "xclipboard",
 ]
 
 [[package]]
@@ -5340,7 +5352,6 @@ dependencies = [
  "http",
  "indexmap 2.7.1",
  "maplit2",
- "once_cell",
  "parking_lot",
  "pretty_assertions",
  "secrecy",
@@ -5386,7 +5397,7 @@ dependencies = [
 
 [[package]]
 name = "sos-integrity"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "binary-stream",
  "futures",
@@ -5423,7 +5434,6 @@ dependencies = [
  "hyper-util",
  "matchit 0.7.3",
  "notify",
- "once_cell",
  "open",
  "parking_lot",
  "rustc_version",
@@ -5456,7 +5466,7 @@ dependencies = [
 
 [[package]]
 name = "sos-login"
-version = "0.17.0"
+version = "0.17.2"
 dependencies = [
  "age",
  "async-trait",
@@ -5525,7 +5535,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.17.0"
+version = "0.17.3"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -5578,7 +5588,6 @@ name = "sos-password"
 version = "0.17.0"
 dependencies = [
  "chbs",
- "once_cell",
  "rand 0.8.5",
  "rustc_version",
  "secrecy",
@@ -5684,7 +5693,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "rustc_version",
  "sos-core",
@@ -5697,7 +5706,7 @@ dependencies = [
 
 [[package]]
 name = "sos-search"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "probly-search",
  "rustc_version",
@@ -5716,7 +5725,7 @@ dependencies = [
 
 [[package]]
 name = "sos-security-report"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "hex",
  "secrecy",
@@ -5785,7 +5794,7 @@ dependencies = [
 
 [[package]]
 name = "sos-server-storage"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5968,7 +5977,7 @@ dependencies = [
 
 [[package]]
 name = "sos-vault"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "age",
  "async-trait",
@@ -6006,7 +6015,6 @@ dependencies = [
  "async-recursion",
  "bitflags 2.9.0",
  "futures",
- "once_cell",
  "parking_lot",
  "tokio",
 ]
