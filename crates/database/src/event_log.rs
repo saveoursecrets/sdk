@@ -22,7 +22,7 @@ use futures::{
     stream::{BoxStream, StreamExt, TryStreamExt},
 };
 use sos_core::{
-    commit::{CommitHash, CommitProof, CommitTree, Comparison},
+    commit::{CommitHash, CommitProof, CommitSpan, CommitTree, Comparison},
     encoding::VERSION1,
     events::{
         patch::{CheckedPatch, Diff, Patch},
@@ -154,7 +154,16 @@ where
         &mut self,
         records: &[EventRecord],
         delete_before: bool,
-    ) -> Result<(), E> {
+    ) -> Result<CommitSpan, E> {
+        if records.is_empty() {
+            return Ok(CommitSpan::default());
+        }
+
+        let mut span = CommitSpan {
+            before: self.tree.last_commit(),
+            after: None,
+        };
+
         let log_type = self.log_type.clone();
         let mut insert_rows = Vec::new();
         let mut commits = Vec::new();
@@ -194,7 +203,9 @@ where
         self.tree.append(&mut hashes);
         self.tree.commit();
 
-        Ok(())
+        span.after = self.tree.last_commit();
+
+        Ok(span)
     }
 }
 
@@ -524,7 +535,10 @@ where
         Ok(())
     }
 
-    async fn apply(&mut self, events: &[T]) -> Result<(), Self::Error> {
+    async fn apply(
+        &mut self,
+        events: &[T],
+    ) -> Result<CommitSpan, Self::Error> {
         let mut records = Vec::with_capacity(events.len());
         for event in events {
             records.push(EventRecord::encode_event(event).await?);
@@ -535,7 +549,7 @@ where
     async fn apply_records(
         &mut self,
         records: Vec<EventRecord>,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<CommitSpan, Self::Error> {
         self.insert_records(records.as_slice(), false).await
     }
 
@@ -591,7 +605,7 @@ where
     async fn patch_unchecked(
         &mut self,
         patch: &Patch<T>,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<CommitSpan, Self::Error> {
         self.apply_records(patch.records().to_vec()).await
     }
 

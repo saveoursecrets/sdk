@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use futures::stream::BoxStream;
 use sos_core::{
-    commit::{CommitHash, CommitProof, CommitTree},
+    commit::{CommitHash, CommitProof, CommitSpan, CommitTree},
     events::{
         patch::{CheckedPatch, Diff, Patch},
         AccountEvent, DeviceEvent, EventLog, EventRecord, WriteEvent,
@@ -293,7 +293,10 @@ where
         }
     }
 
-    async fn apply(&mut self, events: &[T]) -> Result<(), Self::Error> {
+    async fn apply(
+        &mut self,
+        events: &[T],
+    ) -> Result<CommitSpan, Self::Error> {
         match self {
             Self::Database(inner) => inner.apply(events).await,
             Self::FileSystem(inner) => inner.apply(events).await,
@@ -303,7 +306,7 @@ where
     async fn apply_records(
         &mut self,
         records: Vec<EventRecord>,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<CommitSpan, Self::Error> {
         match self {
             Self::Database(inner) => inner.apply_records(records).await,
             Self::FileSystem(inner) => inner.apply_records(records).await,
@@ -338,7 +341,7 @@ where
     async fn patch_unchecked(
         &mut self,
         patch: &Patch<T>,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<CommitSpan, Self::Error> {
         match self {
             Self::Database(inner) => inner.patch_unchecked(patch).await,
             Self::FileSystem(inner) => inner.patch_unchecked(patch).await,

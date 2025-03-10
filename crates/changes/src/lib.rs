@@ -6,7 +6,7 @@
 mod error;
 
 pub use error::Error;
-use sos_core::{events::EventLogType, AccountId};
+use sos_core::{commit::CommitSpan, events::EventLogType, AccountId};
 
 #[cfg(feature = "changes-consumer")]
 pub mod consumer;
@@ -29,5 +29,7 @@ pub enum LocalChangeDetail {
     EventLog {
         /// Type of the event log.
         log_type: EventLogType,
+        /// Span of commit hashes.
+        commit_span: CommitSpan,
     },
 }

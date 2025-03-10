@@ -25,7 +25,7 @@ use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, Decodable, Encodable};
 use futures::{stream::BoxStream, StreamExt, TryStreamExt};
 use sos_core::{
-    commit::{CommitHash, CommitProof, CommitTree, Comparison},
+    commit::{CommitHash, CommitProof, CommitSpan, CommitTree, Comparison},
     encode,
     encoding::{encoding_options, VERSION1},
     events::{
@@ -279,7 +279,10 @@ where
         Ok(())
     }
 
-    async fn apply(&mut self, events: &[T]) -> StdResult<(), Self::Error> {
+    async fn apply(
+        &mut self,
+        events: &[T],
+    ) -> StdResult<CommitSpan, Self::Error> {
         let mut records = Vec::with_capacity(events.len());
         for event in events {
             records.push(EventRecord::encode_event(event).await?);
@@ -290,7 +293,16 @@ where
     async fn apply_records(
         &mut self,
         records: Vec<EventRecord>,
-    ) -> StdResult<(), Self::Error> {
+    ) -> StdResult<CommitSpan, Self::Error> {
+        if records.is_empty() {
+            return Ok(CommitSpan::default());
+        }
+
+        let mut span = CommitSpan {
+            before: self.tree.last_commit(),
+            after: None,
+        };
+
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
         let mut last_commit_hash = self.tree().last_commit();
@@ -328,7 +340,10 @@ where
                     commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
                 self.tree.append(&mut hashes);
                 self.tree.commit();
-                Ok(())
+
+                span.after = self.tree.last_commit();
+
+                Ok(span)
             }
             Err(e) => Err(e.into()),
         }
@@ -412,7 +427,7 @@ where
     async fn patch_unchecked(
         &mut self,
         patch: &Patch<T>,
-    ) -> StdResult<(), Self::Error> {
+    ) -> StdResult<CommitSpan, Self::Error> {
         /*
         if let Some(record) = patch.records().first() {
             self.check_event_time_ahead(record).await?;
