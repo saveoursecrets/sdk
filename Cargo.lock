@@ -5326,6 +5326,7 @@ dependencies = [
  "anyhow",
  "sos-account",
  "sos-backend",
+ "sos-changes",
  "sos-core",
  "sos-ipc",
  "sos-net",

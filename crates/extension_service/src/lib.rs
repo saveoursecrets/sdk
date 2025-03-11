@@ -1,6 +1,7 @@
 use sos_account::AccountSwitcherOptions;
 use sos_backend::{BackendTarget, InferOptions};
-use sos_core::Paths;
+use sos_changes::consumer::ChangeConsumer;
+use sos_core::{events::changes_feed, Paths};
 use sos_ipc::{
     extension_helper::server::{
         ExtensionHelperOptions, ExtensionHelperServer,
@@ -29,6 +30,19 @@ pub async fn run() -> anyhow::Result<()> {
     args.pop();
 
     let extension_id = args.pop().unwrap_or_else(String::new).to_string();
+
+    // Spawn a task to listen for incoming changes and
+    // proxy them to the standard changes feed.
+    tokio::task::spawn(async {
+        let paths = Paths::new_client(Paths::data_dir()?);
+        let mut changes_handle = ChangeConsumer::listen(paths)?;
+        let changes_feed = changes_feed();
+        let incoming_changes = changes_handle.changes();
+        while let Some(event) = incoming_changes.recv().await {
+            changes_feed.send_replace(event);
+        }
+        Ok::<_, anyhow::Error>(())
+    });
 
     let mut accounts =
         NetworkAccountSwitcher::new_with_options(AccountSwitcherOptions {

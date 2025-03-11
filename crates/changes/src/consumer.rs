@@ -55,8 +55,8 @@ impl ChangeConsumer {
         let listener = match opts.create_tokio() {
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
                 tracing::error!(
-                    "Error: could not start server because the socket file is occupied. Please check if {} is in use by another process and try again.",
-                    file.as_ref().display(),
+                    socket_file = %file.as_ref().display(),
+                    "changes::consumer::listen::addr_in_use",
                 );
                 return Err(e.into());
             }

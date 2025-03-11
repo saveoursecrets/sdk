@@ -13,6 +13,7 @@ sos-backend.workspace = true
 sos-core.workspace = true
 sos-ipc = { workspace = true, features = ["extension-helper-server", "search", "clipboard"] }
 sos-net = { workspace = true, features = ["clipboard", "search"] }
+sos-changes = { workspace = true, features = ["changes-consumer"] }
 tokio.workspace = true
 anyhow.workspace = true
 xclipboard.workspace = true
