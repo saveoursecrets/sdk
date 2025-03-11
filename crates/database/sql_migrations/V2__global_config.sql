@@ -12,5 +12,5 @@ CREATE TABLE IF NOT EXISTS global_config
     -- Binary encoding version
     -- Version 1 is the binary stream implementation
     -- Version 2 is protobuf encoding
-    binary_encoding       INTEGER             DEFAULT 1
+    binary_encoding       INTEGER             NOT NULL DEFAULT 1
 );
