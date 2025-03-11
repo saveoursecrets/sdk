@@ -1,24 +1,15 @@
 //! Producer for change notifications on a local socket.
 use crate::{Error, Result};
 use futures::sink::SinkExt;
-use interprocess::local_socket::{tokio::prelude::*, GenericFilePath};
+use interprocess::local_socket::{tokio::prelude::*, GenericNamespaced};
 use sos_core::{events::changes_feed, Paths};
-use std::{path::PathBuf, sync::Arc, sync::LazyLock, time::Duration};
-use sysinfo::{Pid, ProcessRefreshKind, RefreshKind, System};
+use std::{sync::Arc, time::Duration};
 use tokio::{
     select,
     sync::{watch, Mutex},
     time,
 };
 use tokio_util::codec::LengthDelimitedCodec;
-
-static SYSTEM_PROCESSES: LazyLock<Mutex<sysinfo::System>> =
-    LazyLock::new(|| {
-        Mutex::new(System::new_with_specifics(
-            RefreshKind::nothing()
-                .with_processes(ProcessRefreshKind::everything()),
-        ))
-    });
 
 /// Handle to a producer.
 pub struct ProducerHandle {
@@ -50,7 +41,6 @@ impl ChangeProducer {
     /// Returns a handle that can be used to cancel the listener.
     #[allow(unreachable_code)]
     pub async fn listen(
-        &self,
         paths: Arc<Paths>,
         poll_interval: Duration,
     ) -> Result<ProducerHandle> {
@@ -84,8 +74,9 @@ impl ChangeProducer {
                             Ok(_) => {
                                 let event = rx.borrow_and_update().clone();
                                 let sockets = sockets.lock().await;
-                                for path in &*sockets {
-                                    let name = path.as_os_str().to_fs_name::<GenericFilePath>()?;
+                                for pid in &*sockets {
+                                    let ps_name = pid.to_string();
+                                    let name = ps_name.to_ns_name::<GenericNamespaced>()?;
                                     match LocalSocketStream::connect(name).await {
                                         Ok(socket) => {
                                             let mut writer =
@@ -111,53 +102,33 @@ impl ChangeProducer {
 }
 
 /// Find active socket files for a producer.
-async fn find_active_sockets(paths: Arc<Paths>) -> Result<Vec<PathBuf>> {
+async fn find_active_sockets(paths: Arc<Paths>) -> Result<Vec<u32>> {
     use std::fs::read_dir;
-
-    if sysinfo::IS_SUPPORTED_SYSTEM {
-        let mut system = SYSTEM_PROCESSES.lock().await;
-        system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-    }
-
     let mut sockets = Vec::new();
     let socks = paths.documents_dir().join(crate::SOCKS);
     if socks.exists() {
-        tracing::trace!(
+        tracing::debug!(
             socks_dir = %socks.display(),
             "changes::producer::find_active_sockets",
         );
         for entry in read_dir(&socks)? {
             let entry = entry?;
-            if entry.path().ends_with(crate::SOCK_EXT) {
-                if let Some(stem) = entry.path().file_stem() {
-                    if let Ok(pid) =
-                        stem.to_string_lossy().as_ref().parse::<u32>()
-                    {
-                        tracing::trace!(
-                            sock_file = %entry.path().display(),
-                            "changes::producer::find_active_sockets::pid_file",
-                        );
-
-                        if sysinfo::IS_SUPPORTED_SYSTEM {
-                            let system = SYSTEM_PROCESSES.lock().await;
-                            let pid = Pid::from_u32(pid);
-                            tracing::trace!(
-                                pid = %pid,
-                                "changes::producer::find_active_sockets::pid_lookup",
-                            );
-                            if system.processes().contains_key(&pid) {
-                                sockets.push(entry.path().to_owned());
-                            }
-                        } else {
-                            #[cfg(any(windows, unix))]
-                            sockets.push(entry.path().to_owned());
-                        }
-                    }
+            if let Some(stem) = entry.path().file_stem() {
+                if let Ok(pid) =
+                    stem.to_string_lossy().as_ref().parse::<u32>()
+                {
+                    tracing::debug!(
+                        sock_file_pid = %pid,
+                        "changes::producer::find_active_sockets",
+                    );
+                    sockets.push(pid);
                 }
             }
         }
-        Ok(sockets)
-    } else {
-        Ok(sockets)
     }
+    tracing::debug!(
+        sockets_len = %sockets.len(),
+        "changes::producer::find_active_sockets",
+    );
+    Ok(sockets)
 }

@@ -2,10 +2,10 @@
 use crate::{Error, Result, SocketFile};
 use futures::stream::StreamExt;
 use interprocess::local_socket::{
-    tokio::prelude::*, GenericFilePath, ListenerOptions,
+    tokio::prelude::*, GenericNamespaced, ListenerOptions,
 };
-use sos_core::events::LocalChangeEvent;
-use std::path::PathBuf;
+use sos_core::{events::LocalChangeEvent, Paths};
+use std::{path::PathBuf, sync::Arc};
 use tokio::{
     select,
     sync::{mpsc, watch},
@@ -42,15 +42,15 @@ impl ChangeConsumer {
     ///
     /// Returns a handle that can be used to consume the
     /// incoming events and stop listening.
-    pub async fn listen(path: PathBuf) -> Result<ConsumerHandle> {
+    pub fn listen(paths: Arc<Paths>) -> Result<ConsumerHandle> {
+        let path = socket_file(paths)?;
         tracing::trace!(
             socket_file = %path.display(),
-            "changes::consumer",
+            "changes::consumer::listen",
         );
-
+        let ps_name = std::process::id().to_string();
         let file = SocketFile::from(path);
-        let name =
-            file.as_ref().as_os_str().to_fs_name::<GenericFilePath>()?;
+        let name = ps_name.to_ns_name::<GenericNamespaced>()?;
         let opts = ListenerOptions::new().name(name);
         let listener = match opts.create_tokio() {
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
@@ -66,8 +66,14 @@ impl ChangeConsumer {
         let (cancel_tx, mut cancel_rx) = watch::channel(false);
         let (tx, rx) = mpsc::channel(32);
 
+        // Create the marker file so producers know
+        // which processes to send change events to
+        std::fs::File::create(file.as_ref())?;
+
         #[allow(unreachable_code)]
         tokio::task::spawn(async move {
+            // Keep the RAII file guard alive
+            let _guard = file;
             loop {
                 select! {
                     _ = cancel_rx.changed() => {
@@ -102,4 +108,19 @@ impl ChangeConsumer {
             cancel_tx,
         })
     }
+}
+
+/// Standard path for a consumer socket file.
+///
+/// If the parent directory for socket files does not
+/// exist it is created.
+fn socket_file(paths: std::sync::Arc<sos_core::Paths>) -> Result<PathBuf> {
+    let socks = paths.documents_dir().join(crate::SOCKS);
+    if !socks.exists() {
+        std::fs::create_dir(&socks)?;
+    }
+    let pid = std::process::id();
+    let mut path = socks.join(pid.to_string());
+    path.set_extension(crate::SOCK_EXT);
+    Ok(path)
 }

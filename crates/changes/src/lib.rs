@@ -35,24 +35,10 @@ impl AsRef<PathBuf> for SocketFile {
 
 impl Drop for SocketFile {
     fn drop(&mut self) {
+        tracing::debug!(
+            file = %self.0.display(),
+            "changes::socket_file::drop",
+        );
         let _ = std::fs::remove_file(&self.0);
     }
-}
-
-/// Standard path for a consumer socket file.
-///
-/// If the parent directory for socket files does not
-/// exist it is created.
-#[cfg(feature = "changes-consumer")]
-pub fn socket_file(
-    paths: std::sync::Arc<sos_core::Paths>,
-) -> Result<PathBuf> {
-    let socks = paths.documents_dir().join(SOCKS);
-    if !socks.exists() {
-        std::fs::create_dir(&socks)?;
-    }
-    let pid = std::process::id();
-    let mut path = socks.join(pid.to_string());
-    path.set_extension(SOCK_EXT);
-    Ok(path)
 }

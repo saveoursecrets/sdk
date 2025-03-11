@@ -13,7 +13,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 changes-consumer = ["dep:interprocess", "tokio-util"]
-changes-producer = ["dep:interprocess", "tokio-util", "dep:sysinfo"]
+changes-producer = ["dep:interprocess", "tokio-util"]
 
 [dependencies]
 thiserror.workspace = true
@@ -22,7 +22,6 @@ tracing.workspace = true
 futures.workspace = true
 tokio.workspace = true
 serde_json.workspace = true
-sysinfo = { workspace = true, optional = true }
 interprocess = { workspace = true, optional = true, features = ["tokio"] }
 tokio-util = { workspace = true, optional = true, features = ["codec"] }
 
