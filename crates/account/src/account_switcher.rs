@@ -109,8 +109,6 @@ where
         )
             -> Pin<Box<dyn Future<Output = std::result::Result<A, E>>>>,
     {
-        Paths::scaffold(data_dir).await?;
-
         let paths = if let Some(data_dir) = data_dir {
             Paths::new_client(data_dir)
         } else {

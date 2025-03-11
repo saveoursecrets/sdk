@@ -14,7 +14,7 @@ use sos_vfs as vfs;
 use std::{path::PathBuf, sync::Arc};
 
 #[tokio::test]
-async fn audit_trail_client() -> Result<()> {
+async fn audit_trail_client_fs() -> Result<()> {
     const TEST_ID: &str = "audit_trail_client";
     // crate::test_utils::init_tracing();
     //
@@ -24,6 +24,7 @@ async fn audit_trail_client() -> Result<()> {
 
     // Configure the audit provider
     let paths = Paths::new_client(&data_dir);
+    Paths::scaffold(paths.documents_dir()).await?;
     paths.ensure().await?;
     let provider =
         sos_backend::audit::new_fs_provider(paths.audit_file().to_owned());

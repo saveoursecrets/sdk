@@ -62,6 +62,8 @@ async fn fs_client_storage() -> Result<()> {
     )
     .await?;
 
+    temp.close()?;
+
     Ok(())
 }
 
