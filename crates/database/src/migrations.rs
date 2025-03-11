@@ -13,7 +13,15 @@ mod embedded {
 pub fn migrate_connection(
     conn: &mut Connection,
 ) -> std::result::Result<Report, refinery::Error> {
-    embedded::migrations::runner().run(conn)
+    let report = embedded::migrations::runner().run(conn)?;
+    for migration in report.applied_migrations() {
+        tracing::debug!(
+            name = %migration.name(),
+            version = %migration.version(),
+            "migration",
+        );
+    }
+    Ok(report)
 }
 
 /// Run migrations for a client.
@@ -22,7 +30,7 @@ pub async fn migrate_client(client: &mut Client) -> Result<Report> {
         oneshot::channel::<std::result::Result<Report, refinery::Error>>();
     client
         .conn_mut(|conn| {
-            let result = embedded::migrations::runner().run(conn);
+            let result = migrate_connection(conn);
             tx.send(result).unwrap();
             Ok(())
         })
