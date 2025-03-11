@@ -45,12 +45,13 @@ async fn db_folder_lifecycle() -> Result<()> {
     let buffer = encode(&vault).await?;
     vfs::write(temp.path(), &buffer).await?;
     let paths = Paths::new_client(dir.path());
-    let target = BackendTarget::Database(paths, client);
+    let target = BackendTarget::Database(paths, client.clone());
 
     let mut folder = Folder::new(target, &account_id, vault.id()).await?;
     let key: AccessKey = password.into();
     assert_folder(&mut folder, key).await?;
 
+    client.close().await?;
     temp.close()?;
     dir.close()?;
     Ok(())
