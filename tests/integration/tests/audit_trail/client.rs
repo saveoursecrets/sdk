@@ -1,8 +1,7 @@
 use anyhow::Result;
 use sos_backend::BackendTarget;
 use sos_client_storage::NewFolderOptions;
-use sos_database::open_file;
-use sos_test_utils::make_client_backend;
+use sos_database::{migrations::migrate_client, open_file};
 
 use crate::test_utils::{mock, setup, teardown};
 use futures::{pin_mut, StreamExt};
@@ -11,13 +10,12 @@ use sos_audit::AuditEvent;
 use sos_migrate::import::ImportTarget;
 use sos_sdk::prelude::*;
 use sos_vfs as vfs;
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
 #[tokio::test]
 async fn audit_trail_client_fs() -> Result<()> {
-    const TEST_ID: &str = "audit_trail_client";
-    // crate::test_utils::init_tracing();
-    //
+    const TEST_ID: &str = "audit_trail_client_fs";
+    // sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -30,12 +28,45 @@ async fn audit_trail_client_fs() -> Result<()> {
         sos_backend::audit::new_fs_provider(paths.audit_file().to_owned());
     sos_backend::audit::init_providers(vec![provider]);
 
-    let account_name = TEST_ID.to_string();
+    let target = BackendTarget::FileSystem(paths);
+    run_audit_test(TEST_ID, target).await?;
+
+    teardown(TEST_ID).await;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn audit_trail_client_db() -> Result<()> {
+    const TEST_ID: &str = "audit_trail_client_db";
+    // sos_test_utils::init_tracing();
+
+    let mut dirs = setup(TEST_ID, 1).await?;
+    let data_dir = dirs.clients.remove(0);
+
+    // Configure the audit provider
+    let paths = Paths::new_client(&data_dir);
+    let mut client = open_file(paths.database_file()).await?;
+    migrate_client(&mut client).await?;
+
+    let provider = sos_backend::audit::new_db_provider(client.clone());
+    sos_backend::audit::init_providers(vec![provider]);
+
+    let target = BackendTarget::Database(paths, client);
+    run_audit_test(TEST_ID, target).await?;
+
+    teardown(TEST_ID).await;
+
+    Ok(())
+}
+
+async fn run_audit_test(name: &str, target: BackendTarget) -> Result<()> {
+    let account_name = name.to_string();
     let (passphrase, _) = generate_passphrase()?;
     let mut account = LocalAccount::new_account_with_builder(
         account_name.to_owned(),
         passphrase.clone(),
-        make_client_backend(&paths).await?,
+        target.clone(),
         |builder| {
             builder
                 .save_passphrase(false)
@@ -52,14 +83,14 @@ async fn audit_trail_client_fs() -> Result<()> {
     let summary = account.default_folder().await.unwrap();
 
     // Make changes to generate audit logs
-    simulate_session(&mut account, &summary, &paths).await?;
+    simulate_session(&mut account, &summary, &target).await?;
 
     // Read in the audit log events
     let events = read_audit_events().await?;
     let mut kinds: Vec<_> = events.iter().map(|e| e.event_kind()).collect();
 
     //println!("events {:#?}", events);
-    println!("kinds {:#?}", kinds);
+    // println!("kinds {:#?}", kinds);
 
     // Created the account
     assert!(matches!(kinds.remove(0), EventKind::CreateAccount));
@@ -122,15 +153,14 @@ async fn audit_trail_client_fs() -> Result<()> {
     // Imported an account archive
     assert!(matches!(kinds.remove(0), EventKind::ImportBackupArchive));
 
-    teardown(TEST_ID).await;
-
     Ok(())
 }
 
 async fn simulate_session(
     account: &mut LocalAccount,
     default_folder: &Summary,
-    paths: &Arc<Paths>,
+    target: &BackendTarget,
+    // paths: &Arc<Paths>,
 ) -> Result<()> {
     // Create a secret
     let (meta, secret) = mock::note("Audit note", "Note value");
@@ -173,8 +203,10 @@ async fn simulate_session(
         .rename_folder(new_folder.id(), "New name".to_string())
         .await?;
 
-    let exported_folder =
-        paths.documents_dir().join("audit-trail-vault-export.vault");
+    let exported_folder = target
+        .paths()
+        .documents_dir()
+        .join("audit-trail-vault-export.vault");
     let (export_passphrase, _) = generate_passphrase()?;
     account
         .export_folder(
@@ -197,13 +229,16 @@ async fn simulate_session(
     account.delete_folder(new_folder.id()).await?;
 
     // Export an account backup archive
-    let archive = paths
+    let archive = target
+        .paths()
         .documents_dir()
         .join("audit-trail-exported-archive.zip");
     account.export_backup_archive(&archive).await?;
 
-    let unsafe_archive =
-        paths.documents_dir().join("audit-trail-unsafe-archive.zip");
+    let unsafe_archive = target
+        .paths()
+        .documents_dir()
+        .join("audit-trail-unsafe-archive.zip");
     account.export_unsafe_archive(unsafe_archive).await?;
 
     let import_file = "../fixtures/migrate/bitwarden-export.csv";
@@ -218,7 +253,8 @@ async fn simulate_session(
     let vcard = vfs::read_to_string(contacts).await?;
     account.import_contacts(&vcard, |_| {}).await?;
 
-    let exported_contacts = paths
+    let exported_contacts = target
+        .paths()
         .documents_dir()
         .join("audit-trail-exported-contacts.vcf");
     account.export_all_contacts(exported_contacts).await?;
@@ -226,14 +262,7 @@ async fn simulate_session(
     // Delete the account
     account.delete_account().await?;
 
-    let target = if paths.is_using_db() {
-        let client = open_file(paths.database_file()).await?;
-        BackendTarget::Database(paths.clone(), client)
-    } else {
-        BackendTarget::FileSystem(paths.clone())
-    };
-
-    LocalAccount::import_backup_archive(archive, &target).await?;
+    LocalAccount::import_backup_archive(archive, target).await?;
 
     Ok(())
 }
