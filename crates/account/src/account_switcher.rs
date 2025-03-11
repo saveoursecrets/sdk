@@ -123,8 +123,6 @@ where
             let account = builder(identity).await.unwrap();
 
             let paths = account.paths();
-            // tracing::info!(paths = ?paths);
-            paths.ensure().await?;
             self.add_account(account);
         }
         Ok(())
