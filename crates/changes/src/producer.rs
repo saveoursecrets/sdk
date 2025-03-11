@@ -86,7 +86,12 @@ impl ChangeProducer {
                                             let message = serde_json::to_vec(&event)?;
                                             writer.send(message.into()).await?;
                                         }
-                                        Err(_) => {}
+                                        Err(e) => {
+                                            tracing::warn!(
+                                                pid = %pid,
+                                                error = %e,
+                                                "changes::producer::connect_error");
+                                        }
                                     }
                                 }
                             }
