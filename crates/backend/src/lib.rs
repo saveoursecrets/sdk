@@ -168,7 +168,7 @@ impl BackendTarget {
     pub async fn dump_info(&self) -> Result<()> {
         tracing::debug!(
             backend_target = %self,
-            data_dir = %self.paths().documents_dir().display(),
+            documents_dir = %self.paths().documents_dir().display(),
             "backend::dump_info",
         );
 
