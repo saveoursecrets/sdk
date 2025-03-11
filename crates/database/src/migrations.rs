@@ -13,14 +13,19 @@ mod embedded {
 pub fn migrate_connection(
     conn: &mut Connection,
 ) -> std::result::Result<Report, refinery::Error> {
+    tracing::debug!("migration::started");
     let report = embedded::migrations::runner().run(conn)?;
-    for migration in report.applied_migrations() {
+    let applied = report.applied_migrations();
+    for migration in applied {
         tracing::debug!(
             name = %migration.name(),
             version = %migration.version(),
-            "migration",
+            "migration::applied",
         );
     }
+    tracing::debug!(
+        applied_migrations = %applied.len(),
+        "migration::finished");
     Ok(report)
 }
 
