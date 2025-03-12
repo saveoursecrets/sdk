@@ -121,8 +121,6 @@ where
             tracing::info!(
                 account_id = %identity.account_id(), "add_account");
             let account = builder(identity).await.unwrap();
-
-            let paths = account.paths();
             self.add_account(account);
         }
         Ok(())

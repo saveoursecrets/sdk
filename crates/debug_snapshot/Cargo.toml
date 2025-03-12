@@ -1,0 +1,19 @@
+[package]
+name = "sos-debug-snapshot"
+version = "0.17.0"
+edition = "2021"
+description = "Create debug snapshot ZIP archives for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[dependencies]
+thiserror.workspace = true
+futures.workspace = true
+sos-backend.workspace = true
+sos-client-storage.workspace = true
+sos-archive.workspace = true
+sos-logs.workspace = true
+sos-sync.workspace = true
+sos-vfs.workspace = true
+serde_json.workspace = true

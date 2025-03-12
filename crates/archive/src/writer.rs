@@ -1,31 +1,23 @@
-use crate::{Result, ARCHIVE_MANIFEST};
+use crate::Result;
 use async_zip::{
     tokio::write::ZipFileWriter, Compression, ZipDateTimeBuilder,
     ZipEntryBuilder,
 };
-use serde::Serialize;
 use time::OffsetDateTime;
 use tokio::io::AsyncWrite;
 use tokio_util::compat::Compat;
 
 /// Write to an archive.
-pub struct Writer<W: AsyncWrite + Unpin, M: Serialize> {
+pub struct Writer<W: AsyncWrite + Unpin> {
     writer: ZipFileWriter<W>,
-    manifest: M,
 }
 
-impl<W: AsyncWrite + Unpin, M: Serialize> Writer<W, M> {
-    /// Create a new writer.
-    pub fn new(inner: W, manifest: M) -> Self {
+impl<W: AsyncWrite + Unpin> Writer<W> {
+    /// Create a new writer with a manifest.
+    pub fn new(inner: W) -> Self {
         Self {
             writer: ZipFileWriter::with_tokio(inner),
-            manifest,
         }
-    }
-
-    /// Mutable archive manifest.
-    pub fn manifest_mut(&mut self) -> &mut M {
-        &mut self.manifest
     }
 
     /// Add a file to the archive.
@@ -40,14 +32,6 @@ impl<W: AsyncWrite + Unpin, M: Serialize> Writer<W, M> {
             "create_archive::add_file"
         );
         self.append_file_buffer(path, content).await
-    }
-
-    /// Add the manifest and finish building the archive.
-    pub async fn finish(mut self) -> Result<Compat<W>> {
-        let manifest = serde_json::to_vec_pretty(&self.manifest)?;
-        self.append_file_buffer(ARCHIVE_MANIFEST, manifest.as_slice())
-            .await?;
-        Ok(self.writer.close().await?)
     }
 
     async fn append_file_buffer(
@@ -72,5 +56,10 @@ impl<W: AsyncWrite + Unpin, M: Serialize> Writer<W, M> {
             .last_modification_date(dt);
         self.writer.write_entry_whole(entry, buffer).await?;
         Ok(())
+    }
+
+    /// Finish building the archive.
+    pub async fn finish(self) -> Result<Compat<W>> {
+        Ok(self.writer.close().await?)
     }
 }

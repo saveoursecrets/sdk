@@ -5000,6 +5000,7 @@ dependencies = [
  "sos-core",
  "sos-database",
  "sos-database-upgrader",
+ "sos-debug-snapshot",
  "sos-external-files",
  "sos-integrity",
  "sos-login",
@@ -5317,6 +5318,21 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "sos-debug-snapshot"
+version = "0.17.0"
+dependencies = [
+ "futures",
+ "serde_json",
+ "sos-archive",
+ "sos-backend",
+ "sos-client-storage",
+ "sos-logs",
+ "sos-sync",
+ "sos-vfs",
+ "thiserror 2.0.12",
 ]
 
 [[package]]

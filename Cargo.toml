@@ -12,6 +12,7 @@ members = [
   "crates/core",
   "crates/database",
   "crates/database_upgrader",
+  "crates/debug_snapshot", 
   "crates/extension_service",
   "crates/external_files",
   "crates/filesystem",
@@ -46,7 +47,7 @@ members = [
   "tests/command_line",
   "tests/integration",
   "tests/unit",
-  "tests/utils", 
+  "tests/utils",
 ]
 
 [workspace.dependencies]
@@ -60,6 +61,7 @@ sos-core = { version = "0.17", path = "crates/core" }
 sos-changes = { version = "0.17", path = "crates/changes" }
 sos-database = { version = "0.17", path = "crates/database" }
 sos-database-upgrader = { version = "0.17", path = "crates/database_upgrader" }
+sos-debug-snapshot = { version = "0.17", path = "crates/debug_snapshot" }
 sos-external-files = { version = "0.17.0", path = "crates/external_files" }
 sos-filesystem = { version = "0.17", path = "crates/filesystem" }
 sos-integrity = { version = "0.17", path = "crates/integrity" }
