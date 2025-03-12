@@ -98,7 +98,7 @@ rs_merkle = "1.4.2"
 zxcvbn = { version = "3.0.1", features = ["ser"] }
 chbs = "0.1.1"
 
-reqwest = { version = "0.12.5", default-features = false }
+reqwest = { version = "0.12.13", default-features = false }
 tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"]}
 
 age = { version = "0.11", features = ["async"] }
