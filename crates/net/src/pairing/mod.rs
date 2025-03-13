@@ -6,7 +6,7 @@ mod websocket;
 
 pub use enrollment::DeviceEnrollment;
 pub use error::Error;
-pub use share_url::ServerPairUrl;
+pub use share_url::{PairTargetUrl, ServerPairUrl};
 pub use websocket::{AcceptPairing, OfferPairing};
 
 /// Result type for the pairing module.

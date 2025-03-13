@@ -11,6 +11,7 @@ use url::Url;
 /// from a mobile device to a desktop for the inverted pairing flow.
 ///
 /// The URL format is `<server-url>?aid=<account-id>`.
+#[derive(Debug, PartialEq, Eq)]
 pub struct PairTargetUrl {
     /// Server used to transfer the account data.
     server: Url,
@@ -22,6 +23,16 @@ impl PairTargetUrl {
     /// Create a new pair target URL.
     pub fn new(server: Url, account_id: AccountId) -> Self {
         Self { server, account_id }
+    }
+
+    /// Server URL.
+    pub fn server(&self) -> &Url {
+        &self.server
+    }
+
+    /// Account identifier.
+    pub fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 }
 
