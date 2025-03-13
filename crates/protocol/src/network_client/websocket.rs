@@ -2,7 +2,7 @@
 use crate::{
     network_client::{NetworkRetry, WebSocketRequest},
     transfer::CancelReason,
-    NetworkChangeEvent, Error, Result, WireEncodeDecode,
+    Error, NetworkChangeEvent, Result, WireEncodeDecode,
 };
 use futures::{
     stream::{Map, SplitStream},
@@ -246,7 +246,10 @@ impl WebSocketChangeListener {
                         code: CloseCode::Normal,
                         reason: Utf8Bytes::from_static("closed"),
                     })).await {
-                        tracing::warn!(error = ?error);
+                        tracing::warn!(
+                            error = ?error,
+                            "ws_client::websocket::close_error",
+                        );
                     }
                     tracing::debug!("ws_client::shutdown");
                     return Ok(());
