@@ -944,7 +944,6 @@ impl Account for LocalAccount {
 
         // Ensure all paths before sign_in
         let paths = self.paths().with_account_id(account_id);
-        paths.ensure().await?;
 
         tracing::debug!(
             account_id = %account_id,
