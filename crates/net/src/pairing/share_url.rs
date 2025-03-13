@@ -5,6 +5,61 @@ use sos_core::{csprng, AccountId};
 use std::str::FromStr;
 use url::Url;
 
+/// Pair target URL encapsulates a server and account ID.
+///
+/// It is used to transfer a server and account identifier
+/// from a mobile device to a desktop for the inverted pairing flow.
+///
+/// The URL format is `<server-url>?aid=<account-id>`.
+pub struct PairTargetUrl {
+    /// Server used to transfer the account data.
+    server: Url,
+    /// Account identifier.
+    account_id: AccountId,
+}
+
+impl PairTargetUrl {
+    /// Create a new pair target URL.
+    pub fn new(server: Url, account_id: AccountId) -> Self {
+        Self { server, account_id }
+    }
+}
+
+impl From<PairTargetUrl> for Url {
+    fn from(value: PairTargetUrl) -> Self {
+        let mut url = value.server;
+        url.query_pairs_mut()
+            .append_pair(AID, &value.account_id.to_string());
+        url
+    }
+}
+
+impl TryFrom<Url> for PairTargetUrl {
+    type Error = Error;
+
+    fn try_from(mut url: Url) -> Result<Self> {
+        let mut pairs = url.query_pairs();
+
+        let account_id = pairs.find_map(|q| {
+            if q.0.as_ref() == AID {
+                Some(q.1)
+            } else {
+                None
+            }
+        });
+        let account_id = account_id.ok_or(Error::InvalidShareUrl)?;
+        let account_id: AccountId = account_id.as_ref().parse()?;
+
+        url.set_query(None);
+        url.set_path("");
+
+        Ok(PairTargetUrl {
+            server: url,
+            account_id,
+        })
+    }
+}
+
 /// Account identifier.
 const AID: &str = "aid";
 /// Server URL.
