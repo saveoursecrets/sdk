@@ -92,7 +92,9 @@ impl ChangeConsumer {
                                 let event: LocalChangeEvent =
                                     serde_json::from_slice(&buffer)?;
                                 if let Err(e) = tx.send(event).await {
-                                    tracing::warn!(error = %e);
+                                    tracing::warn!(
+                                        error = %e,
+                                        "changes::consumer::send_error");
                                 }
                             }
 
