@@ -2,8 +2,11 @@
 use crate::{Error, Result};
 use futures::sink::SinkExt;
 use interprocess::local_socket::{tokio::prelude::*, GenericNamespaced};
-use sos_core::{events::changes_feed, Paths};
-use std::{sync::Arc, time::Duration};
+use sos_core::{
+    events::{changes_feed, LocalChangeEvent},
+    Paths,
+};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::{
     select,
     sync::{watch, Mutex},
@@ -59,41 +62,26 @@ impl ChangeProducer {
             loop {
                 let paths = paths.clone();
                 select! {
+                    // Explicit cancel notification
                     _ = cancel_rx.changed() => {
                         if *cancel_rx.borrow_and_update() {
                             break;
                         }
                     }
+                    // Periodically refresh the list of consumer sockets
+                    // to dispatch change events to
                     _ = interval.tick() => {
                         let active = find_active_sockets(paths).await?;
                         let mut sockets = sockets.lock().await;
                         *sockets = active;
                     }
+                    // Proxy the change events to the consumer sockets
                     event = rx.changed() => {
                         match event {
                             Ok(_) => {
                                 let event = rx.borrow_and_update().clone();
                                 let sockets = sockets.lock().await;
-                                for pid in &*sockets {
-                                    let ps_name = pid.to_string();
-                                    let name = ps_name.to_ns_name::<GenericNamespaced>()?;
-                                    match LocalSocketStream::connect(name).await {
-                                        Ok(socket) => {
-                                            let mut writer =
-                                                LengthDelimitedCodec::builder()
-                                                    .native_endian()
-                                                    .new_write(socket);
-                                            let message = serde_json::to_vec(&event)?;
-                                            writer.send(message.into()).await?;
-                                        }
-                                        Err(e) => {
-                                            tracing::warn!(
-                                                pid = %pid,
-                                                error = %e,
-                                                "changes::producer::connect_error");
-                                        }
-                                    }
-                                }
+                                dispatch_sockets(event, &*sockets).await?;
                             }
                             Err(_) => {}
                         }
@@ -106,8 +94,44 @@ impl ChangeProducer {
     }
 }
 
+async fn dispatch_sockets(
+    event: LocalChangeEvent,
+    sockets: &[(u32, PathBuf)],
+) -> Result<()> {
+    for (pid, file) in sockets {
+        let ps_name = pid.to_string();
+        let name = ps_name.to_ns_name::<GenericNamespaced>()?;
+        match LocalSocketStream::connect(name).await {
+            Ok(socket) => {
+                let mut writer = LengthDelimitedCodec::builder()
+                    .native_endian()
+                    .new_write(socket);
+                let message = serde_json::to_vec(&event)?;
+                writer.send(message.into()).await?;
+            }
+            Err(e) => {
+                // If we can't connect to the socket
+                // then treat the file as stale and
+                // remove from disc.
+                //
+                // This could happen if the consumer
+                // process aborted abnormally and
+                // wasn't able to cleanly remove the file.
+                let _ = std::fs::remove_file(file)?;
+                tracing::warn!(
+                    pid = %pid,
+                    error = %e,
+                    "changes::producer::connect_error");
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Find active socket files for a producer.
-async fn find_active_sockets(paths: Arc<Paths>) -> Result<Vec<u32>> {
+async fn find_active_sockets(
+    paths: Arc<Paths>,
+) -> Result<Vec<(u32, PathBuf)>> {
     use std::fs::read_dir;
     let mut sockets = Vec::new();
     let socks = paths.documents_dir().join(crate::SOCKS);
@@ -126,7 +150,7 @@ async fn find_active_sockets(paths: Arc<Paths>) -> Result<Vec<u32>> {
                         sock_file_pid = %pid,
                         "changes::producer::find_active_sockets",
                     );
-                    sockets.push(pid);
+                    sockets.push((pid, entry.path().to_owned()));
                 }
             }
         }
