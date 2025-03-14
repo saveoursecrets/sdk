@@ -1,34 +1,9 @@
 use anyhow::Result;
 use sos_core::AccountId;
-use sos_net::pairing::{PairTargetUrl, ServerPairUrl};
+use sos_net::pairing::ServerPairUrl;
 use url::Url;
 
 const SERVER: &str = "http://192.168.1.8:5053";
-
-#[test]
-fn pair_target_url() -> Result<()> {
-    let mock_server: Url = SERVER.parse()?;
-    let mock_account_id = AccountId::random();
-    let mock_url =
-        Url::parse(&format!("{}/?aid={}", mock_server, mock_account_id))?;
-    let pairing_target =
-        PairTargetUrl::new(mock_server.clone(), mock_account_id.clone());
-
-    assert_eq!(&mock_server, pairing_target.server());
-    assert_eq!(&mock_account_id, pairing_target.account_id());
-
-    let parsed_target: PairTargetUrl = mock_url.try_into()?;
-    assert_eq!(pairing_target, parsed_target);
-
-    Ok(())
-}
-
-#[test]
-fn pair_target_url_errors() -> Result<()> {
-    // No account identifier in query string
-    assert!(PairTargetUrl::try_from(Url::parse(SERVER).unwrap()).is_err());
-    Ok(())
-}
 
 #[test]
 fn pair_server_url() -> Result<()> {
