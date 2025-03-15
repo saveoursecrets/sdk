@@ -215,13 +215,6 @@ pub async fn upgrade_accounts(
             copy_file_blobs(accounts.as_slice(), &options).await?;
     }
 
-    if !options.keep_stale_files {
-        tracing::debug!("upgrade_accounts::delete_stale_files");
-
-        result.deleted_files =
-            delete_stale_files(accounts.as_slice(), &options).await?;
-    }
-
     result.accounts = accounts;
     result.database_file = options.paths.database_file().to_owned();
 
@@ -233,6 +226,13 @@ pub async fn upgrade_accounts(
 
         // Move the temp file into place
         vfs::rename(db_temp.path(), options.paths.database_file()).await?;
+    }
+
+    if !options.keep_stale_files {
+        tracing::debug!("upgrade_accounts::delete_stale_files");
+
+        result.deleted_files =
+            delete_stale_files(result.accounts.as_slice(), &options).await?;
     }
 
     Ok(result)
