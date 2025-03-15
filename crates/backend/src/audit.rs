@@ -10,33 +10,45 @@ pub type AuditProvider =
 
 type AuditProviders = Vec<AuditProvider>;
 
-static PROVIDERS: OnceLock<AuditProviders> = OnceLock::new();
+static mut PROVIDERS: OnceLock<AuditProviders> = OnceLock::new();
 
 /// Initialize audit trail providers.
 pub fn init_providers(providers: AuditProviders) {
-    PROVIDERS.get_or_init(|| providers);
+    unsafe {
+        PROVIDERS.get_or_init(|| providers);
+    }
+}
+
+/// Update audit trail providers.
+///
+/// # Panics
+///
+/// If the audit trail providers have not already been set.
+pub fn update_providers(providers: AuditProviders) {
+    unsafe {
+        let audit_providers = PROVIDERS.get_mut().unwrap();
+        *audit_providers = providers;
+    }
 }
 
 /// Configured audit providers.
 pub fn providers<'a>() -> Option<&'a AuditProviders> {
-    PROVIDERS.get()
+    unsafe { PROVIDERS.get() }
 }
 
 /// Append audit events to all configured providers.
 pub async fn append_audit_events(events: &[AuditEvent]) -> Result<()> {
     #[cfg(not(debug_assertions))]
     {
-        let providers = PROVIDERS
-            .get()
-            .ok_or_else(|| Error::AuditProvidersNotConfigured)?;
+        let providers =
+            providers().ok_or_else(|| Error::AuditProvidersNotConfigured)?;
         for provider in providers {
             provider.append_audit_events(events).await?;
         }
     }
     #[cfg(debug_assertions)]
     {
-        let providers = PROVIDERS.get();
-        if let Some(providers) = providers {
+        if let Some(providers) = providers() {
             for provider in providers {
                 provider.append_audit_events(events).await?;
             }
