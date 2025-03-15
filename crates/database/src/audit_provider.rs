@@ -100,23 +100,25 @@ where
                     let mut rows = stmt.query([])?;
 
                     while let Some(row) = rows.next()? {
+                        if tx.is_closed() {
+                            break;
+                        }
                         let row: AuditRow = row.try_into()?;
                         let record: AuditRecord = row.try_into()?;
                         let inner_tx = tx.clone();
-                        futures::executor::block_on(async move {
-                            if let Err(e) =
-                                inner_tx.send(Ok(record.event)).await
-                            {
-                                tracing::error!(error = %e);
-                            }
+                        let res = futures::executor::block_on(async move {
+                            inner_tx.send(Ok(record.event)).await
                         });
+                        if let Err(e) = res {
+                            tracing::error!(error = %e);
+                            break;
+                        }
                     }
 
                     Ok::<_, Error>(())
                 })
                 .await
                 .map_err(Error::from)?;
-
             Ok::<_, Self::Error>(())
         });
 

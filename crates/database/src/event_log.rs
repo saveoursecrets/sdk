@@ -393,14 +393,19 @@ where
                     })?;
 
                     for row in rows {
+                        if tx.is_closed() {
+                            break;
+                        }
                         let row = row?;
                         let record: EventRecord = row.try_into()?;
-                        let sender = tx.clone();
-                        futures::executor::block_on(async move {
-                            if let Err(err) = sender.send(Ok(record)).await {
-                                tracing::error!(error = %err);
-                            }
+                        let inner_tx = tx.clone();
+                        let res = futures::executor::block_on(async move {
+                            inner_tx.send(Ok(record)).await
                         });
+                        if let Err(e) = res {
+                            tracing::error!(error = %e);
+                            break;
+                        }
                     }
 
                     Ok::<_, Error>(())

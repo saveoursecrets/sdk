@@ -142,6 +142,9 @@ where
         let file_path = self.data.clone();
         tokio::task::spawn(async move {
             while let Some(record) = it.next().await? {
+                if tx.is_closed() {
+                    break;
+                }
                 let event_buffer =
                     read_event_buffer(file_path.clone(), &record).await?;
                 let event_record = record.into_event_record(event_buffer);
