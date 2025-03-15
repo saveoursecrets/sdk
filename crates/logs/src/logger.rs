@@ -17,7 +17,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 pub const LOG_FILE_NAME: &str = "saveoursecrets.log";
 
 const DEFAULT_LOG_LEVEL: &str =
-    "sos=info,sos_net=debug,sos_bindings=debug,sos_backend=debug,sos_database=debug,sos_protocol=debug,sos_app=debug";
+    "sos=info,sos_net=debug,sos_bindings=debug,sos_backend=debug,sos_database=debug,sos_protocol=debug,sos_app=debug,sos_database_upgrader=debug";
 
 /// State of the log files on disc.
 pub struct LogFileStatus {

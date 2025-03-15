@@ -435,7 +435,7 @@ async fn delete_stale_files(
     let mut files = vec![
         options.paths.identity_dir().to_owned(),
         options.paths.audit_file().to_owned(),
-        options.paths.global_preferences_file().to_owned(),
+        options.paths.global_preferences_file(),
     ];
 
     for account in accounts {
