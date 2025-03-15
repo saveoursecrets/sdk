@@ -114,13 +114,7 @@ async fn import_accounts(
 
         let mut client =
             open_file_with_journal_mode(db_file, JournalMode::Memory).await?;
-        let report = migrate_client(&mut client).await?;
-        for migration in report.applied_migrations() {
-            tracing::debug!(
-                name = %migration.name(),
-                version = %migration.version(),
-                "import_accounts::migration",);
-        }
+        migrate_client(&mut client).await?;
         client
     } else {
         open_memory().await?
