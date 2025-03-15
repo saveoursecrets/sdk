@@ -466,7 +466,7 @@ async fn delete_stale_files(
     if let Err(error) = vfs::remove_dir(options.paths.local_dir()).await {
         tracing::error!(
             error = %error,
-            "updgrade_accounts::remove_local_dir");
+            "upgrade_accounts::remove_local_dir");
     }
 
     Ok(files)
