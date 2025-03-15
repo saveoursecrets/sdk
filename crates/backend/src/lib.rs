@@ -98,6 +98,23 @@ impl fmt::Display for BackendTarget {
     }
 }
 
+impl fmt::Debug for BackendTarget {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", {
+            match self {
+                Self::FileSystem(paths) => format!(
+                    "file:{}",
+                    paths.documents_dir().to_string_lossy()
+                ),
+                Self::Database(paths, _) => format!(
+                    "sqlite:{}",
+                    paths.database_file().to_string_lossy()
+                ),
+            }
+        })
+    }
+}
+
 impl BackendTarget {
     /// Infer and initialize a new backend target.
     ///
