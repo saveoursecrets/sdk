@@ -435,6 +435,7 @@ async fn delete_stale_files(
     let mut files = vec![
         options.paths.identity_dir().to_owned(),
         options.paths.audit_file().to_owned(),
+        options.paths.global_preferences_file().to_owned(),
     ];
 
     for account in accounts {
@@ -459,6 +460,13 @@ async fn delete_stale_files(
                 }
             }
         }
+    }
+
+    // Can error if the local directory is not empty!
+    if let Err(error) = vfs::remove_dir(options.paths.local_dir()).await {
+        tracing::error!(
+            error = %error,
+            "updgrade_accounts::remove_local_dir");
     }
 
     Ok(files)

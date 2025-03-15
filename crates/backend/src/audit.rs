@@ -46,6 +46,8 @@ pub async fn append_audit_events(events: &[AuditEvent]) -> Result<()> {
             provider.append_audit_events(events).await?;
         }
     }
+
+    // For test specs we don't require an audit trail
     #[cfg(debug_assertions)]
     {
         if let Some(providers) = providers() {
