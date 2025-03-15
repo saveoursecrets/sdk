@@ -436,6 +436,7 @@ async fn delete_stale_files(
         options.paths.identity_dir().to_owned(),
         options.paths.audit_file().to_owned(),
         options.paths.global_preferences_file(),
+        options.paths.local_dir().join(".DS_Store"),
     ];
 
     for account in accounts {

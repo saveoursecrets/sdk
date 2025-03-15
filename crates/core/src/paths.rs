@@ -330,7 +330,7 @@ impl Paths {
     /// account-level preferences.
     pub fn preferences_file(&self) -> PathBuf {
         let mut path = if self.is_global() {
-            self.global_preferences_file()
+            self.documents_dir().join(PREFERENCES_FILE)
         } else {
             self.user_dir().join(PREFERENCES_FILE)
         };
@@ -340,7 +340,9 @@ impl Paths {
 
     /// Path to the global preferences file.
     pub fn global_preferences_file(&self) -> PathBuf {
-        self.documents_dir().join(PREFERENCES_FILE)
+        let mut path = self.documents_dir().join(PREFERENCES_FILE);
+        path.set_extension(JSON_EXT);
+        path
     }
 
     /// Path to the file used to store account-level system messages.
