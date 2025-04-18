@@ -12,7 +12,8 @@ use http::{
     StatusCode,
 };
 use sos_account::{Account, AccountSwitcher};
-use sos_core::ErrorExt;
+use sos_changes::consumer::ChangeConsumer;
+use sos_core::{ErrorExt, Paths};
 use sos_login::DelegatedAccess;
 use sos_logs::Logger;
 use sos_protocol::{constants::MIME_TYPE_JSON, ErrorReply};
@@ -113,8 +114,15 @@ where
         }
 
         tracing::info!(options = ?options, "extension_helper");
-
+        let paths = {
+            let accounts = accounts.read().await;
+            accounts.paths().unwrap_or_else(|| {
+                Paths::new_client(Paths::data_dir().unwrap())
+            })
+        };
         let accounts = WebAccounts::new(accounts);
+        let changes_consumer = ChangeConsumer::listen(paths.clone())?;
+        accounts.listen_changes(changes_consumer, paths)?;
         let client = LocalMemoryServer::listen(
             accounts.clone(),
             options.service_info.clone(),

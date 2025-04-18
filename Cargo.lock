@@ -5503,6 +5503,7 @@ dependencies = [
  "serde_with",
  "sos-account",
  "sos-backend",
+ "sos-changes",
  "sos-client-storage",
  "sos-core",
  "sos-database",

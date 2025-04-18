@@ -58,6 +58,7 @@ extension-helper-client = [
 [dependencies]
 sos-account.workspace = true
 sos-core.workspace = true
+sos-changes.workspace = true
 sos-client-storage.workspace = true
 sos-backend.workspace = true
 sos-database.workspace = true

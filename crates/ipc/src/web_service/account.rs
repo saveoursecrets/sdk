@@ -232,7 +232,7 @@ where
 
 /// Sign in to an account
 pub async fn sign_in_password<A, R, E>(
-    accounts: WebAccounts<A, R, E>,
+    mut accounts: WebAccounts<A, R, E>,
     account_id: AccountId,
     password: SecretString,
     save_password: bool,
@@ -257,52 +257,43 @@ where
         + 'static,
 {
     use sos_platform_authenticator::keyring_password;
+    {
+        let mut user_accounts = accounts.as_ref().write().await;
+        let Some(account) = user_accounts
+            .iter_mut()
+            .find(|a| a.account_id() == &account_id)
+        else {
+            return status(StatusCode::NOT_FOUND);
+        };
 
-    let mut user_accounts = accounts.as_ref().write().await;
-    let Some(account) = user_accounts
-        .iter_mut()
-        .find(|a| a.account_id() == &account_id)
-    else {
-        return status(StatusCode::NOT_FOUND);
-    };
+        let key: AccessKey = password.clone().into();
 
-    let key: AccessKey = password.clone().into();
-
-    let folder_ids = if let Ok(folders) = account.list_folders().await {
-        folders.into_iter().map(|f| *f.id()).collect::<Vec<_>>()
-    } else {
-        vec![]
-    };
-
-    match account.sign_in(&key).await {
-        Ok(_) => {
-            if let Err(e) =
-                accounts.watch(account_id, account.paths(), folder_ids)
-            {
-                tracing::error!(error = ?e);
+        match account.sign_in(&key).await {
+            Ok(_) => {}
+            Err(e) => {
+                if e.is_permission_denied() {
+                    return status(StatusCode::FORBIDDEN);
+                } else {
+                    return internal_server_error(e);
+                }
             }
         }
-        Err(e) => {
-            if e.is_permission_denied() {
-                return status(StatusCode::FORBIDDEN);
-            } else {
+
+        if let Err(e) = account.initialize_search_index().await {
+            return internal_server_error(e);
+        }
+
+        if save_password && keyring_password::supported() {
+            if let Err(e) = keyring_password::save_account_password(
+                &account_id.to_string(),
+                password,
+            ) {
                 return internal_server_error(e);
             }
         }
     }
 
-    if let Err(e) = account.initialize_search_index().await {
-        return internal_server_error(e);
-    }
-
-    if save_password && keyring_password::supported() {
-        if let Err(e) = keyring_password::save_account_password(
-            &account_id.to_string(),
-            password,
-        ) {
-            return internal_server_error(e);
-        }
-    }
+    accounts.watch(account_id);
 
     status(StatusCode::OK)
 }
@@ -373,7 +364,7 @@ where
 
 /// Sign out of an account
 pub async fn sign_out<A, R, E>(
-    accounts: WebAccounts<A, R, E>,
+    mut accounts: WebAccounts<A, R, E>,
     account_id: Option<AccountId>,
 ) -> hyper::Result<Response<Body>>
 where
@@ -395,61 +386,55 @@ where
         + Sync
         + 'static,
 {
-    let mut user_accounts = accounts.as_ref().write().await;
     if let Some(account_id) = account_id {
-        let Some(account) = user_accounts
-            .iter_mut()
-            .find(|a| a.account_id() == &account_id)
-        else {
-            return status(StatusCode::NOT_FOUND);
-        };
-
-        let folder_ids = if let Ok(folders) = account.list_folders().await {
-            folders.into_iter().map(|f| *f.id()).collect::<Vec<_>>()
-        } else {
-            vec![]
-        };
-
-        match account.sign_out().await {
-            Ok(_) => {
-                if let Err(e) =
-                    accounts.unwatch(&account_id, account.paths(), folder_ids)
-                {
-                    return internal_server_error(e);
-                }
-                status(StatusCode::OK)
-            }
-            Err(e) => internal_server_error(e),
-        }
-    } else {
-        let mut account_info = Vec::new();
-        for account in user_accounts.iter() {
-            let folder_ids = if let Ok(folders) = account.list_folders().await
-            {
-                folders.into_iter().map(|f| *f.id()).collect::<Vec<_>>()
-            } else {
-                vec![]
+        {
+            let mut user_accounts = accounts.as_ref().write().await;
+            let Some(account) = user_accounts
+                .iter_mut()
+                .find(|a| a.account_id() == &account_id)
+            else {
+                return status(StatusCode::NOT_FOUND);
             };
 
-            account_info.push((
-                *account.account_id(),
-                account.paths(),
-                folder_ids,
-            ));
+            match account.sign_out().await {
+                Ok(_) => {}
+                Err(e) => return internal_server_error(e),
+            }
         }
 
-        match user_accounts.sign_out_all().await {
-            Ok(_) => {
-                for (account_id, paths, folder_ids) in account_info {
-                    if let Err(e) =
-                        accounts.unwatch(&account_id, paths, folder_ids)
-                    {
-                        return internal_server_error(e);
-                    }
-                }
-                status(StatusCode::OK)
+        accounts.unwatch(&account_id);
+        status(StatusCode::OK)
+    } else {
+        let account_info = {
+            let mut user_accounts = accounts.as_ref().write().await;
+            let mut account_info = Vec::new();
+            for account in user_accounts.iter() {
+                let folder_ids = if let Ok(folders) =
+                    account.list_folders().await
+                {
+                    folders.into_iter().map(|f| *f.id()).collect::<Vec<_>>()
+                } else {
+                    vec![]
+                };
+
+                account_info.push((
+                    *account.account_id(),
+                    account.paths(),
+                    folder_ids,
+                ));
             }
-            Err(e) => internal_server_error(e),
+
+            match user_accounts.sign_out_all().await {
+                Ok(_) => {}
+                Err(e) => return internal_server_error(e),
+            }
+            account_info
+        };
+
+        for (account_id, _, _) in account_info {
+            accounts.unwatch(&account_id);
         }
+
+        status(StatusCode::OK)
     }
 }
