@@ -17,6 +17,7 @@ sos-changes = { workspace = true, features = ["changes-consumer"] }
 tokio.workspace = true
 anyhow.workspace = true
 xclipboard.workspace = true
+tracing.workspace = true
 
 [[bin]]
 name = "sos-extension-helper"

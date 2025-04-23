@@ -215,6 +215,8 @@ where
         keyring_password_supported = %keyring_password::supported(),
     );
 
+    tracing::info!(account_id = %account_id, "sign_in");
+
     match find_account_credential(&account_id.to_string()).await {
         Ok(password) => {
             sign_in_password(accounts, account_id, password, false).await

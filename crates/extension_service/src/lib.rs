@@ -29,7 +29,6 @@ pub async fn run() -> anyhow::Result<()> {
     args.pop();
 
     let extension_id = args.pop().unwrap_or_else(String::new).to_string();
-
     let changes_feed = changes_feed();
 
     let mut accounts =
@@ -38,9 +37,17 @@ pub async fn run() -> anyhow::Result<()> {
             ..Default::default()
         });
 
+    let paths = Paths::new_client(Paths::data_dir()?);
+    let target = BackendTarget::infer(paths, InferOptions::default()).await?;
+
+    tracing::info!(backend_target = %target, "extension_service");
+
     accounts
         .load_accounts(
             |identity| {
+                tracing::debug!(
+                    account_id = %identity.account_id(),
+                    "extension::load_account");
                 Box::pin(async move {
                     let paths = Paths::new_client(Paths::data_dir()?)
                         .with_account_id(identity.account_id());
@@ -55,7 +62,7 @@ pub async fn run() -> anyhow::Result<()> {
                     .await?)
                 })
             },
-            None,
+            target,
         )
         .await?;
 
