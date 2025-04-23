@@ -1,6 +1,7 @@
 use sos_account::{
     AccountSwitcherOptions, LocalAccount, LocalAccountSwitcher,
 };
+use sos_backend::BackendTarget;
 use sos_ipc::{
     extension_helper::server::{
         ExtensionHelperOptions, ExtensionHelperServer,
@@ -40,6 +41,9 @@ pub async fn main() -> anyhow::Result<()> {
         ..Default::default()
     };
     let mut accounts = LocalAccountSwitcher::new_with_options(options);
+    let target = BackendTarget::FileSystem(Paths::new_client(
+        data_dir.as_ref().unwrap(),
+    ));
     accounts
         .load_accounts(
             |identity| {
@@ -55,7 +59,7 @@ pub async fn main() -> anyhow::Result<()> {
                     .await?)
                 })
             },
-            data_dir.as_ref(),
+            target,
         )
         .await?;
 
