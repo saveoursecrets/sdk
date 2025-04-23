@@ -66,7 +66,8 @@ pub async fn main() -> anyhow::Result<()> {
     };
     let accounts = Arc::new(RwLock::new(accounts));
     let options = ExtensionHelperOptions::new(extension_id, info);
-    let server = ExtensionHelperServer::new(options, accounts).await?;
+    let server =
+        ExtensionHelperServer::new(options, accounts, |_| {}).await?;
     server.listen().await;
     Ok(())
 }

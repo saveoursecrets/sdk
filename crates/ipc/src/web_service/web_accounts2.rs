@@ -147,6 +147,7 @@ where
         &self,
         mut changes_consumer: ConsumerHandle,
         paths: Arc<Paths>,
+        change_handler: impl Fn(LocalChangeEvent) + Send + Sync + 'static,
     ) -> Result<()> {
         // Start a background task to listen for change events
         let channel = self.channel.clone();
@@ -161,11 +162,8 @@ where
                     "change_consumer::event_received"
                 );
 
-                // The account_id is included in the event variants
                 if let Err(e) = process_change_event(
-                    event,
-                    // We don't need to pass account_id separately as it's in the event
-                    // Passing default here as it's not used in this form
+                    &event,
                     AccountId::default(),
                     paths.clone(),
                     task_accounts.clone(),
@@ -175,6 +173,8 @@ where
                 {
                     tracing::error!(error = %e, "process_change_event");
                 }
+
+                change_handler(event);
             }
 
             tracing::debug!("consumer_task_completed");
@@ -220,9 +220,9 @@ where
 
 /// Process change events and update the system state accordingly
 async fn process_change_event<A, R, E>(
-    event: LocalChangeEvent,
-    _account_id_unused: AccountId, // Keeping for backward compatibility but not using
-    paths: Arc<Paths>,
+    event: &LocalChangeEvent,
+    _account_id: AccountId,
+    _paths: Arc<Paths>,
     accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
     channel: broadcast::Sender<AccountChangeEvent>,
 ) -> Result<()>
@@ -282,7 +282,7 @@ where
                     let mut accounts_lock = accounts.write().await;
                     let account = accounts_lock
                         .iter_mut()
-                        .find(|a| a.account_id() == &account_id)
+                        .find(|a| a.account_id() == account_id)
                         .ok_or(Error::from(FileEventError::NoAccount(
                             account_id.clone(),
                         )))?;
@@ -331,14 +331,14 @@ where
                     let accounts_lock = accounts.read().await;
                     let account = accounts_lock
                         .iter()
-                        .find(|a| a.account_id() == &account_id)
+                        .find(|a| a.account_id() == account_id)
                         .ok_or(Error::from(FileEventError::NoAccount(
                             account_id.clone(),
                         )))?;
 
                     let folder =
                         account.folder(&folder_id).await.ok().ok_or(
-                            Error::from(FileEventError::NoFolder(folder_id)),
+                            Error::from(FileEventError::NoFolder(*folder_id)),
                         )?;
 
                     let event_log = folder.event_log();
@@ -355,10 +355,10 @@ where
                         let mut accounts_lock = accounts.write().await;
                         if let Some(account) = accounts_lock
                             .iter_mut()
-                            .find(|a| a.account_id() == &account_id)
+                            .find(|a| a.account_id() == account_id)
                         {
                             let records_clone = ChangeRecords::Folder(
-                                folder_id,
+                                *folder_id,
                                 records.clone(),
                             );
                             update_account_search_index(
@@ -381,7 +381,7 @@ where
                         let evt = AccountChangeEvent {
                             account_id: account_id.clone(),
                             records: ChangeRecords::Folder(
-                                folder_id, records,
+                                *folder_id, records,
                             ),
                         };
                         if let Err(e) = channel.send(evt) {
