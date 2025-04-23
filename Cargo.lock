@@ -5050,7 +5050,7 @@ dependencies = [
 
 [[package]]
 name = "sos-account"
-version = "0.17.3"
+version = "0.17.4"
 dependencies = [
  "async-trait",
  "futures",
