@@ -907,7 +907,7 @@ async fn walk(
                 return walk(target, it, length, parents).await;
             }
             Component::ParentDir => {
-                if let Some(_) = parents.pop() {
+                if parents.pop().is_some() {
                     if index == length - 1 {
                         if let Some(target) = parents.pop() {
                             return Some(target.into());
