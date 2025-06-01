@@ -157,7 +157,7 @@ impl File {
         inner.state = Busy(Box::pin(async move {
             let mut std = std.lock();
             let len = std.get_ref().len() as u64;
-            let original_position = std.position();
+            let cursor_pos = std.position();
 
             let extension = if size <= len {
                 None
@@ -183,7 +183,7 @@ impl File {
                 }
                 Ok(())
             }
-            .map(|_| original_position);
+            .map(|_| cursor_pos);
 
             // Reset to the original position (even if it's > size now)
             (Operation::Seek(res), buf)
