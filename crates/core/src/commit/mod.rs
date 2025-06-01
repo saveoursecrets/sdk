@@ -16,5 +16,18 @@ pub use tree::CommitTree;
 
 /// Commit state combines the last commit hash with
 /// a commit proof.
-#[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Eq, PartialEq)]
 pub struct CommitState(pub CommitHash, pub CommitProof);
+
+/// Commit span represents a section of an event log.
+///
+/// There can be no before commit hash when applying the first
+/// collection of events to an event log. If an empty collection
+/// was passed the after commit hash will be `None`.
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Eq, PartialEq)]
+pub struct CommitSpan {
+    /// Commit hash before changes were applied.
+    pub before: Option<CommitHash>,
+    /// Commit hash after changes were applied.
+    pub after: Option<CommitHash>,
+}

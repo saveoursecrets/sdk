@@ -23,8 +23,8 @@ use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
     encode,
     events::{
-        AccountEvent, DeviceEvent, Event, EventKind, EventLog, EventRecord,
-        ReadEvent, WriteEvent,
+        changes_feed, AccountEvent, DeviceEvent, Event, EventKind, EventLog,
+        EventRecord, LocalChangeEvent, ReadEvent, WriteEvent,
     },
     AccountId, AccountRef, AuthenticationError, FolderRef, Paths, SecretId,
     UtcDateTime, VaultCommit, VaultFlags, VaultId,
@@ -187,6 +187,9 @@ impl LocalAccount {
         tracing::debug!("new_account::storage_provider");
         storage.create_account(&public_account).await?;
         tracing::debug!("new_account::created");
+
+        changes_feed()
+            .send_replace(LocalChangeEvent::AccountCreated(account_id));
 
         Ok(Self {
             account_id,
@@ -941,7 +944,6 @@ impl Account for LocalAccount {
 
         // Ensure all paths before sign_in
         let paths = self.paths().with_account_id(account_id);
-        paths.ensure().await?;
 
         tracing::debug!(
             account_id = %account_id,
@@ -1071,6 +1073,11 @@ impl Account for LocalAccount {
         }
 
         self.sign_out().await?;
+
+        changes_feed().send_replace(LocalChangeEvent::AccountDeleted(
+            *self.account_id(),
+        ));
+
         Ok(())
     }
 
@@ -1161,7 +1168,8 @@ impl Account for LocalAccount {
         let vault = {
             let event_log = self.identity_log().await?;
             let mut log_file = event_log.write().await;
-            compact_folder(identity.id(), &mut *log_file).await?;
+            compact_folder(self.account_id(), identity.id(), &mut *log_file)
+                .await?;
 
             let vault = FolderReducer::new()
                 .reduce(&*log_file)
@@ -1171,8 +1179,6 @@ impl Account for LocalAccount {
 
             vault
         };
-
-        // TODO: do we need to re-import the identity vault here?
 
         let event = {
             let event = AccountEvent::UpdateIdentity(encode(&vault).await?);

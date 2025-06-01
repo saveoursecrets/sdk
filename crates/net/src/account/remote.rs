@@ -204,7 +204,7 @@ mod listen {
     use crate::RemoteBridge;
     use sos_protocol::{
         network_client::{ListenOptions, WebSocketHandle},
-        ChangeNotification,
+        NetworkChangeEvent,
     };
     use tokio::sync::mpsc;
 
@@ -223,7 +223,7 @@ mod listen {
         pub(crate) fn listen(
             &self,
             options: ListenOptions,
-            channel: mpsc::Sender<ChangeNotification>,
+            channel: mpsc::Sender<NetworkChangeEvent>,
         ) -> WebSocketHandle {
             let handle = self.client.listen(options, move |notification| {
                 let tx = channel.clone();

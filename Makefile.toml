@@ -110,6 +110,7 @@ mkdir -p target/demo
 '''
 
 [tasks.test-command-line]
+script_runner = "@shell"
 script = '''
 export SOS_TEST=1
 export PATH="../../target/debug:$PATH"
@@ -136,17 +137,20 @@ command = "cargo"
 args = ["build", "-p", "sos-integration-tests"]
 
 [tasks.clean-tests]
+script_runner = "@shell"
 script = '''
 rm -rf target/integration-test
 '''
 
 [tasks.test]
+script_runner = "@shell"
 script = '''
 cargo nextest run -p sos-integration-tests -p sos-unit-tests
 '''
 dependencies = ["clean-tests", "build-test"]
 
 [tasks.test-all]
+script_runner = "@shell"
 script = '''
 cargo nextest run \
   -p sos-integration-tests -p sos-unit-tests
@@ -160,6 +164,7 @@ SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo nextest run \
 dependencies = ["clean-tests", "build-test"]
 
 [tasks.ci]
+script_runner = "@shell"
 script = '''
 cargo nextest run --profile ci \
   -p sos-integration-tests -p sos-unit-tests
@@ -173,6 +178,7 @@ SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo nextest run --profile ci \
 dependencies = ["clean-tests", "build-test"]
 
 [tasks.cover]
+script_runner = "@shell"
 script = '''
 cargo llvm-cov clean --workspace
 cargo llvm-cov nextest \

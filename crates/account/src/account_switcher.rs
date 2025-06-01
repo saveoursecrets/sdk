@@ -1,10 +1,10 @@
 use crate::{Account, Error, LocalAccount, Result};
+use sos_backend::BackendTarget;
 use sos_core::{AccountId, Paths};
 use sos_login::PublicIdentity;
-use sos_vault::list_accounts;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::{collections::HashMap, future::Future};
-use std::{path::PathBuf, sync::Arc};
 
 #[cfg(feature = "search")]
 use sos_search::{ArchiveFilter, Document, DocumentView, QueryFilter};
@@ -101,7 +101,7 @@ where
     pub async fn load_accounts<B>(
         &mut self,
         builder: B,
-        data_dir: Option<&PathBuf>,
+        target: BackendTarget,
     ) -> Result<()>
     where
         B: Fn(
@@ -109,24 +109,11 @@ where
         )
             -> Pin<Box<dyn Future<Output = std::result::Result<A, E>>>>,
     {
-        Paths::scaffold(data_dir).await?;
-
-        let paths = if let Some(data_dir) = data_dir {
-            Paths::new_client(data_dir)
-        } else {
-            Paths::new_client(Paths::data_dir()?)
-        };
-
-        let identities = list_accounts(Some(&paths)).await?;
-
+        let identities = target.list_accounts().await?;
         for identity in identities {
             tracing::info!(
                 account_id = %identity.account_id(), "add_account");
             let account = builder(identity).await.unwrap();
-
-            let paths = account.paths();
-            // tracing::info!(paths = ?paths);
-            paths.ensure().await?;
             self.add_account(account);
         }
         Ok(())

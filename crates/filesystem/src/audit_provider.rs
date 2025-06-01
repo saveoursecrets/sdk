@@ -222,6 +222,9 @@ where
         let it_file = self.file.clone();
         tokio::task::spawn(async move {
             while let Some(record) = it.next().await? {
+                if tx.is_closed() {
+                    break;
+                }
                 let mut inner = it_file.lock().await;
                 let event = inner.read_event(&record).await?;
                 if let Err(e) = tx.send(Ok(event)).await {

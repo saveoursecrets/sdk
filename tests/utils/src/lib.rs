@@ -61,6 +61,7 @@ pub async fn make_client_backend(
         sos_database::migrations::migrate_client(&mut client).await?;
         BackendTarget::Database(paths.clone(), client)
     } else {
+        Paths::scaffold(paths.documents_dir()).await?;
         BackendTarget::FileSystem(paths.clone())
     })
 }

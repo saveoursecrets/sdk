@@ -15,7 +15,7 @@ pub mod mock {
         commit::{CommitHash, CommitTree},
         crypto::PrivateKey,
         encode,
-        events::{EventLog, WriteEvent},
+        events::{EventLog, EventLogType, WriteEvent},
         AccountId, Paths, SecretId, VaultCommit, VaultEntry, VaultId,
     };
     use sos_database::async_sqlite::Client;
@@ -171,9 +171,16 @@ pub mod mock {
 
         let (id, data) = mock_secret().await?;
 
+        let account_id = AccountId::random();
+
         // Create a simple event log
         let mut event_log = BackendEventLog::FileSystem(
-            sos_filesystem::FolderEventLog::new_folder(path.as_ref()).await?,
+            sos_filesystem::FolderEventLog::new_folder(
+                path.as_ref(),
+                account_id,
+                EventLogType::Folder(VaultId::new_v4()),
+            )
+            .await?,
         );
         event_log
             .apply(&[
@@ -206,9 +213,17 @@ pub mod mock {
 
         let (id, data) = mock_secret().await?;
 
+        let account_id = AccountId::random();
+        let log_type = EventLogType::Folder(VaultId::new_v4());
+
         // Create a simple event log
         let mut server = BackendEventLog::FileSystem(
-            sos_filesystem::FolderEventLog::new_folder(server_file).await?,
+            sos_filesystem::FolderEventLog::new_folder(
+                server_file,
+                account_id,
+                log_type,
+            )
+            .await?,
         );
         server
             .apply(&[
@@ -219,7 +234,12 @@ pub mod mock {
 
         // Duplicate the server events on the client
         let mut client = BackendEventLog::FileSystem(
-            sos_filesystem::FolderEventLog::new_folder(client_file).await?,
+            sos_filesystem::FolderEventLog::new_folder(
+                client_file,
+                account_id,
+                log_type,
+            )
+            .await?,
         );
         {
             let stream = server.event_stream(false).await;

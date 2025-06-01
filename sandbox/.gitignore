@@ -1,10 +1,10 @@
 *
 !.gitignore
-!config.toml
+!config-filesystem.toml
 !config-backup.toml
 !acme.toml
 !accounts
 !accounts-backup
 !acme-cache
-!database.toml
+!config-database.toml
 !db_accounts

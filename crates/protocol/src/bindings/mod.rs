@@ -11,7 +11,7 @@ mod sync;
 
 pub use diff::{DiffRequest, DiffResponse};
 #[cfg(feature = "listen")]
-pub use notifications::ChangeNotification;
+pub use notifications::NetworkChangeEvent;
 pub use patch::{PatchRequest, PatchResponse};
 #[cfg(feature = "pairing")]
 #[doc(hidden)]

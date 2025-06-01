@@ -4,7 +4,7 @@ use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     encode,
-    events::{EventLog, EventRecord, ReadEvent, WriteEvent},
+    events::{EventLog, EventLogType, EventRecord, ReadEvent, WriteEvent},
     AccountId, VaultFlags, VaultId,
 };
 use sos_core::{constants::EVENT_LOG_EXT, decode, VaultCommit};
@@ -43,6 +43,8 @@ impl Folder {
             BackendTarget::FileSystem(paths) => {
                 Self::from_path(
                     paths.with_account_id(account_id).vault_path(folder_id),
+                    account_id,
+                    EventLogType::Folder(*folder_id),
                 )
                 .await
             }
@@ -132,13 +134,21 @@ impl Folder {
     /// and if an event log does not exist it is created.
     ///
     /// If an event log exists the commit tree is loaded into memory.
-    pub async fn from_path(path: impl AsRef<Path>) -> Result<Self> {
+    pub async fn from_path(
+        path: impl AsRef<Path>,
+        account_id: &AccountId,
+        log_type: EventLogType,
+    ) -> Result<Self> {
         let mut events_path = path.as_ref().to_owned();
         events_path.set_extension(EVENT_LOG_EXT);
 
         let mut event_log =
-            sos_filesystem::FolderEventLog::<Error>::new_folder(events_path)
-                .await?;
+            sos_filesystem::FolderEventLog::<Error>::new_folder(
+                events_path,
+                *account_id,
+                log_type,
+            )
+            .await?;
         event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 

@@ -14,7 +14,7 @@ mod identity;
 mod keychain;
 mod migrate;
 mod not_authenticated;
-mod pairing_share_url;
+mod pairing_url;
 mod password;
 mod preferences;
 mod protocol_encoding;

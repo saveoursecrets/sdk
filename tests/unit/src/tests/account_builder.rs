@@ -15,6 +15,7 @@ async fn account_builder_fs() -> Result<()> {
 
     let dirs = setup(TEST_ID, 1).await?;
     let paths = Paths::new_client(&dirs.test_dir);
+    Paths::scaffold(paths.documents_dir()).await?;
 
     let account_name = "fs-account".to_owned();
     let password = memorable();

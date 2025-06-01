@@ -5,7 +5,7 @@ package notifications;
 import "protobuf/common.proto";
 import "protobuf/sync.proto";
 
-message WireChangeNotification {
+message WireNetworkChangeEvent {
   // Account identifier.
   bytes account_id = 1;
   // Connection identifier.

@@ -26,7 +26,7 @@ use sos_sync::{CreateSet, StorageEventLogs, SyncStorage};
 use sos_test_utils::{mock, setup, teardown};
 use sos_vault::secret::SecretRow;
 use std::collections::HashMap;
-use tempfile::tempdir_in;
+use tempfile::tempdir;
 
 const ACCOUNT_NAME: &str = "client_storage";
 const MAIN_NAME: &str = "main";
@@ -41,7 +41,9 @@ const MOCK_VALUE_UPDATED: &str = "mock-value-updated";
 
 #[tokio::test]
 async fn fs_client_storage() -> Result<()> {
-    let temp = tempdir_in("target")?;
+    // Windows doesn't like using tempdir_in("target") here
+    // but it works in other tests!
+    let temp = tempdir()?;
     Paths::scaffold(&temp.path().to_owned()).await?;
 
     let account_id = AccountId::random();
@@ -61,6 +63,8 @@ async fn fs_client_storage() -> Result<()> {
         account_id, target, create_set, password, folder_id, secret_id,
     )
     .await?;
+
+    temp.close()?;
 
     Ok(())
 }

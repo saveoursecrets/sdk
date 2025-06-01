@@ -338,6 +338,13 @@ impl Paths {
         path
     }
 
+    /// Path to the global preferences file.
+    pub fn global_preferences_file(&self) -> PathBuf {
+        let mut path = self.documents_dir().join(PREFERENCES_FILE);
+        path.set_extension(JSON_EXT);
+        path
+    }
+
     /// Path to the file used to store account-level system messages.
     ///
     /// # Panics

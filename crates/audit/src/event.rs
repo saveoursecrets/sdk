@@ -40,6 +40,7 @@ bitflags! {
 /// * 20 bytes for the public account_id.
 /// * 16, 32 or 64 bytes for the context data (one, two or four UUIDs).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct AuditEvent {
     /// Time the event was created.
     pub(crate) time: UtcDateTime,
@@ -202,7 +203,7 @@ impl From<(&AccountId, &AccountEvent)> for AuditEvent {
 
 /// Associated data for an audit log record.
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum AuditData {
     /// Data for an associated vault.
     Vault(VaultId),
