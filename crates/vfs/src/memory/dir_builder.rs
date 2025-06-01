@@ -6,7 +6,7 @@ use std::{
 };
 
 use super::fs::{
-    has_parent, resolve, resolve_parent, root_fs_mut, MemoryFd, Parent,
+    has_parent, resolve, resolve_parent, root_fs, MemoryFd, Parent,
     PathTarget,
 };
 
@@ -53,7 +53,7 @@ impl DirBuilder {
     /// * Other I/O error occurred.
     pub async fn create(&self, path: impl AsRef<Path>) -> Result<()> {
         if self.recursive {
-            let mut current = Parent::Root(root_fs_mut());
+            let mut current = Parent::Root(root_fs());
             let mut buf = PathBuf::new();
             #[allow(unused_assignments)]
             let mut file_name: Option<OsString> = None;
@@ -137,7 +137,7 @@ impl DirBuilder {
                     Err(ErrorKind::NotFound.into())
                 }
             } else {
-                Parent::Root(root_fs_mut())
+                Parent::Root(root_fs())
                     .mkdir(file_name.to_owned())
                     .await?;
                 Ok(())
