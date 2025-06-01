@@ -35,6 +35,31 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn rename_with_metadata() -> Result<()> {
+        let from = "/foo/from.txt";
+        let to = "/foo/to.txt";
+        let data = "data to copy";
+
+        vfs::create_dir("foo").await?;
+
+        vfs::write(from, data.as_bytes()).await?;
+        assert!(vfs::try_exists(from).await?);
+
+        vfs::rename(from, to).await?;
+        assert!(vfs::try_exists(to).await?);
+
+        // list directory
+        let mut dir_reader = vfs::read_dir("/foo").await?;
+        while let Some(entry) = dir_reader.next_entry().await? {
+            let entry_metadata = entry.metadata().await?;
+            assert!(entry_metadata.is_file());
+            assert_eq!(entry_metadata.len(), data.len() as u64);
+        }
+
+        Ok(())
+    }
+
     async fn file_write_read() -> Result<()> {
         let path = "test.txt";
         let contents = "Mock content";
