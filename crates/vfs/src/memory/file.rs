@@ -133,6 +133,8 @@ impl File {
     /// will be extended to size and have all of the
     /// intermediate data filled in with 0s.
     ///
+    /// Length changes to not affect the cursor position.
+    ///
     /// # Errors
     ///
     /// This function will return an error if the file
@@ -242,7 +244,8 @@ impl AsyncRead for File {
                     let mut buf = buf_cell.take().unwrap();
 
                     if !buf.is_empty() {
-                        buf.copy_to(dst);
+                        let n = buf.copy_to(dst);
+                        inner.pos += n as u64;
                         *buf_cell = Some(buf);
                         return Ready(Ok(()));
                     }
@@ -261,7 +264,8 @@ impl AsyncRead for File {
 
                     match op {
                         Operation::Read(Ok(_)) => {
-                            buf.copy_to(dst);
+                            let n = buf.copy_to(dst);
+                            inner.pos += n as u64;
                             inner.state = Idle(Some(buf));
                             return Ready(Ok(()));
                         }
@@ -388,6 +392,9 @@ impl AsyncWrite for File {
                     };
 
                     let n = buf.copy_from(src);
+
+                    // Update position tracking with the number of bytes written
+                    inner.pos += n as u64;
 
                     let std = me.std.clone();
 

@@ -103,6 +103,47 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn poll_complete_after_read() -> Result<()> {
+        use futures::future::poll_fn;
+        use std::pin::Pin;
+        use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
+
+        // Create a test file with some content
+        let path = "pos_after_read.txt";
+        let mut f = File::create(path).await?;
+        f.write_all(b"hello world").await?; // 11 bytes
+        f.flush().await?;
+
+        // Close and reopen the file for reading
+        drop(f);
+        let mut f = File::open(path).await?;
+
+        // Read part of the content
+        let mut buf = [0u8; 5]; // Only read first 5 bytes
+        f.read_exact(&mut buf).await?;
+        assert_eq!(&buf, b"hello");
+
+        // Ask the file where it thinks the cursor is
+        let mut pinned = Pin::new(&mut f);
+        let pos = poll_fn(|cx| pinned.as_mut().poll_complete(cx)).await?;
+
+        // Verify the cursor has advanced by the number of bytes read
+        assert_eq!(pos, 5, "cursor should sit just past the 5 read bytes");
+
+        // Read more bytes and check position again
+        f.read_exact(&mut buf).await?; // Read next 5 bytes
+        assert_eq!(&buf, b" worl");
+
+        let mut pinned = Pin::new(&mut f);
+        let pos = poll_fn(|cx| pinned.as_mut().poll_complete(cx)).await?;
+
+        // Verify cursor has advanced further
+        assert_eq!(pos, 10, "cursor should advance after additional reads");
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn seek_after_pending_write() -> Result<()> {
         use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 
