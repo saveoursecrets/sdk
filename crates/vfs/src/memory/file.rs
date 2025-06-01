@@ -114,6 +114,9 @@ impl File {
     /// Attempts to sync all OS-internal metadata to disk.
     #[allow(dead_code)]
     pub async fn sync_all(&self) -> io::Result<()> {
+        // Lock the Inner state and drive it to Idle
+        let mut inner = self.inner.lock().await;
+        inner.complete_inflight().await;
         Ok(())
     }
 
@@ -121,6 +124,9 @@ impl File {
     /// synchronize file metadata to the filesystem.
     #[allow(dead_code)]
     pub async fn sync_data(&self) -> io::Result<()> {
+        // Lock the Inner state and drive it to Idle
+        let mut inner = self.inner.lock().await;
+        inner.complete_inflight().await;
         Ok(())
     }
 
@@ -132,6 +138,8 @@ impl File {
     /// than the current file's size, then the file
     /// will be extended to size and have all of the
     /// intermediate data filled in with 0s.
+    ///
+    /// Length changes to not affect the cursor position.
     ///
     /// # Errors
     ///
@@ -157,6 +165,7 @@ impl File {
         inner.state = Busy(Box::pin(async move {
             let mut std = std.lock();
             let len = std.get_ref().len() as u64;
+            let cursor_pos = std.position();
 
             let extension = if size <= len {
                 None
@@ -182,9 +191,9 @@ impl File {
                 }
                 Ok(())
             }
-            .map(|_| 0); // the value is discarded later
+            .map(|_| cursor_pos);
 
-            // Return the result as a seek
+            // Reset to the original position (even if it's > size now)
             (Operation::Seek(res), buf)
         }));
 
@@ -241,7 +250,8 @@ impl AsyncRead for File {
                     let mut buf = buf_cell.take().unwrap();
 
                     if !buf.is_empty() {
-                        buf.copy_to(dst);
+                        let n = buf.copy_to(dst);
+                        inner.pos += n as u64;
                         *buf_cell = Some(buf);
                         return Ready(Ok(()));
                     }
@@ -260,7 +270,8 @@ impl AsyncRead for File {
 
                     match op {
                         Operation::Read(Ok(_)) => {
-                            buf.copy_to(dst);
+                            let n = buf.copy_to(dst);
+                            inner.pos += n as u64;
                             inner.state = Idle(Some(buf));
                             return Ready(Ok(()));
                         }
@@ -387,6 +398,9 @@ impl AsyncWrite for File {
                     };
 
                     let n = buf.copy_from(src);
+
+                    // Update position tracking with the number of bytes written
+                    inner.pos += n as u64;
 
                     let std = me.std.clone();
 
