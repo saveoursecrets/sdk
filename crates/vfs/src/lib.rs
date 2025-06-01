@@ -1,3 +1,4 @@
+#![allow(clippy::len_without_is_empty)]
 //! Virtual file system.
 //!
 //! The API is designed to match the `tokio::fs` module which in

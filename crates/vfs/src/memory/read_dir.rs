@@ -13,7 +13,10 @@ use super::{
 pub async fn read_dir(path: impl AsRef<Path>) -> Result<ReadDir> {
     if let Some(target) = resolve(path.as_ref()).await {
         let children = match target {
-            PathTarget::Root(dir) => dir.files().clone(),
+            PathTarget::Root(dir) => {
+                let dir = dir.read().await;
+                dir.files().clone()
+            }
             PathTarget::Descriptor(fd) => {
                 let fd = fd.read().await;
                 match &*fd {

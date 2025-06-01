@@ -92,13 +92,11 @@ impl OpenOptions {
                 }
                 _ => Err(ErrorKind::PermissionDenied.into()),
             }
+        } else if self.0.contains(OpenFlags::CREATE) {
+            let file = create_file(path.as_ref(), true).await?;
+            File::new(file, self.0).await
         } else {
-            if self.0.contains(OpenFlags::CREATE) {
-                let file = create_file(path.as_ref(), true).await?;
-                File::new(file, self.0).await
-            } else {
-                Err(ErrorKind::PermissionDenied.into())
-            }
+            Err(ErrorKind::PermissionDenied.into())
         }
     }
 }

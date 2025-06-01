@@ -38,14 +38,16 @@ bitflags! {
 type FileSystem = BTreeMap<OsString, Fd>;
 pub(super) type Fd = Arc<RwLock<MemoryFd>>;
 pub(super) type FileContent = Arc<SyncMutex<Cursor<Vec<u8>>>>;
+pub(super) type RootDir = Arc<RwLock<MemoryDir>>;
 
 // File system contents.
-static mut ROOT_DIR: LazyLock<MemoryDir> =
-    LazyLock::new(|| MemoryDir::new_root());
+static ROOT_DIR: LazyLock<RootDir> =
+    LazyLock::new(|| Arc::new(RwLock::new(MemoryDir::new_root())));
 
 // Lock for when we need to modify the file system by adding
 // or removing paths.
-static FS_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+static FS_LOCK: LazyLock<tokio::sync::Mutex<()>> =
+    LazyLock::new(|| tokio::sync::Mutex::new(()));
 
 /*
 #[cfg(debug_assertions)]
@@ -55,16 +57,13 @@ pub(super) fn debug_root() {
 }
 */
 
-pub(super) fn root_fs_mut() -> &'static mut MemoryDir {
-    #[allow(static_mut_refs)]
-    unsafe {
-        &mut ROOT_DIR
-    }
+pub(super) fn root_fs() -> RootDir {
+    Arc::clone(&ROOT_DIR)
 }
 
 /// Result of a path lookup.
 pub(super) enum PathTarget {
-    Root(&'static mut MemoryDir),
+    Root(RootDir),
     Descriptor(Fd),
 }
 
@@ -80,14 +79,14 @@ impl From<Parent> for PathTarget {
 /// Parent reference for a file descriptor.
 #[derive(Debug)]
 pub(super) enum Parent {
-    Root(&'static mut MemoryDir),
+    Root(RootDir),
     Folder(Fd),
 }
 
 impl Clone for Parent {
     fn clone(&self) -> Self {
         match self {
-            Self::Root(_) => Self::Root(root_fs_mut()),
+            Self::Root(root) => Self::Root(Arc::clone(root)),
             Self::Folder(fd) => Self::Folder(Arc::clone(fd)),
         }
     }
@@ -97,7 +96,10 @@ impl Parent {
     /// Get the name of this parent.
     pub async fn name(&self) -> OsString {
         match self {
-            Self::Root(fs) => fs.name.clone(),
+            Self::Root(fs) => {
+                let fs = fs.read().await;
+                fs.name.clone()
+            }
             Self::Folder(fd) => {
                 let fd = fd.read().await;
                 fd.name().clone()
@@ -122,7 +124,10 @@ impl Parent {
         path: impl AsRef<Path>,
     ) -> Result<Option<Fd>> {
         match self {
-            Self::Root(fs) => Ok((*fs).remove(path).await),
+            Self::Root(fs) => {
+                let mut fs = fs.write().await;
+                Ok(fs.remove(path).await)
+            }
             Self::Folder(fd) => {
                 let mut fd = fd.write().await;
                 match &mut *fd {
@@ -138,11 +143,18 @@ impl Parent {
     /// If a child already exists with the same name it is replaced.
     pub async fn insert(&mut self, name: OsString, child: Fd) -> Result<()> {
         match self {
-            Self::Root(fs) => Ok((*fs).insert(name, child).await),
+            Self::Root(fs) => {
+                let mut fs = fs.write().await;
+                fs.insert(name, child).await;
+                Ok(())
+            }
             Self::Folder(fd) => {
                 let mut fd = fd.write().await;
                 match &mut *fd {
-                    MemoryFd::Dir(dir) => Ok(dir.insert(name, child).await),
+                    MemoryFd::Dir(dir) => {
+                        dir.insert(name, child).await;
+                        Ok(())
+                    }
                     _ => Err(ErrorKind::PermissionDenied.into()),
                 }
             }
@@ -152,7 +164,10 @@ impl Parent {
     /// Find a child that is a directory.
     async fn find_dir(&self, name: &OsStr) -> Option<Fd> {
         match self {
-            Self::Root(fs) => fs.find_dir(name).await,
+            Self::Root(fs) => {
+                let fs = fs.read().await;
+                fs.find_dir(name).await
+            }
             Self::Folder(fd) => {
                 let mut fd = fd.write().await;
                 match &mut *fd {
@@ -350,6 +365,13 @@ impl MemoryFd {
         }
     }
 
+    pub fn set_name(&mut self, name: OsString) {
+        match self {
+            Self::File(fd) => fd.name = name,
+            Self::Dir(fd) => fd.name = name,
+        }
+    }
+
     pub async fn path(&self) -> PathBuf {
         let mut parent = self.parent().cloned();
         let mut components = vec![self.name().clone()];
@@ -438,7 +460,7 @@ pub async fn copy(
                     let fd = fd.read().await;
                     match &*fd {
                         MemoryFd::File(file) => {
-                            let permissions = file.permissions.clone();
+                            let permissions = file.permissions;
                             let contents = file.contents.lock();
                             let buffer = contents.get_ref().clone();
                             Some((buffer, permissions))
@@ -566,6 +588,9 @@ pub async fn rename(
         err
     })?;
 
+    // Update the name first, while we have the write lock
+    fd.set_name(to_name.to_owned());
+
     let source = {
         let parent = fd.parent_mut().ok_or_else(|| {
             let err: io::Error = ErrorKind::PermissionDenied.into();
@@ -611,6 +636,7 @@ pub async fn rename(
                             }
                         }
                         PathTarget::Root(dir) => {
+                            let mut dir = dir.write().await;
                             dir.insert(to_name.to_owned(), source).await;
                         }
                     }
@@ -621,7 +647,9 @@ pub async fn rename(
 
             // Moving to the root
             } else {
-                root_fs_mut().insert(to_name.to_owned(), source).await;
+                let root = root_fs();
+                let mut root = root.write().await;
+                root.insert(to_name.to_owned(), source).await;
                 Ok(())
             }
         }
@@ -634,10 +662,10 @@ pub async fn rename(
 /// and read the entire contents into a string and return said string.
 pub async fn read_to_string(path: impl AsRef<Path>) -> Result<String> {
     let contents = read(path).await?;
-    Ok(String::from_utf8(contents).map_err(|_| {
+    String::from_utf8(contents).map_err(|_| {
         let err: Error = ErrorKind::InvalidData.into();
         err
-    })?)
+    })
 }
 
 /// Given a path, queries the file system to get information about a file, directory, etc.
@@ -651,7 +679,7 @@ pub async fn metadata(path: impl AsRef<Path>) -> io::Result<Metadata> {
                         MemoryFd::File(file) => {
                             let data = file.contents();
                             let data = data.lock();
-                            (&*data).get_ref().len() as u64
+                            (*data).get_ref().len() as u64
                         }
                         _ => 0u64,
                     }
@@ -670,12 +698,7 @@ pub async fn metadata(path: impl AsRef<Path>) -> io::Result<Metadata> {
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 async fn new_metadata(fd: Fd, len: u64) -> Metadata {
     let fd = fd.read().await;
-    Metadata::new(
-        fd.permissions().clone(),
-        fd.flags(),
-        len,
-        fd.time().clone(),
-    )
+    Metadata::new(*fd.permissions(), fd.flags(), len, *fd.time())
 }
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
@@ -743,7 +766,7 @@ pub(super) async fn create_file(
         match target {
             PathTarget::Descriptor(file) => {
                 let mut file_fd = file.write().await;
-                if let Some(_) = file_fd.parent() {
+                if file_fd.parent().is_some() {
                     match &mut *file_fd {
                         MemoryFd::Dir(_) => {
                             Err(ErrorKind::PermissionDenied.into())
@@ -762,47 +785,49 @@ pub(super) async fn create_file(
             _ => Err(ErrorKind::PermissionDenied.into()),
         }
     // Try to create in parent
-    } else {
-        if let Some(target) = resolve_parent(path.as_ref()).await {
-            match target {
-                PathTarget::Descriptor(fd) => {
-                    let mut parent_fd = fd.write().await;
-                    match &mut *parent_fd {
-                        MemoryFd::Dir(dir) => {
-                            let new_file = MemoryFd::File(MemoryFile::new(
-                                file_name.to_owned(),
-                                Some(Parent::Folder(Arc::clone(&fd))),
-                            ));
-                            dir.insert(
-                                file_name.to_owned(),
-                                Arc::new(RwLock::new(new_file)),
-                            )
-                            .await;
+    } else if let Some(target) = resolve_parent(path.as_ref()).await {
+        match target {
+            PathTarget::Descriptor(fd) => {
+                let mut parent_fd = fd.write().await;
+                match &mut *parent_fd {
+                    MemoryFd::Dir(dir) => {
+                        let new_file = MemoryFd::File(MemoryFile::new(
+                            file_name.to_owned(),
+                            Some(Parent::Folder(Arc::clone(&fd))),
+                        ));
+                        dir.insert(
+                            file_name.to_owned(),
+                            Arc::new(RwLock::new(new_file)),
+                        )
+                        .await;
 
-                            Ok(dir
-                                .files()
-                                .get(file_name)
-                                .map(Arc::clone)
-                                .unwrap())
-                        }
-                        MemoryFd::File(_) => {
-                            Err(ErrorKind::PermissionDenied.into())
-                        }
+                        Ok(dir
+                            .files()
+                            .get(file_name)
+                            .map(Arc::clone)
+                            .unwrap())
+                    }
+                    MemoryFd::File(_) => {
+                        Err(ErrorKind::PermissionDenied.into())
                     }
                 }
-                _ => unreachable!(),
             }
-        // Create at the root
-        } else {
-            let dir = root_fs_mut();
-            let new_file = MemoryFd::File(MemoryFile::new(
-                file_name.to_owned(),
-                Some(Parent::Root(root_fs_mut())),
-            ));
+            _ => unreachable!(),
+        }
+    // Create at the root
+    } else {
+        let root = root_fs();
+        let new_file = MemoryFd::File(MemoryFile::new(
+            file_name.to_owned(),
+            Some(Parent::Root(Arc::clone(&root))),
+        ));
+        {
+            let mut dir = root.write().await;
             dir.insert(file_name.to_owned(), Arc::new(RwLock::new(new_file)))
                 .await;
-            Ok(dir.files().get(file_name).map(Arc::clone).unwrap())
         }
+        let dir = root.read().await;
+        Ok(dir.files().get(file_name).map(Arc::clone).unwrap())
     }
 }
 
@@ -872,33 +897,25 @@ async fn walk(
             Component::RootDir => {
                 // Got a root request only
                 if length == 1 {
-                    return Some(PathTarget::Root(root_fs_mut()));
+                    return Some(PathTarget::Root(root_fs()));
                 }
-                parents.push(Parent::Root(root_fs_mut()));
-                return walk(
-                    Parent::Root(root_fs_mut()),
-                    it,
-                    length,
-                    parents,
-                )
-                .await;
+                let root = root_fs();
+                parents.push(Parent::Root(Arc::clone(&root)));
+                return walk(Parent::Root(root), it, length, parents).await;
             }
             Component::CurDir | Component::Prefix(_) => {
                 return walk(target, it, length, parents).await;
             }
             Component::ParentDir => {
-                if let Some(_) = parents.pop() {
+                if parents.pop().is_some() {
                     if index == length - 1 {
                         if let Some(target) = parents.pop() {
                             return Some(target.into());
                         } else {
                             return None;
                         }
-                    } else {
-                        if let Some(last) = parents.last() {
-                            return walk(last.clone(), it, length, parents)
-                                .await;
-                        }
+                    } else if let Some(last) = parents.last() {
+                        return walk(last.clone(), it, length, parents).await;
                     }
                 } else {
                     return None;
@@ -907,10 +924,12 @@ async fn walk(
             Component::Normal(name) => {
                 if index == length - 1 {
                     return match target {
-                        Parent::Root(fs) => fs
-                            .files()
-                            .get(name)
-                            .map(|fd| PathTarget::Descriptor(Arc::clone(fd))),
+                        Parent::Root(fs) => {
+                            let fs = fs.read().await;
+                            fs.files().get(name).map(|fd| {
+                                PathTarget::Descriptor(Arc::clone(fd))
+                            })
+                        }
                         Parent::Folder(fd) => {
                             let fd = fd.read().await;
                             match &*fd {
@@ -923,19 +942,17 @@ async fn walk(
                             }
                         }
                     };
+                } else if let Some(child) = target.find_dir(name).await {
+                    parents.push(Parent::Folder(Arc::clone(&child)));
+                    return walk(
+                        Parent::Folder(Arc::clone(&child)),
+                        it,
+                        length,
+                        parents,
+                    )
+                    .await;
                 } else {
-                    if let Some(child) = target.find_dir(name).await {
-                        parents.push(Parent::Folder(Arc::clone(&child)));
-                        return walk(
-                            Parent::Folder(Arc::clone(&child)),
-                            it,
-                            length,
-                            parents,
-                        )
-                        .await;
-                    } else {
-                        return None;
-                    }
+                    return None;
                 }
             }
         }
@@ -948,8 +965,7 @@ async fn resolve_relative(
     parent: Parent,
     path: impl AsRef<Path>,
 ) -> Option<PathTarget> {
-    let components: Vec<Component> =
-        path.as_ref().components().into_iter().collect();
+    let components: Vec<Component> = path.as_ref().components().collect();
     let length = components.len();
     let mut it = components.into_iter().enumerate();
     walk(parent.clone(), &mut it, length, &mut vec![parent]).await
@@ -957,7 +973,7 @@ async fn resolve_relative(
 
 /// Resolve relative to the root folder.
 pub(super) async fn resolve(path: impl AsRef<Path>) -> Option<PathTarget> {
-    resolve_relative(Parent::Root(root_fs_mut()), path).await
+    resolve_relative(Parent::Root(root_fs()), path).await
 }
 
 /// Try to resolve the parent of a path.
