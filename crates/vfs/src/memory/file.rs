@@ -173,7 +173,6 @@ impl File {
                     } else {
                         std.get_mut().truncate(size as usize);
                     }
-                    
                 })
             } else {
                 if let Some(zero) = extension {

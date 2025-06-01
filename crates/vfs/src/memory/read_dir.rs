@@ -16,7 +16,7 @@ pub async fn read_dir(path: impl AsRef<Path>) -> Result<ReadDir> {
             PathTarget::Root(dir) => {
                 let dir = dir.read().await;
                 dir.files().clone()
-            },
+            }
             PathTarget::Descriptor(fd) => {
                 let fd = fd.read().await;
                 match &*fd {

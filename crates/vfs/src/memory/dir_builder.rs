@@ -137,9 +137,7 @@ impl DirBuilder {
                     Err(ErrorKind::NotFound.into())
                 }
             } else {
-                Parent::Root(root_fs())
-                    .mkdir(file_name.to_owned())
-                    .await?;
+                Parent::Root(root_fs()).mkdir(file_name.to_owned()).await?;
                 Ok(())
             }
         }

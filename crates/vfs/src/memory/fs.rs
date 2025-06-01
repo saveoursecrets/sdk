@@ -46,7 +46,8 @@ static ROOT_DIR: LazyLock<RootDir> =
 
 // Lock for when we need to modify the file system by adding
 // or removing paths.
-static FS_LOCK: LazyLock<tokio::sync::Mutex<()>> = LazyLock::new(|| tokio::sync::Mutex::new(()));
+static FS_LOCK: LazyLock<tokio::sync::Mutex<()>> =
+    LazyLock::new(|| tokio::sync::Mutex::new(()));
 
 /*
 #[cfg(debug_assertions)]
@@ -98,7 +99,7 @@ impl Parent {
             Self::Root(fs) => {
                 let fs = fs.read().await;
                 fs.name.clone()
-            },
+            }
             Self::Folder(fd) => {
                 let fd = fd.read().await;
                 fd.name().clone()
@@ -126,7 +127,7 @@ impl Parent {
             Self::Root(fs) => {
                 let mut fs = fs.write().await;
                 Ok(fs.remove(path).await)
-            },
+            }
             Self::Folder(fd) => {
                 let mut fd = fd.write().await;
                 match &mut *fd {
@@ -146,14 +147,14 @@ impl Parent {
                 let mut fs = fs.write().await;
                 fs.insert(name, child).await;
                 Ok(())
-            },
+            }
             Self::Folder(fd) => {
                 let mut fd = fd.write().await;
                 match &mut *fd {
                     MemoryFd::Dir(dir) => {
                         dir.insert(name, child).await;
                         Ok(())
-                    },
+                    }
                     _ => Err(ErrorKind::PermissionDenied.into()),
                 }
             }
@@ -166,7 +167,7 @@ impl Parent {
             Self::Root(fs) => {
                 let fs = fs.read().await;
                 fs.find_dir(name).await
-            },
+            }
             Self::Folder(fd) => {
                 let mut fd = fd.write().await;
                 match &mut *fd {
@@ -599,7 +600,6 @@ pub async fn rename(
     };
 
     if let Some(source) = source {
-        
         if let Some(target) = resolve(to.as_ref()).await {
             match target {
                 PathTarget::Descriptor(to_fd) => {
@@ -698,12 +698,7 @@ pub async fn metadata(path: impl AsRef<Path>) -> io::Result<Metadata> {
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 async fn new_metadata(fd: Fd, len: u64) -> Metadata {
     let fd = fd.read().await;
-    Metadata::new(
-        *fd.permissions(),
-        fd.flags(),
-        len,
-        *fd.time(),
-    )
+    Metadata::new(*fd.permissions(), fd.flags(), len, *fd.time())
 }
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
@@ -906,13 +901,7 @@ async fn walk(
                 }
                 let root = root_fs();
                 parents.push(Parent::Root(Arc::clone(&root)));
-                return walk(
-                    Parent::Root(root),
-                    it,
-                    length,
-                    parents,
-                )
-                .await;
+                return walk(Parent::Root(root), it, length, parents).await;
             }
             Component::CurDir | Component::Prefix(_) => {
                 return walk(target, it, length, parents).await;
@@ -926,8 +915,7 @@ async fn walk(
                             return None;
                         }
                     } else if let Some(last) = parents.last() {
-                        return walk(last.clone(), it, length, parents)
-                            .await;
+                        return walk(last.clone(), it, length, parents).await;
                     }
                 } else {
                     return None;
@@ -938,10 +926,10 @@ async fn walk(
                     return match target {
                         Parent::Root(fs) => {
                             let fs = fs.read().await;
-                            fs.files()
-                                .get(name)
-                                .map(|fd| PathTarget::Descriptor(Arc::clone(fd)))
-                        },
+                            fs.files().get(name).map(|fd| {
+                                PathTarget::Descriptor(Arc::clone(fd))
+                            })
+                        }
                         Parent::Folder(fd) => {
                             let fd = fd.read().await;
                             match &*fd {
@@ -977,8 +965,7 @@ async fn resolve_relative(
     parent: Parent,
     path: impl AsRef<Path>,
 ) -> Option<PathTarget> {
-    let components: Vec<Component> =
-        path.as_ref().components().collect();
+    let components: Vec<Component> = path.as_ref().components().collect();
     let length = components.len();
     let mut it = components.into_iter().enumerate();
     walk(parent.clone(), &mut it, length, &mut vec![parent]).await
