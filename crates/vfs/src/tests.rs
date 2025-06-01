@@ -54,7 +54,7 @@ mod tests {
         while let Some(entry) = dir_reader.next_entry().await? {
             let entry_metadata = entry.metadata().await?;
             assert!(entry_metadata.is_file());
-            assert_eq!(entry_metadata.len(), data.as_bytes().len() as u64);
+            assert_eq!(entry_metadata.len(), data.len() as u64);
         }
 
         Ok(())

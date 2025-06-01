@@ -98,17 +98,17 @@ enum Operation {
 impl File {
     /// Attempts to open a file in read-only mode.
     pub async fn open(path: impl AsRef<Path>) -> io::Result<File> {
-        Ok(OpenOptions::new().read(true).open(path).await?)
+        OpenOptions::new().read(true).open(path).await
     }
 
     /// Opens a file in write-only mode.
     pub async fn create(path: impl AsRef<Path>) -> io::Result<File> {
-        Ok(OpenOptions::new()
+        OpenOptions::new()
             .write(true)
             .create(true)
             .truncate(true)
             .open(path)
-            .await?)
+            .await
     }
 
     /// Attempts to sync all OS-internal metadata to disk.
@@ -167,13 +167,13 @@ impl File {
             };
 
             let res = if let Some(seek) = seek {
-                std.seek(seek).and_then(|_| {
+                std.seek(seek).map(|_| {
                     if let Some(zero) = extension {
                         std.get_mut().extend(zero.iter());
                     } else {
                         std.get_mut().truncate(size as usize);
                     }
-                    Ok(())
+                    
                 })
             } else {
                 if let Some(zero) = extension {
