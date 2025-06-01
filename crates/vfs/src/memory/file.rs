@@ -114,6 +114,9 @@ impl File {
     /// Attempts to sync all OS-internal metadata to disk.
     #[allow(dead_code)]
     pub async fn sync_all(&self) -> io::Result<()> {
+        // Lock the Inner state and drive it to Idle
+        let mut inner = self.inner.lock().await;
+        inner.complete_inflight().await;
         Ok(())
     }
 
@@ -121,6 +124,9 @@ impl File {
     /// synchronize file metadata to the filesystem.
     #[allow(dead_code)]
     pub async fn sync_data(&self) -> io::Result<()> {
+        // Lock the Inner state and drive it to Idle
+        let mut inner = self.inner.lock().await;
+        inner.complete_inflight().await;
         Ok(())
     }
 

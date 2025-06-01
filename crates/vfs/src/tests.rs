@@ -164,6 +164,27 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn test_sync_all() -> Result<()> {
+        let buf = [0u8; 1024];
+        let path = "test_sync_all.txt";
+        let tmp_path = "test_sync_all.txt.tmp";
+        let mut f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&tmp_path)
+            .await?;
+        f.write_all(&buf).await?;
+        f.sync_all().await?;
+        assert!(vfs::try_exists(&tmp_path).await?);
+        assert_eq!(vfs::metadata(&tmp_path).await?.len(), buf.len() as u64);
+        vfs::rename(tmp_path, path).await?;
+        assert!(vfs::try_exists(path).await?);
+        assert_eq!(vfs::metadata(path).await?.len(), buf.len() as u64);
+        Ok(())
+    }
+
     async fn file_write_read() -> Result<()> {
         let path = "test.txt";
         let contents = "Mock content";
