@@ -18,4 +18,4 @@ pub use fs::{
 };
 pub use meta_data::{FileType, Metadata, Permissions};
 pub use open_options::OpenOptions;
-pub use read_dir::{read_dir, DirEntry};
+pub use read_dir::{read_dir, DirEntry, ReadDir};
