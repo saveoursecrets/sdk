@@ -9,7 +9,7 @@ use sos_core::{
         DEFAULT_CONTACTS_VAULT_NAME,
     },
     crypto::AccessKey,
-    AccountId, Paths, SecretId, VaultFlags, VaultId,
+    AccountId, SecretId, VaultFlags, VaultId,
 };
 use sos_login::{DelegatedAccess, FolderKeys, Identity, IdentityFolder};
 use sos_vault::{
@@ -300,12 +300,6 @@ impl AccountBuilder {
     /// Create a new account and write the identity
     /// folder to backend storage.
     pub async fn finish(mut self) -> Result<PrivateNewAccount> {
-        // TODO: remove this and always scaffold in test specs
-        #[cfg(debug_assertions)]
-        if let BackendTarget::FileSystem(paths) = &self.target {
-            Paths::scaffold(paths.documents_dir()).await?;
-        }
-
         // Prepare the identity folder
         let identity_folder = IdentityFolder::new(
             self.target.clone(),

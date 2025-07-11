@@ -1,11 +1,11 @@
 use super::mock;
 use anyhow::Result;
 use sos_backend::{BackendEventLog, BackendTarget, FolderEventLog};
-use sos_core::Paths;
 use sos_core::{
     commit::CommitHash,
     encode,
-    events::{EventLog, WriteEvent},
+    events::{EventLog, EventLogType, WriteEvent},
+    AccountId, Paths, VaultId,
 };
 use sos_test_utils::mock::memory_database;
 use sos_vault::Vault;
@@ -18,15 +18,24 @@ async fn fs_event_log_rewind() -> Result<()> {
         vfs::remove_file(path).await?;
     }
 
+    let account_id = AccountId::random();
+    let log_type = EventLogType::Folder(VaultId::new_v4());
+
     let vault: Vault = Default::default();
     let event_log = BackendEventLog::FileSystem(
-        sos_filesystem::FolderEventLog::new_folder(path).await?,
+        sos_filesystem::FolderEventLog::new_folder(
+            path, account_id, log_type,
+        )
+        .await?,
     );
     let rewind_root = assert_event_log_rewind(event_log, vault).await?;
 
     // Create new event log to load the commits and verify the root
     let event_log = BackendEventLog::FileSystem(
-        sos_filesystem::FolderEventLog::new_folder(path).await?,
+        sos_filesystem::FolderEventLog::new_folder(
+            path, account_id, log_type,
+        )
+        .await?,
     );
     assert_event_log_rewound_root(event_log, rewind_root).await?;
 

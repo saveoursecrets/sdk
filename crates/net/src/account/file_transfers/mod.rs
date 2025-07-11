@@ -194,21 +194,27 @@ impl FileTransfersHandle {
 
     /// Send a collection of items to be added to the queue.
     pub async fn send(&self, items: FileTransferQueueRequest) {
-        let res = self.queue_tx.send(items).await;
-        if let Err(error) = res {
-            tracing::warn!(error = ?error);
+        if let Err(error) = self.queue_tx.send(items).await {
+            tracing::warn!(
+                error = ?error,
+                "file_transfers::queue_send_error",
+            );
         }
     }
 
     /// Shutdown the file transfers loop.
     pub async fn shutdown(self) {
-        let res = self.shutdown_tx.send(()).await;
-        if let Err(error) = res {
-            tracing::warn!(error = ?error);
+        if let Err(error) = self.shutdown_tx.send(()).await {
+            tracing::warn!(
+                error = ?error,
+                "file_transfers::shutdown_tx::send_error",
+            );
         }
-        let res = self.shutdown_rx.await;
-        if let Err(error) = res {
-            tracing::warn!(error = ?error);
+        if let Err(error) = self.shutdown_rx.await {
+            tracing::warn!(
+                error = ?error,
+                "file_transfers::shutdown_tx::recv_error",
+            );
         }
     }
 }

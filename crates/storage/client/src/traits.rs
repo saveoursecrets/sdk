@@ -570,7 +570,8 @@ pub trait ClientFolderStorage:
             let event_log = folder.event_log();
             let mut log_file = event_log.write().await;
 
-            compact_folder(folder_id, &mut *log_file).await?;
+            compact_folder(self.account_id(), folder_id, &mut *log_file)
+                .await?;
         }
 
         // Refresh in-memory vault and mirrored copy

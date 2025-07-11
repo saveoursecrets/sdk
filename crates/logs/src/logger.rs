@@ -12,9 +12,12 @@ use time::OffsetDateTime;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-const LOG_FILE_NAME: &str = "saveoursecrets.log";
+/// File name prefix for log files.
+#[doc(hidden)]
+pub const LOG_FILE_NAME: &str = "saveoursecrets.log";
+
 const DEFAULT_LOG_LEVEL: &str =
-    "sos=info,sos_sdk=debug,sos_net=debug,sos_bindings=debug";
+    "sos=info,sos_net=debug,sos_bindings=debug,sos_backend=debug,sos_database=debug,sos_protocol=debug,sos_app=debug,sos_database_upgrader=debug";
 
 /// State of the log files on disc.
 pub struct LogFileStatus {

@@ -24,13 +24,15 @@ pub enum Error {
     NoDatabaseFile(PathBuf, String),
 
     /// Error generated attempting to import an account that
-    /// already exists in the target database.
-    #[error("import failed, account '{0}' does not exist in source db")]
+    /// does not exist in the source database.
+    #[error(
+        "import failed, account '{0}' does not exist in the backup archive"
+    )]
     ImportSourceNotExists(AccountId),
 
     /// Error generated attempting to import an account that
     /// already exists in the target database.
-    #[error("import failed, account '{0}' already exists in target db")]
+    #[error("import failed, account '{0}' already exists")]
     ImportTargetExists(AccountId),
 
     /// Error generated when the checksum for a database does not

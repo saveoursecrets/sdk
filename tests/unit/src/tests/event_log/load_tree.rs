@@ -2,7 +2,11 @@ use super::mock;
 use anyhow::Result;
 use futures::{pin_mut, StreamExt};
 use sos_backend::{BackendEventLog, BackendTarget, FolderEventLog};
-use sos_core::{commit::CommitHash, events::EventLog, Paths};
+use sos_core::{
+    commit::CommitHash,
+    events::{EventLog, EventLogType},
+    AccountId, Paths, VaultId,
+};
 use sos_test_utils::mock::file_database;
 
 #[tokio::test]
@@ -10,8 +14,14 @@ async fn fs_event_log_load_tree() -> Result<()> {
     let path = "target/event_log_file_load.events";
     let (mock_event_log, _) = mock::fs_event_log_standalone(path).await?;
     let expected_root = mock_event_log.tree().root().unwrap();
+    let account_id = AccountId::random();
     let event_log = BackendEventLog::FileSystem(
-        sos_filesystem::FolderEventLog::new_folder(path).await?,
+        sos_filesystem::FolderEventLog::new_folder(
+            path,
+            account_id,
+            EventLogType::Folder(VaultId::new_v4()),
+        )
+        .await?,
     );
     assert_load_tree(event_log, expected_root).await?;
     Ok(())

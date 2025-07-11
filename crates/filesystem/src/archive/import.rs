@@ -6,6 +6,8 @@ use crate::{write_exclusive, FolderEventLog, VaultFileWriter};
 use hex;
 use sha2::{Digest, Sha256};
 use sos_archive::{sanitize_file_path, ZipReader};
+use sos_core::events::EventLogType;
+use sos_core::AccountId;
 use sos_core::{
     constants::{
         ACCOUNT_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS,
@@ -55,8 +57,8 @@ async fn import_archive_reader(
         ));
     }
 
-    let address_path = restore_targets.manifest.account_id;
-    let paths = paths.with_account_id(&address_path);
+    let account_id = restore_targets.manifest.account_id;
+    let paths = paths.with_account_id(&account_id);
 
     // Write out the identity vault
     let identity_vault: Vault = decode(&restore_targets.identity.1).await?;
@@ -65,8 +67,12 @@ async fn import_archive_reader(
 
     // Write out the identity event log file
     let (_, events) = FolderReducer::split::<Error>(identity_vault).await?;
-    let mut event_log =
-        FolderEventLog::<Error>::new_folder(paths.identity_events()).await?;
+    let mut event_log = FolderEventLog::<Error>::new_folder(
+        paths.identity_events(),
+        account_id,
+        EventLogType::Identity,
+    )
+    .await?;
     event_log.apply(events.as_slice()).await?;
 
     // Check if the identity name already exists
@@ -97,7 +103,8 @@ async fn import_archive_reader(
     vfs::create_dir_all(&vaults_dir).await?;
 
     restore_system(&paths, &restore_targets).await?;
-    restore_user_folders(&paths, &restore_targets.vaults).await?;
+    restore_user_folders(&paths, &account_id, &restore_targets.vaults)
+        .await?;
     let account =
         PublicIdentity::new(restore_targets.manifest.account_id, label);
     Ok(account)
@@ -105,12 +112,14 @@ async fn import_archive_reader(
 
 async fn restore_user_folders(
     paths: &Paths,
+    account_id: &AccountId,
     vaults: &Vec<(Vec<u8>, Vault)>,
 ) -> Result<()> {
     // Write out each vault and the event log
     for (buffer, vault) in vaults {
-        let vault_path = paths.vault_path(vault.id());
-        let event_log_path = paths.event_log_path(vault.id());
+        let folder_id = *vault.id();
+        let vault_path = paths.vault_path(&folder_id);
+        let event_log_path = paths.event_log_path(&folder_id);
 
         // Write out the vault buffer
         write_exclusive(&vault_path, buffer).await?;
@@ -119,8 +128,12 @@ async fn restore_user_folders(
             FolderReducer::split::<Error>(vault.clone()).await?;
 
         // Write out the event log file
-        let mut event_log =
-            FolderEventLog::<Error>::new_folder(event_log_path).await?;
+        let mut event_log = FolderEventLog::<Error>::new_folder(
+            event_log_path,
+            *account_id,
+            EventLogType::Folder(folder_id),
+        )
+        .await?;
         event_log.apply(events.as_slice()).await?;
     }
 

@@ -624,7 +624,7 @@ mod handlers {
     use std::sync::Arc;
 
     #[cfg(feature = "listen")]
-    use sos_protocol::ChangeNotification;
+    use sos_protocol::NetworkChangeEvent;
 
     #[cfg(feature = "listen")]
     use crate::handlers::send_notification;
@@ -818,7 +818,7 @@ mod handlers {
             if let Some(conn_id) = caller.connection_id() {
                 let reader = account.read().await;
                 let local_status = reader.sync_status().await?;
-                let notification = ChangeNotification::new(
+                let notification = NetworkChangeEvent::new(
                     caller.account_id(),
                     conn_id.to_string(),
                     local_status.root,
@@ -868,7 +868,7 @@ mod handlers {
         #[cfg(feature = "listen")]
         if outcome.changes > 0 {
             if let Some(conn_id) = caller.connection_id() {
-                let notification = ChangeNotification::new(
+                let notification = NetworkChangeEvent::new(
                     caller.account_id(),
                     conn_id.to_string(),
                     packet.status.root,
