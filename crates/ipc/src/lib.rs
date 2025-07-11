@@ -17,7 +17,6 @@ mod error;
 /// inadvertently written a bad length prefix to stdout.
 #[doc(hidden)]
 #[macro_export]
-#[allow(missing_fragment_specifier)]
 macro_rules! println {
     ($($any:tt)*) => {
         compile_error!("println! macro is forbidden, use eprintln! instead");

@@ -14,7 +14,6 @@ use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 #[macro_export]
-#[allow(missing_fragment_specifier)]
 macro_rules! println {
     ($($any:tt)*) => {
         compile_error!("println! macro is forbidden, use eprintln! instead");
