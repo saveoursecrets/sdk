@@ -134,7 +134,7 @@ hex = { version = "0.4", features = ["serde"] }
 
 # signing
 k256 = { version = "0.13.1", features = ["ecdsa"] }
-ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
+ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
 
 # matches the version in k256
 sha1 = "0.10.6"
