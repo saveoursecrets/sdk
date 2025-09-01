@@ -7,7 +7,7 @@ use sos_core::{
     encoding::{decode_uuid, encoding_error},
     UtcDateTime,
 };
-use std::io::{Error, ErrorKind, Result};
+use std::io::{Error, Result};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 #[async_trait]
@@ -79,8 +79,7 @@ impl Decodable for AuditEvent {
                 }
             }
         } else {
-            return Err(Error::new(
-                ErrorKind::Other,
+            return Err(Error::other(
                 "log data flags has bad bits",
             ));
         }

@@ -44,7 +44,7 @@ impl<W: AsyncWrite + Unpin> Writer<W> {
         let month: u8 = now.month().into();
 
         let dt = ZipDateTimeBuilder::new()
-            .year(now.year().into())
+            .year(now.year())
             .month(month.into())
             .day(now.day().into())
             .hour(hours.into())

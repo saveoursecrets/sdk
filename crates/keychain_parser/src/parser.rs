@@ -54,10 +54,10 @@ pub fn unescape_octal(value: &str) -> Result<Cow<'_, str>> {
 }
 
 /// Parse a plist and extract the value for a secure note.
-pub fn plist_secure_note(
-    value: &str,
+pub fn plist_secure_note<'a>(
+    value: &'a str,
     unescape: bool,
-) -> Result<Option<Cow<str>>> {
+) -> Result<Option<Cow<'a, str>>> {
     let plist = if unescape {
         unescape_octal(value)?
     } else {

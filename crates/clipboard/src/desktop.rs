@@ -94,7 +94,7 @@ impl Clipboard {
                 Ok(mut clipboard) => match clipboard.get_text() {
                     Ok(text) => {
                         let mut reader = source_text.lock().await;
-                        if &*reader == &text {
+                        if *reader == text {
                             let source = &mut *reader;
                             source.zeroize();
 

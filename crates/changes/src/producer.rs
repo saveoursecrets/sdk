@@ -81,7 +81,7 @@ impl ChangeProducer {
                             Ok(_) => {
                                 let event = rx.borrow_and_update().clone();
                                 let sockets = sockets.lock().await;
-                                dispatch_sockets(event, &*sockets).await?;
+                                dispatch_sockets(event, &sockets).await?;
                             }
                             Err(_) => {}
                         }
