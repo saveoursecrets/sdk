@@ -219,7 +219,7 @@ impl FolderRecord {
         let mut vault: Vault = self.summary.clone().into();
         vault.header_mut().set_meta(self.meta.clone());
         vault.header_mut().set_salt(self.salt.clone());
-        vault.header_mut().set_seed(self.seed.clone());
+        vault.header_mut().set_seed(self.seed);
         Ok(vault)
     }
 }
@@ -399,7 +399,7 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
             secret_rows.push(SecretRow::new(secret_id, commit, entry).await?);
         }
 
-        Ok(client
+        client
             .conn_mut_and_then(move |conn| {
                 let tx = conn.transaction()?;
                 let folder_entity = FolderEntity::new(&tx);
@@ -421,7 +421,7 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
                 tx.commit()?;
                 Ok::<_, Error>((folder_id, secret_ids))
             })
-            .await?)
+            .await
     }
 
     /// Replace all secrets for a folder using a transaction.
@@ -430,7 +430,7 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
         folder_id: &VaultId,
         vault: &Vault,
     ) -> Result<()> {
-        let folder_id = folder_id.clone();
+        let folder_id = *folder_id;
         let mut insert_secrets = Vec::new();
         for (secret_id, commit) in vault.iter() {
             let VaultCommit(commit, entry) = commit;
@@ -470,10 +470,10 @@ where
         Self { conn }
     }
 
-    fn select_folder(
-        &self,
+    fn select_folder<'a>(
+        &'a self,
         use_identifier: bool,
-    ) -> StdResult<CachedStatement, SqlError> {
+    ) -> StdResult<CachedStatement<'a>, SqlError> {
         let query = folder_select_columns(sql::Select::new()).from("folders");
 
         let query = if use_identifier {
@@ -481,7 +481,7 @@ where
         } else {
             query.where_clause("folder_id = ?1")
         };
-        Ok(self.conn.prepare_cached(&query.as_string())?)
+        self.conn.prepare_cached(&query.as_string())
     }
 
     /// Find a folder in the database.
@@ -491,8 +491,8 @@ where
         folder_id: &VaultId,
     ) -> StdResult<FolderRow, SqlError> {
         let mut stmt = self.select_folder(true)?;
-        Ok(stmt
-            .query_row([folder_id.to_string()], |row| Ok(row.try_into()?))?)
+        stmt
+            .query_row([folder_id.to_string()], |row| row.try_into())
     }
 
     /// Find an optional folder in the database.
@@ -502,12 +502,12 @@ where
         folder_id: &VaultId,
     ) -> StdResult<Option<FolderRow>, SqlError> {
         let mut stmt = self.select_folder(true)?;
-        Ok(stmt
+        stmt
             .query_row([folder_id.to_string()], |row| {
                 let row: FolderRow = row.try_into()?;
                 Ok(row)
             })
-            .optional()?)
+            .optional()
     }
 
     /// Find a folder in the database by primary key.
@@ -516,14 +516,14 @@ where
         folder_id: i64,
     ) -> StdResult<FolderRow, SqlError> {
         let mut stmt = self.select_folder(false)?;
-        Ok(stmt.query_row([folder_id], |row| Ok(row.try_into()?))?)
+        stmt.query_row([folder_id], |row| row.try_into())
     }
 
     /// Try to find a login folder for an account.
     pub fn find_login_folder(&self, account_id: i64) -> Result<FolderRow> {
-        Ok(self
+        self
             .find_login_folder_optional(account_id)?
-            .ok_or_else(|| Error::NoLoginFolder(account_id))?)
+            .ok_or_else(|| Error::NoLoginFolder(account_id))
     }
 
     /// Try to find an optional login folder for an account.
@@ -540,9 +540,9 @@ where
             .where_and("login.account_id=?1");
 
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        Ok(stmt
-            .query_row([account_id], |row| Ok(row.try_into()?))
-            .optional()?)
+        stmt
+            .query_row([account_id], |row| row.try_into())
+            .optional()
     }
 
     /// Try to find a device folder for an account.
@@ -559,9 +559,9 @@ where
             .where_and("device.account_id=?1");
 
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        Ok(stmt
-            .query_row([account_id], |row| Ok(row.try_into()?))
-            .optional()?)
+        stmt
+            .query_row([account_id], |row| row.try_into())
+            .optional()
     }
 
     /// List user folders for an account.
@@ -589,9 +589,7 @@ where
             Ok(row.try_into()?)
         }
 
-        let rows = stmt.query_and_then([account_id], |row| {
-            Ok::<_, crate::Error>(convert_row(row)?)
-        })?;
+        let rows = stmt.query_and_then([account_id], convert_row)?;
         let mut folders = Vec::new();
         for row in rows {
             folders.push(row?);
@@ -742,7 +740,7 @@ where
         for secret_row in rows {
             let identifier: SecretId = secret_row.identifier.parse()?;
             let secret_id =
-                self.insert_secret_by_row_id(folder_id, &secret_row)?;
+                self.insert_secret_by_row_id(folder_id, secret_row)?;
             secret_ids.insert(identifier, secret_id);
         }
         Ok(secret_ids)
@@ -755,7 +753,7 @@ where
         secret_row: &SecretRow,
     ) -> StdResult<i64, SqlError> {
         let row = self.find_one(folder_id)?;
-        Ok(self.insert_secret_by_row_id(row.row_id, secret_row)?)
+        self.insert_secret_by_row_id(row.row_id, secret_row)
     }
 
     /// Insert a secret using the folder row id.
@@ -806,12 +804,12 @@ where
             .where_and("identifier=?2");
 
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        Ok(stmt
+        stmt
             .query_row((row.row_id, secret_id.to_string()), |row| {
                 let row: SecretRow = row.try_into()?;
                 Ok(row)
             })
-            .optional()?)
+            .optional()
     }
 
     /// Update a folder secret.
@@ -859,9 +857,7 @@ where
             Ok(row.try_into()?)
         }
 
-        let rows = stmt.query_and_then([folder_row_id], |row| {
-            Ok::<_, crate::Error>(convert_row(row)?)
-        })?;
+        let rows = stmt.query_and_then([folder_row_id], convert_row)?;
         let mut secrets = Vec::new();
         for row in rows {
             secrets.push(row?);
@@ -886,9 +882,7 @@ where
             Ok(id.parse()?)
         }
 
-        let rows = stmt.query_and_then([folder.row_id], |row| {
-            Ok::<_, crate::Error>(convert_row(row)?)
-        })?;
+        let rows = stmt.query_and_then([folder.row_id], convert_row)?;
         let mut secrets = Vec::new();
         for row in rows {
             secrets.push(row?);
@@ -936,6 +930,6 @@ where
             .delete_from("folder_secrets")
             .where_clause("folder_id = ?1");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        Ok(stmt.execute([folder_id])?)
+        stmt.execute([folder_id])
     }
 }

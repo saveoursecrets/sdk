@@ -287,8 +287,8 @@ where
             .from("accounts")
             .where_clause("identifier = ?1");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        Ok(stmt
-            .query_row([account_id.to_string()], |row| Ok(row.try_into()?))?)
+        stmt
+            .query_row([account_id.to_string()], |row| row.try_into())
     }
 
     /// Find an optional account in the database.
@@ -301,9 +301,9 @@ where
             .from("accounts")
             .where_clause("identifier = ?1");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        Ok(stmt
-            .query_row([account_id.to_string()], |row| Ok(row.try_into()?))
-            .optional()?)
+        stmt
+            .query_row([account_id.to_string()], |row| row.try_into())
+            .optional()
     }
 
     /// List accounts.
@@ -318,9 +318,7 @@ where
             Ok(row.try_into()?)
         }
 
-        let rows = stmt.query_and_then([], |row| {
-            Ok::<_, crate::Error>(convert_row(row)?)
-        })?;
+        let rows = stmt.query_and_then([], convert_row)?;
         let mut accounts = Vec::new();
         for row in rows {
             accounts.push(row?);

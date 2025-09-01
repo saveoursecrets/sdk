@@ -118,17 +118,15 @@ impl NetworkRetry {
             "retry",
         );
 
-        loop {
-            tokio::select! {
-                _ = cancel.changed() => {
-                    let reason = cancel.borrow();
-                    tracing::debug!(id = %id, "retry::canceled");
-                    return Err(Error::RetryCanceled(reason.clone()));
-                }
-                _ = tokio::time::sleep(Duration::from_millis(delay)) => {
-                    return Ok(callback.await)
-                }
-            };
+        tokio::select! {
+            _ = cancel.changed() => {
+                let reason = cancel.borrow();
+                tracing::debug!(id = %id, "retry::canceled");
+                Err(Error::RetryCanceled(reason.clone()))
+            }
+            _ = tokio::time::sleep(Duration::from_millis(delay)) => {
+                Ok(callback.await)
+            }
         }
     }
 }
