@@ -181,11 +181,7 @@ impl FolderRecord {
         let flags = VaultFlags::from_bits(bits)
             .ok_or(sos_vault::Error::InvalidVaultFlags)?;
 
-        let salt = if let Some(salt) = value.salt {
-            Some(salt)
-        } else {
-            None
-        };
+        let salt = value.salt;
 
         let meta = if let Some(meta) = &value.meta {
             Some(decode(meta).await?)

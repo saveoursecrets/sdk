@@ -41,14 +41,14 @@ where
     }
 
     async fn list_origins(&self) -> Result<HashSet<Origin>, E> {
-        let account_id = self.account_id.clone();
+        let account_id = self.account_id;
         let servers = self
             .client
             .conn_and_then(move |conn| {
                 let accounts = AccountEntity::new(&conn);
                 let account_row = accounts.find_one(&account_id)?;
                 let servers = ServerEntity::new(&conn);
-                Ok(servers.load_servers(account_row.row_id)?)
+                servers.load_servers(account_row.row_id)
             })
             .await?;
         let mut set = HashSet::new();
@@ -63,7 +63,7 @@ where
         origin: Origin,
         remove: Option<&Origin>,
     ) -> Result<(), E> {
-        let account_id = self.account_id.clone();
+        let account_id = self.account_id;
         let remove = remove.cloned();
         let server_row: ServerRow = origin.try_into()?;
         self.client
@@ -110,7 +110,7 @@ where
         &mut self,
         origin: Origin,
     ) -> Result<(), Self::Error> {
-        let account_id = self.account_id.clone();
+        let account_id = self.account_id;
         let url = origin.url().clone();
         let server_row = self
             .client
@@ -118,7 +118,7 @@ where
                 let accounts = AccountEntity::new(&conn);
                 let account_row = accounts.find_one(&account_id)?;
                 let servers = ServerEntity::new(&conn);
-                Ok(servers.find_optional(account_row.row_id, &url)?)
+                servers.find_optional(account_row.row_id, &url)
             })
             .await
             .map_err(Error::from)?;
@@ -144,7 +144,7 @@ where
         &mut self,
         origin: &Origin,
     ) -> Result<(), Self::Error> {
-        let account_id = self.account_id.clone();
+        let account_id = self.account_id;
         let origin = origin.clone();
         self.client
             .conn_mut(move |conn| {

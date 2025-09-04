@@ -96,9 +96,9 @@ where
         let mut stmt = self
             .conn
             .prepare_cached(&self.find_server_select(true).as_string())?;
-        Ok(stmt.query_row((account_id, url.to_string()), |row| {
-            Ok(row.try_into()?)
-        })?)
+        stmt.query_row((account_id, url.to_string()), |row| {
+            row.try_into()
+        })
     }
 
     /// Find an optional server in the database.
@@ -110,11 +110,11 @@ where
         let mut stmt = self
             .conn
             .prepare_cached(&self.find_server_select(true).as_string())?;
-        Ok(stmt
+        stmt
             .query_row((account_id, url.to_string()), |row| {
-                Ok(row.try_into()?)
+                row.try_into()
             })
-            .optional()?)
+            .optional()
     }
 
     /// Load servers for an account.
@@ -127,7 +127,7 @@ where
         }
 
         let rows = stmt.query_and_then([account_id], |row| {
-            Ok::<_, crate::Error>(convert_row(row)?)
+            convert_row(row)
         })?;
         let mut servers = Vec::new();
         for row in rows {

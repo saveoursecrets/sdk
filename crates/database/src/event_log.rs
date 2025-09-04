@@ -178,12 +178,12 @@ where
             after: None,
         };
 
-        let log_type = self.log_type.clone();
+        let log_type = self.log_type;
         let mut insert_rows = Vec::new();
         let mut commits = Vec::new();
         for record in records {
             commits.push(*record.commit());
-            insert_rows.push(EventRecordRow::new(&record)?);
+            insert_rows.push(EventRecordRow::new(record)?);
         }
 
         let id = (&self.owner).into();
@@ -370,7 +370,7 @@ where
         let (tx, rx) = tokio::sync::mpsc::channel(8);
 
         let id: i64 = (&self.owner).into();
-        let log_type = self.log_type.clone();
+        let log_type = self.log_type;
         let client = self.client.clone();
 
         tokio::spawn(async move {
@@ -389,7 +389,7 @@ where
                     }
 
                     let rows = stmt.query_and_then([id], |row| {
-                        Ok::<_, crate::Error>(convert_row(row)?)
+                        convert_row(row)
                     })?;
 
                     for row in rows {
@@ -502,7 +502,7 @@ where
             records.iter().map(|r| *r.commit()).collect::<Vec<_>>();
 
         // Delete from the database
-        let log_type = self.log_type.clone();
+        let log_type = self.log_type;
         self.client
             .conn_mut(move |conn| {
                 let tx = conn.transaction()?;
@@ -523,7 +523,7 @@ where
     }
 
     async fn load_tree(&mut self) -> Result<(), Self::Error> {
-        let log_type = self.log_type.clone();
+        let log_type = self.log_type;
         let id = (&self.owner).into();
         let commits = self
             .client
@@ -544,7 +544,7 @@ where
     }
 
     async fn clear(&mut self) -> Result<(), Self::Error> {
-        let log_type = self.log_type.clone();
+        let log_type = self.log_type;
         let id = (&self.owner).into();
         self.client
             .conn_mut(move |conn| {
