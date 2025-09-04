@@ -1,1 +1,0 @@
-allow = ["clippy::new_without_default", "clippy::len_without_is_empty"]
