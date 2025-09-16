@@ -528,7 +528,7 @@ impl<'s> KeychainEntry<'s> {
 
     /// Attempt to get the entry data as a string
     /// for the generic password class.
-    pub fn generic_data(&self) -> Result<Option<Cow<str>>> {
+    pub fn generic_data<'a>(&'a self) -> Result<Option<Cow<'a, str>>> {
         if let Some(data) = &self.data {
             if let Some(EntryClass::GenericPassword) = self.class {
                 if self.is_note() {
