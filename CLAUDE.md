@@ -2,6 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+
 ## Build and Test Commands
 - Build: `cargo make debug` (debug) or `cargo make release` (optimized)
 - Format: `cargo make format` or check with `cargo make format-check`
