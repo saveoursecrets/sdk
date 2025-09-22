@@ -82,6 +82,7 @@ pub async fn export_debug_snapshot(
         }
     }
 
+    #[cfg(feature = "audit")]
     if options.include_audit_trail {
         if let Some(providers) = sos_backend::audit::providers() {
             for (index, provider) in providers.iter().enumerate() {

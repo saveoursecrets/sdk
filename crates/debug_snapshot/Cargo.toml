@@ -7,6 +7,11 @@ homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
+[features]
+audit = [
+  "sos-backend/audit",
+]
+
 [dependencies]
 thiserror.workspace = true
 futures.workspace = true
