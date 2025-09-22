@@ -4,7 +4,7 @@ version = "0.17.1"
 edition = "2021"
 description = "Server storage for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
-license = "AGPL-3.0"
+license = "AGPL-3.0-or-later"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [features]
