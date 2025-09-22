@@ -62,7 +62,7 @@ sos-changes = { version = "0.17", path = "crates/changes" }
 sos-database = { version = "0.17", path = "crates/database" }
 sos-database-upgrader = { version = "0.17", path = "crates/database_upgrader" }
 sos-debug-snapshot = { version = "0.17", path = "crates/debug_snapshot" }
-sos-external-files = { version = "0.17.0", path = "crates/external_files" }
+sos-external-files = { version = "0.17.1", path = "crates/external_files" }
 sos-filesystem = { version = "0.17", path = "crates/filesystem" }
 sos-integrity = { version = "0.17", path = "crates/integrity" }
 sos-ipc = { version = "0.17", path = "crates/ipc" }
