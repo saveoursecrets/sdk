@@ -5149,7 +5149,7 @@ dependencies = [
 
 [[package]]
 name = "sos-account"
-version = "0.17.5"
+version = "0.17.6"
 dependencies = [
  "async-trait",
  "futures",
