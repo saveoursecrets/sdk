@@ -5262,7 +5262,7 @@ dependencies = [
 
 [[package]]
 name = "sos-changes"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "futures",
  "interprocess",
@@ -5277,7 +5277,7 @@ dependencies = [
 
 [[package]]
 name = "sos-cli-helpers"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "clap",
  "colored",
@@ -5334,7 +5334,7 @@ dependencies = [
 
 [[package]]
 name = "sos-core"
-version = "0.17.2"
+version = "0.17.3"
 dependencies = [
  "aes-gcm",
  "age",
@@ -7878,7 +7878,7 @@ dependencies = [
 
 [[package]]
 name = "xclipboard"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "arboard",
  "rustc_version",

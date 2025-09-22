@@ -1,6 +1,6 @@
 [package]
 name = "xclipboard"
-version = "0.16.2"
+version = "0.16.3"
 edition = "2021"
 description = "Cross-platform clipboard with extra features."
 homepage = "https://saveoursecrets.com"
