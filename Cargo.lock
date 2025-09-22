@@ -5191,7 +5191,7 @@ dependencies = [
 
 [[package]]
 name = "sos-archive"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "async_zip",
  "sanitize-filename",
