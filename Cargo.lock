@@ -5085,7 +5085,7 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.17.2"
+version = "0.17.3"
 dependencies = [
  "arboard",
  "async-recursion",
@@ -5973,7 +5973,7 @@ dependencies = [
 
 [[package]]
 name = "sos-server-storage"
-version = "0.17.3"
+version = "0.17.4"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -6023,7 +6023,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sync"
-version = "0.17.2"
+version = "0.17.3"
 dependencies = [
  "async-trait",
  "indexmap 2.11.4",
@@ -6040,7 +6040,7 @@ dependencies = [
 
 [[package]]
 name = "sos-system-messages"
-version = "0.17.2"
+version = "0.17.3"
 dependencies = [
  "async-trait",
  "rustc_version",
@@ -6156,7 +6156,7 @@ dependencies = [
 
 [[package]]
 name = "sos-vault"
-version = "0.17.3"
+version = "0.17.4"
 dependencies = [
  "age",
  "async-trait",
@@ -6200,7 +6200,7 @@ dependencies = [
 
 [[package]]
 name = "sos-web"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "async-trait",
  "indexmap 2.11.4",
