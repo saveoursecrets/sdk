@@ -5670,7 +5670,7 @@ dependencies = [
 
 [[package]]
 name = "sos-logs"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "rev_buf_reader",
  "rustc_version",
