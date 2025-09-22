@@ -3,7 +3,7 @@
 use crate::{Error, NetworkAccount, Result};
 use sos_core::Origin;
 use sos_protocol::{
-    network_client::ListenOptions, ChangeNotification, RemoteResult,
+    network_client::ListenOptions, NetworkChangeEvent, RemoteResult,
     RemoteSync,
 };
 use sos_sync::SyncStorage;
@@ -40,7 +40,7 @@ impl NetworkAccount {
         origin: &Origin,
         options: ListenOptions,
         listener: Option<
-            mpsc::Sender<(ChangeNotification, RemoteResult<crate::Error>)>,
+            mpsc::Sender<(NetworkChangeEvent, RemoteResult<crate::Error>)>,
         >,
     ) -> Result<()> {
         let remotes = self.remotes.read().await;
@@ -48,7 +48,7 @@ impl NetworkAccount {
             self.stop_listening(&origin).await;
 
             let remote = Arc::new(remote.clone());
-            let (tx, mut rx) = mpsc::channel::<ChangeNotification>(32);
+            let (tx, mut rx) = mpsc::channel::<NetworkChangeEvent>(32);
 
             let local_account = Arc::clone(&self.account);
             let sync_lock = Arc::clone(&self.sync_lock);

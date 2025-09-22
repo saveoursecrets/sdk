@@ -26,17 +26,17 @@ pub fn providers<'a>() -> Option<&'a AuditProviders> {
 pub async fn append_audit_events(events: &[AuditEvent]) -> Result<()> {
     #[cfg(not(debug_assertions))]
     {
-        let providers = PROVIDERS
-            .get()
-            .ok_or_else(|| Error::AuditProvidersNotConfigured)?;
+        let providers =
+            providers().ok_or_else(|| Error::AuditProvidersNotConfigured)?;
         for provider in providers {
             provider.append_audit_events(events).await?;
         }
     }
+
+    // For test specs we don't require an audit trail
     #[cfg(debug_assertions)]
     {
-        let providers = PROVIDERS.get();
-        if let Some(providers) = providers {
+        if let Some(providers) = providers() {
             for provider in providers {
                 provider.append_audit_events(events).await?;
             }

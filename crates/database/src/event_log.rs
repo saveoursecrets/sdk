@@ -22,12 +22,13 @@ use futures::{
     stream::{BoxStream, StreamExt, TryStreamExt},
 };
 use sos_core::{
-    commit::{CommitHash, CommitProof, CommitTree, Comparison},
+    commit::{CommitHash, CommitProof, CommitSpan, CommitTree, Comparison},
     encoding::VERSION1,
     events::{
+        changes_feed,
         patch::{CheckedPatch, Diff, Patch},
         AccountEvent, DeviceEvent, EventLog, EventLogType, EventRecord,
-        WriteEvent,
+        LocalChangeEvent, WriteEvent,
     },
     AccountId, VaultId,
 };
@@ -37,16 +38,26 @@ use sos_core::{
 #[doc(hidden)]
 pub enum EventLogOwner {
     /// Event log owned by an account.
-    Account(i64),
+    Account(AccountId, i64),
     /// Event log owned by a folder.
-    Folder(FolderRecord),
+    Folder(AccountId, FolderRecord),
+}
+
+impl EventLogOwner {
+    /// Account idenifier.
+    pub fn account_id(&self) -> &AccountId {
+        match self {
+            EventLogOwner::Account(account_id, _) => account_id,
+            EventLogOwner::Folder(account_id, _) => account_id,
+        }
+    }
 }
 
 impl From<&EventLogOwner> for i64 {
     fn from(value: &EventLogOwner) -> Self {
         match value {
-            EventLogOwner::Account(id) => *id,
-            EventLogOwner::Folder(folder) => folder.row_id,
+            EventLogOwner::Account(_, id) => *id,
+            EventLogOwner::Folder(_, folder) => folder.row_id,
         }
     }
 }
@@ -143,8 +154,11 @@ where
             .await?;
 
         Ok(match result {
-            (account_row, None) => EventLogOwner::Account(account_row.row_id),
+            (account_row, None) => {
+                EventLogOwner::Account(account_id, account_row.row_id)
+            }
             (_, Some(folder_row)) => EventLogOwner::Folder(
+                account_id,
                 FolderRecord::from_row(folder_row).await?,
             ),
         })
@@ -155,12 +169,21 @@ where
         records: &[EventRecord],
         delete_before: bool,
     ) -> Result<(), E> {
-        let log_type = self.log_type.clone();
+        if records.is_empty() {
+            return Ok(());
+        }
+
+        let mut span = CommitSpan {
+            before: self.tree.last_commit(),
+            after: None,
+        };
+
+        let log_type = self.log_type;
         let mut insert_rows = Vec::new();
         let mut commits = Vec::new();
         for record in records {
             commits.push(*record.commit());
-            insert_rows.push(EventRecordRow::new(&record)?);
+            insert_rows.push(EventRecordRow::new(record)?);
         }
 
         let id = (&self.owner).into();
@@ -193,6 +216,14 @@ where
             commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
         self.tree.append(&mut hashes);
         self.tree.commit();
+
+        span.after = self.tree.last_commit();
+
+        changes_feed().send_replace(LocalChangeEvent::AccountModified {
+            account_id: *self.owner.account_id(),
+            log_type: self.log_type,
+            commit_span: span,
+        });
 
         Ok(())
     }
@@ -339,7 +370,7 @@ where
         let (tx, rx) = tokio::sync::mpsc::channel(8);
 
         let id: i64 = (&self.owner).into();
-        let log_type = self.log_type.clone();
+        let log_type = self.log_type;
         let client = self.client.clone();
 
         tokio::spawn(async move {
@@ -358,18 +389,23 @@ where
                     }
 
                     let rows = stmt.query_and_then([id], |row| {
-                        Ok::<_, crate::Error>(convert_row(row)?)
+                        convert_row(row)
                     })?;
 
                     for row in rows {
+                        if tx.is_closed() {
+                            break;
+                        }
                         let row = row?;
                         let record: EventRecord = row.try_into()?;
-                        let sender = tx.clone();
-                        futures::executor::block_on(async move {
-                            if let Err(err) = sender.send(Ok(record)).await {
-                                tracing::error!(error = %err);
-                            }
+                        let inner_tx = tx.clone();
+                        let res = futures::executor::block_on(async move {
+                            inner_tx.send(Ok(record)).await
                         });
+                        if let Err(e) = res {
+                            tracing::error!(error = %e);
+                            break;
+                        }
                     }
 
                     Ok::<_, Error>(())
@@ -466,7 +502,7 @@ where
             records.iter().map(|r| *r.commit()).collect::<Vec<_>>();
 
         // Delete from the database
-        let log_type = self.log_type.clone();
+        let log_type = self.log_type;
         self.client
             .conn_mut(move |conn| {
                 let tx = conn.transaction()?;
@@ -487,7 +523,7 @@ where
     }
 
     async fn load_tree(&mut self) -> Result<(), Self::Error> {
-        let log_type = self.log_type.clone();
+        let log_type = self.log_type;
         let id = (&self.owner).into();
         let commits = self
             .client
@@ -508,7 +544,7 @@ where
     }
 
     async fn clear(&mut self) -> Result<(), Self::Error> {
-        let log_type = self.log_type.clone();
+        let log_type = self.log_type;
         let id = (&self.owner).into();
         self.client
             .conn_mut(move |conn| {
@@ -630,8 +666,8 @@ where
 
     fn version(&self) -> u16 {
         match &self.owner {
-            EventLogOwner::Folder(folder) => *folder.summary.version(),
-            EventLogOwner::Account(_) => VERSION1,
+            EventLogOwner::Folder(_, folder) => *folder.summary.version(),
+            EventLogOwner::Account(_, _) => VERSION1,
         }
     }
 }

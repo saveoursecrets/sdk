@@ -114,13 +114,7 @@ async fn import_accounts(
 
         let mut client =
             open_file_with_journal_mode(db_file, JournalMode::Memory).await?;
-        let report = migrate_client(&mut client).await?;
-        for migration in report.applied_migrations() {
-            tracing::debug!(
-                name = %migration.name(),
-                version = %migration.version(),
-                "import_accounts::migration",);
-        }
+        migrate_client(&mut client).await?;
         client
     } else {
         open_memory().await?
@@ -221,13 +215,6 @@ pub async fn upgrade_accounts(
             copy_file_blobs(accounts.as_slice(), &options).await?;
     }
 
-    if !options.keep_stale_files {
-        tracing::debug!("upgrade_accounts::delete_stale_files");
-
-        result.deleted_files =
-            delete_stale_files(accounts.as_slice(), &options).await?;
-    }
-
     result.accounts = accounts;
     result.database_file = options.paths.database_file().to_owned();
 
@@ -239,6 +226,13 @@ pub async fn upgrade_accounts(
 
         // Move the temp file into place
         vfs::rename(db_temp.path(), options.paths.database_file()).await?;
+    }
+
+    if !options.keep_stale_files {
+        tracing::debug!("upgrade_accounts::delete_stale_files");
+
+        result.deleted_files =
+            delete_stale_files(result.accounts.as_slice(), &options).await?;
     }
 
     Ok(result)
@@ -435,6 +429,8 @@ async fn delete_stale_files(
     let mut files = vec![
         options.paths.identity_dir().to_owned(),
         options.paths.audit_file().to_owned(),
+        options.paths.global_preferences_file(),
+        options.paths.local_dir().join(".DS_Store"),
     ];
 
     for account in accounts {
@@ -459,6 +455,13 @@ async fn delete_stale_files(
                 }
             }
         }
+    }
+
+    // Can error if the local directory is not empty!
+    if let Err(error) = vfs::remove_dir(options.paths.local_dir()).await {
+        tracing::error!(
+            error = %error,
+            "upgrade_accounts::remove_local_dir");
     }
 
     Ok(files)

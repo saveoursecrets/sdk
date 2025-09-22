@@ -2,9 +2,8 @@
 use super::{DeviceEnrollment, Error, Result, ServerPairUrl};
 use crate::NetworkAccount;
 use futures::{
-    select,
     stream::{SplitSink, SplitStream},
-    FutureExt, SinkExt, StreamExt,
+    SinkExt, StreamExt,
 };
 use prost::bytes::Bytes;
 use snow::{Builder, HandshakeState, Keypair, TransportState};
@@ -70,7 +69,7 @@ enum IncomingAction {
     HandleMessage(PairingMessage),
 }
 
-/// Listen for incoming messages on the stream.
+/// Listen for incoming messages on the websocket stream.
 async fn listen(
     mut rx: WsStream,
     tx: mpsc::Sender<RelayPacket>,
@@ -102,6 +101,7 @@ async fn listen(
             }
         }
     }
+    tracing::debug!("pairing::websocket::connection_closed");
 }
 
 /// Offer is the device that is authenticated and can
@@ -217,26 +217,29 @@ impl<'a> OfferPairing<'a> {
         let (close_tx, mut close_rx) = mpsc::channel::<()>(1);
         tokio::task::spawn(listen(stream, offer_tx, close_tx));
         loop {
-            select! {
-                event = offer_rx.recv().fuse() => {
-                    if let Some(event) = event {
-                        self.incoming(event).await?;
-                        if self.is_finished() {
-                            break;
-                        }
+            tokio::select! {
+                biased;
+                // Explicit shutdown notification
+                Some(_) = shutdown_rx.recv() => {
+                    tracing::debug!("pairing::offer::shutdown_received");
+                    if let Err(error) = self.tx.send(Message::Close(Some(CloseFrame {
+                        code: CloseCode::Normal,
+                        reason: Utf8Bytes::from_static("closed"),
+                    }))).await {
+                        tracing::error!(
+                            error = %error,
+                            "pairing::offer::websocket_close_frame::error");
                     }
+                    break;
                 }
-                event = close_rx.recv().fuse() => {
-                    if event.is_some() {
-                        break;
-                    }
+                // Close signal from the websocket stream
+                Some(_) = close_rx.recv() => {
+                    break;
                 }
-                event = shutdown_rx.recv().fuse() => {
-                    if event.is_some() {
-                        let _ = self.tx.send(Message::Close(Some(CloseFrame {
-                            code: CloseCode::Normal,
-                            reason: Utf8Bytes::from_static("closed"),
-                        }))).await;
+                // Incoming event
+                Some(event) = offer_rx.recv() => {
+                    self.incoming(event).await?;
+                    if self.is_finished() {
                         break;
                     }
                 }
@@ -633,8 +636,18 @@ impl<'a> AcceptPairing<'a> {
         tokio::task::spawn(listen(stream, offer_tx, close_tx));
 
         loop {
-            select! {
-                event = offer_rx.recv().fuse() => {
+            tokio::select! {
+                biased;
+                event = shutdown_rx.recv() => {
+                    if event.is_some() {
+                        let _ = self.tx.send(Message::Close(Some(CloseFrame {
+                            code: CloseCode::Normal,
+                            reason: Utf8Bytes::from_static("closed"),
+                        }))).await;
+                        break;
+                    }
+                }
+                event = offer_rx.recv() => {
                     if let Some(event) = event {
                         self.incoming(event).await?;
                         if self.is_finished() {
@@ -642,17 +655,8 @@ impl<'a> AcceptPairing<'a> {
                         }
                     }
                 }
-                event = close_rx.recv().fuse() => {
+                event = close_rx.recv() => {
                     if event.is_some() {
-                        break;
-                    }
-                }
-                event = shutdown_rx.recv().fuse() => {
-                    if event.is_some() {
-                        let _ = self.tx.send(Message::Close(Some(CloseFrame {
-                            code: CloseCode::Normal,
-                            reason: Utf8Bytes::from_static("closed"),
-                        }))).await;
                         break;
                     }
                 }

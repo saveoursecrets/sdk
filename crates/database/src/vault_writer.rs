@@ -68,7 +68,7 @@ where
     type Error = E;
 
     async fn summary(&self) -> Result<Summary, Self::Error> {
-        let folder_id = self.folder_id.clone();
+        let folder_id = self.folder_id;
         let row = self
             .client
             .conn(move |conn| {
@@ -92,7 +92,7 @@ where
         &mut self,
         name: String,
     ) -> Result<WriteEvent, Self::Error> {
-        let folder_id = self.folder_id.clone();
+        let folder_id = self.folder_id;
         let folder_name = name.clone();
         self.client
             .conn_and_then(move |conn| {
@@ -107,7 +107,7 @@ where
         &mut self,
         flags: VaultFlags,
     ) -> Result<WriteEvent, Self::Error> {
-        let folder_id = self.folder_id.clone();
+        let folder_id = self.folder_id;
         let folder_flags = flags.clone();
         self.client
             .conn_and_then(move |conn| {
@@ -122,7 +122,7 @@ where
         &mut self,
         meta_data: AeadPack,
     ) -> Result<WriteEvent, Self::Error> {
-        let folder_id = self.folder_id.clone();
+        let folder_id = self.folder_id;
         let folder_meta = encode(&meta_data).await?;
         self.client
             .conn_and_then(move |conn| {
@@ -147,7 +147,7 @@ where
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<WriteEvent, Self::Error> {
-        let folder_id = self.folder_id.clone();
+        let folder_id = self.folder_id;
         let secret_row = SecretRow::new(&secret_id, &commit, &secret).await?;
         self.client
             .conn(move |conn| {
@@ -167,13 +167,13 @@ where
         &'a self,
         secret_id: &SecretId,
     ) -> Result<Option<(Cow<'a, VaultCommit>, ReadEvent)>, Self::Error> {
-        let folder_id = self.folder_id.clone();
+        let folder_id = self.folder_id;
         let folder_secret_id = *secret_id;
         let secret_row = self
             .client
             .conn(move |conn| {
                 let folder = FolderEntity::new(&conn);
-                Ok(folder.find_secret(&folder_id, &folder_secret_id)?)
+                folder.find_secret(&folder_id, &folder_secret_id)
             })
             .await
             .map_err(Error::from)?;
@@ -193,7 +193,7 @@ where
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<Option<WriteEvent>, Self::Error> {
-        let folder_id = self.folder_id.clone();
+        let folder_id = self.folder_id;
         let secret_row = SecretRow::new(secret_id, &commit, &secret).await?;
         let updated = self
             .client
@@ -212,13 +212,13 @@ where
         &mut self,
         secret_id: &SecretId,
     ) -> Result<Option<WriteEvent>, Self::Error> {
-        let folder_id = self.folder_id.clone();
+        let folder_id = self.folder_id;
         let folder_secret_id = *secret_id;
         let deleted = self
             .client
             .conn(move |conn| {
                 let folder = FolderEntity::new(&conn);
-                Ok(folder.delete_secret(&folder_id, &folder_secret_id)?)
+                folder.delete_secret(&folder_id, &folder_secret_id)
             })
             .await
             .map_err(Error::from)?;

@@ -28,14 +28,16 @@ mod common;
 mod helpers;
 mod search;
 mod secret;
-mod web_accounts;
+// mod web_accounts;
+mod web_accounts2;
 
 use account::*;
 use common::*;
 use helpers::*;
 use search::*;
 use secret::*;
-pub use web_accounts::*;
+// pub use web_accounts::*;
+pub use web_accounts2::*;
 
 async fn index(
     app_info: Arc<ServiceAppInfo>,

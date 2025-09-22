@@ -2,10 +2,11 @@ use anyhow::Result;
 use futures::{pin_mut, StreamExt};
 use secrecy::ExposeSecret;
 use sos_backend::{BackendTarget, Folder, FolderEventLog};
-use sos_core::Paths;
+use sos_core::events::EventLogType;
 use sos_core::{
     crypto::AccessKey, encode, events::EventLog, SecretId, VaultFlags,
 };
+use sos_core::{AccountId, Paths, VaultId};
 use sos_test_utils::mock::{
     self, file_database, insert_database_vault, vault_file, vault_memory,
 };
@@ -21,7 +22,11 @@ async fn fs_folder_lifecycle() -> Result<()> {
     let buffer = encode(&vault).await?;
     vfs::write(temp.path(), &buffer).await?;
 
-    let mut folder = Folder::from_path(temp.path()).await?;
+    let account_id = AccountId::random();
+    let log_type = EventLogType::Folder(VaultId::new_v4());
+
+    let mut folder =
+        Folder::from_path(temp.path(), &account_id, log_type).await?;
     let key: AccessKey = password.into();
     assert_folder(&mut folder, key).await?;
 
@@ -40,12 +45,13 @@ async fn db_folder_lifecycle() -> Result<()> {
     let buffer = encode(&vault).await?;
     vfs::write(temp.path(), &buffer).await?;
     let paths = Paths::new_client(dir.path());
-    let target = BackendTarget::Database(paths, client);
+    let target = BackendTarget::Database(paths, client.clone());
 
     let mut folder = Folder::new(target, &account_id, vault.id()).await?;
     let key: AccessKey = password.into();
     assert_folder(&mut folder, key).await?;
 
+    client.close().await?;
     temp.close()?;
     dir.close()?;
     Ok(())

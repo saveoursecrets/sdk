@@ -1,0 +1,29 @@
+[package]
+name = "sos-changes"
+version = "0.17.2"
+edition = "2021"
+description = "Local socket change event producer and consumer for the Save Our Secrets SDK."
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+changes-consumer = ["dep:interprocess", "tokio-util"]
+changes-producer = ["dep:interprocess", "tokio-util"]
+
+[dependencies]
+thiserror.workspace = true
+sos-core.workspace = true
+tracing.workspace = true
+futures.workspace = true
+tokio.workspace = true
+serde_json.workspace = true
+interprocess = { workspace = true, optional = true, features = ["tokio"] }
+tokio-util = { workspace = true, optional = true, features = ["codec"] }
+
+[build-dependencies]
+rustc_version.workspace = true

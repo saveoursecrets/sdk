@@ -206,7 +206,7 @@ async fn edit_secret<'a>(
 }
 
 /// Edit text.
-pub async fn edit_text(text: &str) -> Result<Cow<str>> {
+pub async fn edit_text<'a>(text: &'a str) -> Result<Cow<'a, str>> {
     let result = editor(text.as_bytes(), ".txt").await?;
     match result {
         Cow::Borrowed(_) => Ok(Cow::Borrowed(text)),

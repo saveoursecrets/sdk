@@ -6,11 +6,13 @@ members = [
   "crates/artifact",
   "crates/audit",
   "crates/backend",
+  "crates/changes",
   "crates/cli_helpers", 
   "crates/clipboard", 
   "crates/core",
   "crates/database",
   "crates/database_upgrader",
+  "crates/debug_snapshot", 
   "crates/extension_service",
   "crates/external_files",
   "crates/filesystem",
@@ -45,7 +47,7 @@ members = [
   "tests/command_line",
   "tests/integration",
   "tests/unit",
-  "tests/utils", 
+  "tests/utils",
 ]
 
 [workspace.dependencies]
@@ -56,9 +58,11 @@ sos-archive = { version = "0.17", path = "crates/archive" }
 sos-backend  = { version = "0.17", path = "crates/backend" }
 sos-cli-helpers = { version = "0.1", path = "crates/cli_helpers" }
 sos-core = { version = "0.17", path = "crates/core" }
+sos-changes = { version = "0.17", path = "crates/changes" }
 sos-database = { version = "0.17", path = "crates/database" }
 sos-database-upgrader = { version = "0.17", path = "crates/database_upgrader" }
-sos-external-files = { version = "0.17.0", path = "crates/external_files" }
+sos-debug-snapshot = { version = "0.17", path = "crates/debug_snapshot" }
+sos-external-files = { version = "0.17.1", path = "crates/external_files" }
 sos-filesystem = { version = "0.17", path = "crates/filesystem" }
 sos-integrity = { version = "0.17", path = "crates/integrity" }
 sos-ipc = { version = "0.17", path = "crates/ipc" }
@@ -135,6 +139,9 @@ hex = { version = "0.4", features = ["serde"] }
 # signing
 k256 = { version = "0.13.1", features = ["ecdsa"] }
 ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
+
+# ipc changes
+interprocess = "2"
 
 # matches the version in k256
 sha1 = "0.10.6"

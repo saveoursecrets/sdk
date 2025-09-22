@@ -1,6 +1,6 @@
 [package]
 name = "sos-archive"
-version = "0.17.0"
+version = "0.17.2"
 edition = "2021"
 description = "ZIP archive reader and writer for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"

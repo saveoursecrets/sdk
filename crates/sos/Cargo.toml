@@ -1,6 +1,6 @@
 [package]
 name = "sos"
-version = "0.17.0"
+version = "0.17.3"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
@@ -21,6 +21,7 @@ sos-cli-helpers.workspace = true
 sos-client-storage = { workspace = true, features = ["full"] }
 sos-database = { workspace = true, features = ["full"] }
 sos-database-upgrader = { workspace = true, features = ["full"] }
+sos-debug-snapshot.workspace = true
 sos-external-files.workspace = true
 sos-integrity.workspace = true
 sos-login = { workspace = true, features = ["full"] }

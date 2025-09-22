@@ -202,7 +202,7 @@ where
             .from(table.as_str())
             .where_clause("event_id=?1");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        Ok(stmt.query_row([event_id], |row| Ok(row.try_into()?))?)
+        stmt.query_row([event_id], |row| row.try_into())
     }
 
     /// Delete an event from the database table.
@@ -298,9 +298,7 @@ where
             Ok(row.try_into()?)
         }
 
-        let rows = stmt.query_and_then([id], |row| {
-            Ok::<_, crate::Error>(convert_row(row)?)
-        })?;
+        let rows = stmt.query_and_then([id], convert_row)?;
 
         let mut events = Vec::new();
         for row in rows {
@@ -328,9 +326,7 @@ where
             Ok(row.try_into()?)
         }
 
-        let rows = stmt.query_and_then([account_or_folder_id], |row| {
-            Ok::<_, crate::Error>(convert_row(row)?)
-        })?;
+        let rows = stmt.query_and_then([account_or_folder_id], convert_row)?;
 
         let mut commits = Vec::new();
         for row in rows {
@@ -350,7 +346,7 @@ where
             .delete_from(table.as_str())
             .where_clause(&format!("{}=?1", table.id_column()));
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        Ok(stmt.execute([account_or_folder_id])?)
+        stmt.execute([account_or_folder_id])
     }
 
     fn create_events(

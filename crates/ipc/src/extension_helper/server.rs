@@ -12,7 +12,8 @@ use http::{
     StatusCode,
 };
 use sos_account::{Account, AccountSwitcher};
-use sos_core::ErrorExt;
+use sos_changes::consumer::ChangeConsumer;
+use sos_core::{events::LocalChangeEvent, ErrorExt, Paths};
 use sos_login::DelegatedAccess;
 use sos_logs::Logger;
 use sos_protocol::{constants::MIME_TYPE_JSON, ErrorReply};
@@ -98,6 +99,7 @@ where
     pub async fn new(
         options: ExtensionHelperOptions,
         accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+        change_handler: impl Fn(LocalChangeEvent) + Send + Sync + 'static,
     ) -> Result<Self> {
         let log_level = std::env::var("SOS_NATIVE_BRIDGE_LOG_LEVEL")
             .map(|s| s.to_string())
@@ -113,8 +115,15 @@ where
         }
 
         tracing::info!(options = ?options, "extension_helper");
-
+        let paths = {
+            let accounts = accounts.read().await;
+            accounts.paths().unwrap_or_else(|| {
+                Paths::new_client(Paths::data_dir().unwrap())
+            })
+        };
         let accounts = WebAccounts::new(accounts);
+        let changes_consumer = ChangeConsumer::listen(paths.clone())?;
+        accounts.listen_changes(changes_consumer, paths, change_handler)?;
         let client = LocalMemoryServer::listen(
             accounts.clone(),
             options.service_info.clone(),

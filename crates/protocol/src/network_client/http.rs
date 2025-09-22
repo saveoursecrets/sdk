@@ -34,7 +34,7 @@ use crate::{
     network_client::websocket::{
         ListenOptions, WebSocketChangeListener, WebSocketHandle,
     },
-    ChangeNotification,
+    NetworkChangeEvent,
 };
 
 #[cfg(feature = "files")]
@@ -118,7 +118,7 @@ impl HttpClient {
     pub fn listen<F>(
         &self,
         options: ListenOptions,
-        handler: impl Fn(ChangeNotification) -> F + Send + Sync + 'static,
+        handler: impl Fn(NetworkChangeEvent) -> F + Send + Sync + 'static,
     ) -> WebSocketHandle
     where
         F: Future<Output = ()> + Send + 'static,
@@ -473,32 +473,51 @@ impl FileSyncClient for HttpClient {
         let mut bytes_sent = 0;
         if let Err(error) = progress.send((bytes_sent, Some(file_size))).await
         {
-            tracing::warn!(error = ?error);
+            tracing::warn!(
+                error = ?error,
+                "http::progress_send_initial_size",
+            );
         }
 
-        let mut reader_stream = ReaderStream::new(file);
-
-        let (tx, rx) = mpsc::channel(8);
+        let (tx, rx) = mpsc::channel(128);
         tokio::task::spawn(async move {
+            let mut reader_stream = ReaderStream::new(file);
+            let upload_channel = tx.clone();
             loop {
                 tokio::select! {
                   biased;
-                  _ = cancel.changed() => {
-                    let reason = cancel.borrow().clone();
-                    tracing::debug!(reason = ?reason, "upload::canceled");
-                    if let Err(e) = tx.send(Err(Error::TransferCanceled(reason))).await {
-                        tracing::warn!(error = %e);
+                  _= cancel.changed() => {
+                    let reason = cancel.borrow_and_update().clone();
+                    if reason != crate::transfer::CancelReason::default() {
+                        tracing::debug!(
+                            reason = ?reason,
+                            "upload::canceled",
+                        );
+                        if let Err(error) = upload_channel.send(Err(Error::TransferCanceled(reason))).await {
+                            tracing::warn!(
+                                error = %error,
+                                "http::send_transfer_canceled",
+                            );
+                        }
+
+                        break;
                     }
                   }
                   Some(chunk) = reader_stream.next() => {
                     if let Ok(bytes) = &chunk {
                         bytes_sent += bytes.len() as u64;
-                        if let Err(e) = progress.send((bytes_sent, Some(file_size))).await {
-                          tracing::warn!(error = %e);
+                        if let Err(error) = progress.send((bytes_sent, Some(file_size))).await {
+                            tracing::warn!(
+                                error = %error,
+                                "http::send_transfer_progress_update",
+                        );
                         }
                     }
-                    if let Err(e) = tx.send(chunk.map_err(Error::from)).await {
-                        tracing::error!(error = %e);
+                    if let Err(error) = upload_channel.send(chunk.map_err(Error::from)).await {
+                        tracing::error!(
+                            error = %error,
+                            "http::send_transfer_chunk",
+                        );
                         break;
                     }
                   }
@@ -506,7 +525,7 @@ impl FileSyncClient for HttpClient {
             }
         });
 
-        let progress_stream = ReceiverStream::new(rx);
+        let upload_stream = ReceiverStream::new(rx);
 
         // Use a client without the read timeout
         // as this may be a long running request
@@ -522,7 +541,7 @@ impl FileSyncClient for HttpClient {
             self.request_headers(request, sign_url.as_bytes()).await?;
 
         let response = request
-            .body(Body::wrap_stream(progress_stream))
+            .body(Body::wrap_stream(upload_stream))
             .send()
             .await?;
         let status = response.status();

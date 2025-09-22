@@ -231,13 +231,13 @@ async fn encode_decode_merge_outcom() -> Result<()> {
 #[cfg(feature = "listen")]
 #[tokio::test]
 async fn encode_decode_change_notification() -> Result<()> {
-    use sos_protocol::ChangeNotification;
+    use sos_protocol::NetworkChangeEvent;
     let outcome = MergeOutcome {
         changes: 7,
         ..Default::default()
     };
     let account_id: AccountId = [1u8; 20].into();
-    let value = ChangeNotification::new(
+    let value = NetworkChangeEvent::new(
         &account_id,
         "mock-connection".to_string(),
         Default::default(),
@@ -245,7 +245,7 @@ async fn encode_decode_change_notification() -> Result<()> {
     );
     let buffer = value.clone().encode().await?;
     let buffer: Bytes = buffer.into();
-    let decoded = ChangeNotification::decode(buffer).await?;
+    let decoded = NetworkChangeEvent::decode(buffer).await?;
     assert_eq!(value, decoded);
     Ok(())
 }

@@ -1,3 +1,4 @@
+#![allow(clippy::print_literal)]
 fn main() {
     println!("cargo::rustc-check-cfg=cfg(NOT_CI)");
     if option_env!("CI").is_some() {

@@ -3,7 +3,7 @@ use crate::{BackendEventLog, Error, FolderEventLog, Result};
 use sos_core::{
     events::{
         patch::{FolderDiff, Patch},
-        EventLog, EventRecord,
+        EventLog, EventLogType, EventRecord,
     },
     AccountId, VaultId,
 };
@@ -20,6 +20,7 @@ use tempfile::NamedTempFile;
 
 /// Compact a folder event log.
 pub async fn compact_folder(
+    account_id: &AccountId,
     folder_id: &VaultId,
     event_log: &mut FolderEventLog,
 ) -> Result<()> {
@@ -38,12 +39,9 @@ pub async fn compact_folder(
 
             // Ensure the foreign key constrains exist
             // in the temporary database
-            let temp_account_id = AccountId::random();
             let temp_name = "compact_temp";
-            let account_row = AccountRow::new_insert(
-                &temp_account_id,
-                temp_name.to_owned(),
-            )?;
+            let account_row =
+                AccountRow::new_insert(account_id, temp_name.to_owned())?;
             let mut vault = Vault::default();
             *vault.header_mut().id_mut() = *folder_id;
             let folder_row = FolderRow::new_insert(&vault).await?;
@@ -64,7 +62,7 @@ pub async fn compact_folder(
             // Copy the event log using the new temporary owner
             let mut temp_event_log = event_log.with_new_client(
                 client,
-                Some(EventLogOwner::Folder(folder_record)),
+                Some(EventLogOwner::Folder(*account_id, folder_record)),
             );
             temp_event_log.apply(events.as_slice()).await?;
 
@@ -92,8 +90,12 @@ pub async fn compact_folder(
 
             // Apply them to a temporary event log file
             let temp = NamedTempFile::new()?;
-            let mut temp_event_log =
-                FsFolderEventLog::<Error>::new_folder(temp.path()).await?;
+            let mut temp_event_log = FsFolderEventLog::<Error>::new_folder(
+                temp.path(),
+                *account_id,
+                EventLogType::Folder(*folder_id),
+            )
+            .await?;
             temp_event_log.apply(events.as_slice()).await?;
 
             let mut records = Vec::new();

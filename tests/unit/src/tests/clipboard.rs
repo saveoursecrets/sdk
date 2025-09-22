@@ -1,5 +1,7 @@
 use anyhow::Result;
 
+// No wayland support yet!
+#[cfg(not(target_os = "linux"))]
 #[cfg(NOT_CI)]
 #[tokio::test]
 async fn clipboard() -> Result<()> {

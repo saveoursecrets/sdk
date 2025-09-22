@@ -1,6 +1,6 @@
 [package]
 name = "sos-extension-service"
-version = "0.17.0"
+version = "0.17.1"
 edition = "2021"
 description = "Browser extension service for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -11,11 +11,13 @@ repository = "https://github.com/saveoursecrets/sdk"
 sos-account = { workspace = true, features = ["clipboard", "search"] }
 sos-backend.workspace = true
 sos-core.workspace = true
-sos-ipc = { workspace = true, features = ["extension-helper-server", "search", "clipboard"] }
+sos-ipc = { workspace = true, features = ["extension-helper-server", "search", "clipboard", "files"] }
 sos-net = { workspace = true, features = ["clipboard", "search"] }
+sos-changes = { workspace = true, features = ["changes-consumer"] }
 tokio.workspace = true
 anyhow.workspace = true
 xclipboard.workspace = true
+tracing.workspace = true
 
 [[bin]]
 name = "sos-extension-helper"

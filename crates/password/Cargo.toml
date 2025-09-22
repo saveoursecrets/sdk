@@ -1,6 +1,6 @@
 [package]
 name = "sos-password"
-version = "0.17.0"
+version = "0.17.1"
 edition = "2021"
 description = "Password generation and helpers for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"

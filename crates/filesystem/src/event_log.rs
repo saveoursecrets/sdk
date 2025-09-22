@@ -25,13 +25,16 @@ use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, Decodable, Encodable};
 use futures::{stream::BoxStream, StreamExt, TryStreamExt};
 use sos_core::{
-    commit::{CommitHash, CommitProof, CommitTree, Comparison},
+    commit::{CommitHash, CommitProof, CommitSpan, CommitTree, Comparison},
     encode,
     encoding::{encoding_options, VERSION1},
     events::{
+        changes_feed,
         patch::{CheckedPatch, Diff, Patch},
-        AccountEvent, DeviceEvent, EventRecord, WriteEvent,
+        AccountEvent, DeviceEvent, EventLogType, EventRecord,
+        LocalChangeEvent, WriteEvent,
     },
+    AccountId,
 };
 use sos_vfs::{self as vfs, File, OpenOptions};
 use std::result::Result as StdResult;
@@ -103,6 +106,8 @@ where
         + Sync
         + 'static,
 {
+    account_id: AccountId,
+    log_type: EventLogType,
     tree: CommitTree,
     data: PathBuf,
     identity: &'static [u8],
@@ -137,6 +142,9 @@ where
         let file_path = self.data.clone();
         tokio::task::spawn(async move {
             while let Some(record) = it.next().await? {
+                if tx.is_closed() {
+                    break;
+                }
                 let event_buffer =
                     read_event_buffer(file_path.clone(), &record).await?;
                 let event_record = record.into_event_record(event_buffer);
@@ -291,6 +299,15 @@ where
         &mut self,
         records: Vec<EventRecord>,
     ) -> StdResult<(), Self::Error> {
+        if records.is_empty() {
+            return Ok(());
+        }
+
+        let mut span = CommitSpan {
+            before: self.tree.last_commit(),
+            after: None,
+        };
+
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
         let mut last_commit_hash = self.tree().last_commit();
@@ -328,6 +345,17 @@ where
                     commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
                 self.tree.append(&mut hashes);
                 self.tree.commit();
+
+                span.after = self.tree.last_commit();
+
+                changes_feed().send_replace(
+                    LocalChangeEvent::AccountModified {
+                        account_id: self.account_id,
+                        log_type: self.log_type,
+                        commit_span: span,
+                    },
+                );
+
                 Ok(())
             }
             Err(e) => Err(e.into()),
@@ -662,7 +690,11 @@ where
         + 'static,
 {
     /// Create a new folder event log file.
-    pub async fn new_folder<P: AsRef<Path>>(path: P) -> StdResult<Self, E> {
+    pub async fn new_folder<P: AsRef<Path>>(
+        path: P,
+        account_id: AccountId,
+        log_type: EventLogType,
+    ) -> StdResult<Self, E> {
         use sos_core::constants::FOLDER_EVENT_LOG_IDENTITY;
         // Note that for backwards compatibility we don't
         // encode a version, later we will need to upgrade
@@ -680,6 +712,8 @@ where
         Ok(Self {
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
+            log_type,
+            account_id,
             identity: &FOLDER_EVENT_LOG_IDENTITY,
             version: None,
             phantom: std::marker::PhantomData,
@@ -699,7 +733,10 @@ where
         + 'static,
 {
     /// Create a new account event log file.
-    pub async fn new_account<P: AsRef<Path>>(path: P) -> StdResult<Self, E> {
+    pub async fn new_account<P: AsRef<Path>>(
+        path: P,
+        account_id: AccountId,
+    ) -> StdResult<Self, E> {
         use sos_core::{
             constants::ACCOUNT_EVENT_LOG_IDENTITY, encoding::VERSION,
         };
@@ -714,6 +751,8 @@ where
             .await?;
 
         Ok(Self {
+            account_id,
+            log_type: EventLogType::Account,
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &ACCOUNT_EVENT_LOG_IDENTITY,
@@ -735,7 +774,10 @@ where
         + 'static,
 {
     /// Create a new device event log file.
-    pub async fn new_device(path: impl AsRef<Path>) -> StdResult<Self, E> {
+    pub async fn new_device(
+        path: impl AsRef<Path>,
+        account_id: AccountId,
+    ) -> StdResult<Self, E> {
         use sos_core::{
             constants::DEVICE_EVENT_LOG_IDENTITY, encoding::VERSION,
         };
@@ -751,6 +793,8 @@ where
             .await?;
 
         Ok(Self {
+            log_type: EventLogType::Device,
+            account_id,
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &DEVICE_EVENT_LOG_IDENTITY,
@@ -773,7 +817,10 @@ where
         + 'static,
 {
     /// Create a new file event log file.
-    pub async fn new_file(path: impl AsRef<Path>) -> StdResult<Self, E> {
+    pub async fn new_file(
+        path: impl AsRef<Path>,
+        account_id: AccountId,
+    ) -> StdResult<Self, E> {
         use sos_core::{
             constants::FILE_EVENT_LOG_IDENTITY, encoding::VERSION,
         };
@@ -789,6 +836,8 @@ where
             .await?;
 
         Ok(Self {
+            account_id,
+            log_type: EventLogType::Files,
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &FILE_EVENT_LOG_IDENTITY,

@@ -7,7 +7,7 @@ use std::{fmt, str::FromStr};
 ///
 /// String encoding starts with 0x and is followed with
 /// 20 bytes hex-encoded.
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, Copy, Hash, Eq, PartialEq)]
 #[serde(try_from = "String", into = "String")]
 pub struct AccountId([u8; 20]);
 
@@ -22,12 +22,6 @@ impl AccountId {
 impl fmt::Display for AccountId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "0x{}", hex::encode(self.0))
-    }
-}
-
-impl Default for AccountId {
-    fn default() -> Self {
-        Self([0u8; 20])
     }
 }
 

@@ -72,35 +72,6 @@ impl LocalMemoryClient {
         let response = Response::from_parts(header, Full::new(bytes));
         Ok(response)
     }
-
-    /*
-    /// Get application information.
-    pub async fn info(&mut self) -> Result<ServiceAppInfo> {
-        let response = self.send_request(Default::default()).await?;
-        let status = response.status()?;
-        if status.is_success() {
-            let app_info: ServiceAppInfo =
-                serde_json::from_slice(&response.body)?;
-            Ok(app_info)
-        } else {
-            Err(NetworkError::ResponseCode(status).into())
-        }
-    }
-
-    /// List accounts.
-    pub async fn list_accounts(&mut self) -> Result<Vec<PublicIdentity>> {
-        let request = LocalRequest::get("/accounts".parse()?);
-        let response = self.send_request(request).await?;
-        let status = response.status()?;
-        if status.is_success() {
-            let accounts: Vec<PublicIdentity> =
-                serde_json::from_slice(&response.body)?;
-            Ok(accounts)
-        } else {
-            Err(NetworkError::ResponseCode(status).into())
-        }
-    }
-    */
 }
 
 /// Server for in-memory communication.
