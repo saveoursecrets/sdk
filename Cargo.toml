@@ -138,7 +138,7 @@ ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
 
 # matches the version in k256
 sha1 = "0.10.6"
-sha2 = "0.10.6"
+sha2 = "0.10.9"
 sha3 = "0.10.6"
 rand = "0.8"
 semver = { version = "1", features = ["serde"] }
