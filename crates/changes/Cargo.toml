@@ -1,6 +1,6 @@
 [package]
 name = "sos-changes"
-version = "0.17.0"
+version = "0.17.1"
 edition = "2021"
 description = "Local socket change event producer and consumer for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"

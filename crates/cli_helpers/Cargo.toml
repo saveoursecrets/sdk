@@ -1,6 +1,6 @@
 [package]
 name = "sos-cli-helpers"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Shared helpers for command line executables."
 homepage = "https://saveoursecrets.com"

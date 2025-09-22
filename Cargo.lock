@@ -5149,7 +5149,7 @@ dependencies = [
 
 [[package]]
 name = "sos-account"
-version = "0.17.4"
+version = "0.17.5"
 dependencies = [
  "async-trait",
  "futures",
@@ -5191,7 +5191,7 @@ dependencies = [
 
 [[package]]
 name = "sos-archive"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "async_zip",
  "sanitize-filename",
@@ -5206,7 +5206,7 @@ dependencies = [
 
 [[package]]
 name = "sos-artifact"
-version = "0.8.9"
+version = "0.8.10"
 dependencies = [
  "hex",
  "semver",
@@ -5218,7 +5218,7 @@ dependencies = [
 
 [[package]]
 name = "sos-audit"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5233,7 +5233,7 @@ dependencies = [
 
 [[package]]
 name = "sos-backend"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -5262,7 +5262,7 @@ dependencies = [
 
 [[package]]
 name = "sos-changes"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "futures",
  "interprocess",
@@ -5277,7 +5277,7 @@ dependencies = [
 
 [[package]]
 name = "sos-cli-helpers"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "clap",
  "colored",
@@ -5334,7 +5334,7 @@ dependencies = [
 
 [[package]]
 name = "sos-core"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "aes-gcm",
  "age",
@@ -7878,7 +7878,7 @@ dependencies = [
 
 [[package]]
 name = "xclipboard"
-version = "0.16.1"
+version = "0.16.2"
 dependencies = [
  "arboard",
  "rustc_version",
