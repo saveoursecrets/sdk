@@ -5085,7 +5085,7 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "arboard",
  "async-recursion",
@@ -5885,7 +5885,7 @@ dependencies = [
 
 [[package]]
 name = "sos-search"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "probly-search",
  "rustc_version",
@@ -5904,7 +5904,7 @@ dependencies = [
 
 [[package]]
 name = "sos-security-report"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "hex",
  "secrecy",
@@ -5921,7 +5921,7 @@ dependencies = [
 
 [[package]]
 name = "sos-server"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "async-trait",
  "axum",
@@ -5973,7 +5973,7 @@ dependencies = [
 
 [[package]]
 name = "sos-server-storage"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -6003,7 +6003,7 @@ dependencies = [
 
 [[package]]
 name = "sos-signer"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "async-trait",
  "binary-stream",
@@ -6023,7 +6023,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sync"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "async-trait",
  "indexmap 2.11.4",
@@ -6040,7 +6040,7 @@ dependencies = [
 
 [[package]]
 name = "sos-system-messages"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "async-trait",
  "rustc_version",
@@ -6156,7 +6156,7 @@ dependencies = [
 
 [[package]]
 name = "sos-vault"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "age",
  "async-trait",

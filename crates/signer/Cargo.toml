@@ -1,6 +1,6 @@
 [package]
 name = "sos-signer"
-version = "0.17.0"
+version = "0.17.1"
 edition = "2021"
 description = "Message signing for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
