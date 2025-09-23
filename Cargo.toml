@@ -205,7 +205,7 @@ plist = "1.7"
 vsss-rs = "3"
 
 # wasm
-getrandom = "0.2"
+getrandom = "0.3"
 
 # build
 rustc_version = "0.4.1"
