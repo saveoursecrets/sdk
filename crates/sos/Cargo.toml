@@ -68,7 +68,7 @@ shell-words = "1"
 terminal-banner = { version = "0.4.1", features = ["color"] }
 unicode-width = "0.2"
 kdam = { version = "0.6", features = ["rich", "spinner"] }
-crossterm = "0.28"
+crossterm = "0.29"
 ctrlc = "3"
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync"] }
 rustyline = "14"
