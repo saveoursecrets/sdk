@@ -62,7 +62,7 @@ rustls.workspace = true
 axum = { version = "0.8", features = ["ws", "original-uri"] }
 axum-extra = {version = "0.10", features = ["typed-header"] }
 # axum-macros = { version = "0.4" }
-axum-prometheus = { version = "0.8", optional = true }
+axum-prometheus = { version = "0.9", optional = true }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 tokio-stream = { version = "0.1" }
 utoipa = { version = "5", features = ["uuid"] }
