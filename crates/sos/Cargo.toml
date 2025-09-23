@@ -71,6 +71,6 @@ kdam = { version = "0.6", features = ["rich", "spinner"] }
 crossterm = "0.28"
 ctrlc = "3"
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync"] }
-rustyline = "14"
+rustyline = "17"
 rustyline-derive = "0.11"
 
