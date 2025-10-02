@@ -54,12 +54,12 @@ pub async fn run() -> anyhow::Result<()> {
                     let target =
                         BackendTarget::infer(paths, InferOptions::default())
                             .await?;
-                    Ok(NetworkAccount::new_unauthenticated(
+                    NetworkAccount::new_unauthenticated(
                         *identity.account_id(),
                         target,
                         NetworkAccountOptions::default(),
                     )
-                    .await?)
+                    .await
                 })
             },
             target,
