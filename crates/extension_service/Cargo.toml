@@ -12,7 +12,7 @@ sos-account = { workspace = true, features = ["clipboard", "search"] }
 sos-backend.workspace = true
 sos-core.workspace = true
 sos-ipc = { workspace = true, features = ["extension-helper-server", "search", "clipboard", "files"] }
-sos-net = { workspace = true, features = ["clipboard", "search"] }
+sos-net = { workspace = true, features = ["clipboard", "search", "files"] }
 sos-changes = { workspace = true, features = ["changes-consumer"] }
 tokio.workspace = true
 anyhow.workspace = true
