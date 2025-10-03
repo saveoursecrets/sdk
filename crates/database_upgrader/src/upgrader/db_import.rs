@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use crate::{Error, Result, UpgradeOptions};
 use async_trait::async_trait;
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
@@ -164,6 +164,7 @@ pub(crate) async fn import_account(
     client: &mut Client,
     paths: Arc<Paths>,
     account: &PublicIdentity,
+    options: &UpgradeOptions,
 ) -> Result<AccountStorage> {
     debug_assert!(!paths.is_global());
 
@@ -301,6 +302,19 @@ pub(crate) async fn import_account(
     let remote_servers = if vfs::try_exists(paths.remote_origins()).await? {
         let buffer = vfs::read(paths.remote_origins()).await?;
         let origins = serde_json::from_slice::<Vec<Origin>>(&buffer)?;
+
+        // Remap server URLs where necessary
+        let origins: Vec<_> = origins
+            .into_iter()
+            .map(|o| {
+                if let Some(val) = options.remap_servers.get(o.url()) {
+                    Origin::new(val.to_string(), val.clone())
+                } else {
+                    o
+                }
+            })
+            .collect();
+
         let mut rows = Vec::new();
         for origin in origins {
             rows.push(origin.try_into()?);
