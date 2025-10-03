@@ -35,7 +35,7 @@ sos-vfs.workspace = true
 sos-sdk = { workspace = true, features = ["full"] }
 sos-test-utils.workspace = true
 
-tempfile = "3.5"
+tempfile = "3.23"
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 http.workspace = true
 anyhow.workspace = true
