@@ -2761,7 +2761,7 @@ dependencies = [
  "dbus-secret-service",
  "log",
  "security-framework 2.11.1",
- "security-framework 3.5.0",
+ "security-framework 3.5.1",
  "windows-sys 0.60.2",
  "zeroize",
 ]
@@ -4713,9 +4713,9 @@ dependencies = [
 
 [[package]]
 name = "security-framework"
-version = "3.5.0"
+version = "3.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc198e42d9b7510827939c9a15f5062a0c913f3371d765977e586d2fe6c16f4a"
+checksum = "b3297343eaf830f66ede390ea39da1d462b6b0c1b000f420d0a83f898bbbe6ef"
 dependencies = [
  "bitflags 2.9.4",
  "core-foundation 0.10.1",
@@ -5694,7 +5694,7 @@ dependencies = [
  "keychain_parser",
  "rustc_version",
  "secrecy",
- "security-framework 3.5.0",
+ "security-framework 3.5.1",
  "serde",
  "serde_json",
  "sos-backend",
@@ -5784,7 +5784,7 @@ dependencies = [
  "robius-authentication",
  "rustc_version",
  "secrecy",
- "security-framework 3.5.0",
+ "security-framework 3.5.1",
  "thiserror 2.0.16",
  "tracing",
 ]
