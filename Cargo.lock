@@ -2748,7 +2748,7 @@ version = "0.1.2"
 dependencies = [
  "logos 0.15.1",
  "plist",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -4013,7 +4013,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "rustls",
  "socket2",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tracing",
  "web-time",
@@ -4034,7 +4034,7 @@ dependencies = [
  "rustls",
  "rustls-pki-types",
  "slab",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tinyvec",
  "tracing",
  "web-time",
@@ -4827,7 +4827,7 @@ dependencies = [
  "serde_json",
  "serde_json_path_core",
  "serde_json_path_macros",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -4839,7 +4839,7 @@ dependencies = [
  "inventory",
  "serde",
  "serde_json",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -5135,7 +5135,7 @@ dependencies = [
  "sos-vfs",
  "tempfile",
  "terminal-banner",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-rustls",
  "toml 0.8.23",
@@ -5178,7 +5178,7 @@ dependencies = [
  "sos-sync",
  "sos-vault",
  "sos-vfs",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "time",
  "time-tz",
  "tokio",
@@ -5197,7 +5197,7 @@ dependencies = [
  "sanitize-filename",
  "serde",
  "serde_json",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "time",
  "tokio",
  "tokio-util",
@@ -5211,7 +5211,7 @@ dependencies = [
  "hex",
  "semver",
  "serde",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "time",
  "url",
 ]
@@ -5253,7 +5253,7 @@ dependencies = [
  "sos-vault",
  "sos-vfs",
  "tempfile",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-util",
  "tracing",
@@ -5269,7 +5269,7 @@ dependencies = [
  "rustc_version",
  "serde_json",
  "sos-core",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-util",
  "tracing",
@@ -5313,7 +5313,7 @@ dependencies = [
  "sos-sync",
  "sos-vault",
  "sos-vfs",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-util",
  "tracing",
@@ -5359,7 +5359,7 @@ dependencies = [
  "serde_with",
  "sha2",
  "sos-vfs",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "time",
  "time-tz",
  "tokio",
@@ -5393,7 +5393,7 @@ dependencies = [
  "sos-vfs",
  "sql_query_builder",
  "tempfile",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-stream",
  "tracing",
@@ -5429,7 +5429,7 @@ dependencies = [
  "sos-vault",
  "sos-vfs",
  "tempfile",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-stream",
  "tracing",
@@ -5449,7 +5449,7 @@ dependencies = [
  "sos-logs",
  "sos-sync",
  "sos-vfs",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -5505,7 +5505,7 @@ dependencies = [
  "sos-system-messages",
  "sos-vault",
  "sos-vfs",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "time",
  "tokio",
  "tokio-stream",
@@ -5565,7 +5565,7 @@ dependencies = [
  "sos-vfs",
  "sos-web",
  "tempfile",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -5589,7 +5589,7 @@ dependencies = [
  "sos-filesystem",
  "sos-vault",
  "sos-vfs",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -5633,7 +5633,7 @@ dependencies = [
  "sos-search",
  "sos-sync",
  "sos-vault",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-util",
  "tower",
@@ -5661,7 +5661,7 @@ dependencies = [
  "sos-signer",
  "sos-vault",
  "sos-vfs",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tracing",
  "typeshare",
@@ -5675,7 +5675,7 @@ dependencies = [
  "rev_buf_reader",
  "rustc_version",
  "sos-core",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "time",
  "tracing-appender",
  "tracing-subscriber",
@@ -5703,7 +5703,7 @@ dependencies = [
  "sos-search",
  "sos-vault",
  "sos-vfs",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "time",
  "tokio",
  "tokio-util",
@@ -5753,7 +5753,7 @@ dependencies = [
  "sos-sync",
  "sos-vault",
  "sos-vfs",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-util",
  "tracing",
@@ -5771,7 +5771,7 @@ dependencies = [
  "rustc_version",
  "secrecy",
  "sos-core",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "zxcvbn",
 ]
 
@@ -5785,7 +5785,7 @@ dependencies = [
  "rustc_version",
  "secrecy",
  "security-framework 3.5.0",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tracing",
 ]
 
@@ -5797,7 +5797,7 @@ dependencies = [
  "rustc_version",
  "serde",
  "sos-core",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
 ]
 
@@ -5828,7 +5828,7 @@ dependencies = [
  "sos-signer",
  "sos-sync",
  "sos-vfs",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "time",
  "tokio",
  "tokio-stream",
@@ -5865,7 +5865,7 @@ dependencies = [
  "sos-protocol",
  "sos-sync",
  "sos-vfs",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tracing",
 ]
@@ -5893,7 +5893,7 @@ dependencies = [
  "sos-backend",
  "sos-core",
  "sos-vault",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tracing",
  "typeshare",
@@ -5955,7 +5955,7 @@ dependencies = [
  "sos-signer",
  "sos-sync",
  "sos-vfs",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-rustls",
  "tokio-rustls-acme",
@@ -5995,7 +5995,7 @@ dependencies = [
  "sos-sync",
  "sos-vault",
  "sos-vfs",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tracing",
  "uuid",
@@ -6017,7 +6017,7 @@ dependencies = [
  "sha2",
  "sha3",
  "sos-core",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
 ]
 
@@ -6033,7 +6033,7 @@ dependencies = [
  "sos-core",
  "sos-reducers",
  "sos-vault",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tracing",
 ]
@@ -6046,7 +6046,7 @@ dependencies = [
  "rustc_version",
  "serde",
  "serde_with",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "time",
  "tokio",
  "tracing",
@@ -6175,7 +6175,7 @@ dependencies = [
  "sos-core",
  "sos-signer",
  "sos-vfs",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "totp-rs",
  "tracing",
@@ -6222,7 +6222,7 @@ dependencies = [
  "sos-sync",
  "sos-vault",
  "sos-vfs",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tracing",
 ]
@@ -6400,11 +6400,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.16"
+version = "2.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3467d614147380f2e4e374161426ff399c91084acd2363eaf549172b3d5e60c0"
+checksum = "f63587ca0f12b72a0600bcba1d40081f830876000bb46dd2337a3051618f4fc8"
 dependencies = [
- "thiserror-impl 2.0.16",
+ "thiserror-impl 2.0.17",
 ]
 
 [[package]]
@@ -6420,9 +6420,9 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.16"
+version = "2.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c5e1be1c48b9172ee610da68fd9cd2770e7a4056cb3fc98710ee6906f0c7960"
+checksum = "3ff15c8ecd7de3849db632e14d18d2571fa09dfc5ed93479bc4485c7a517c913"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6577,7 +6577,7 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "time",
  "tokio",
  "tokio-rustls",
@@ -6860,7 +6860,7 @@ dependencies = [
  "rustls",
  "rustls-pki-types",
  "sha1",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "utf-8",
 ]
 
@@ -7105,7 +7105,7 @@ dependencies = [
  "logos 0.15.1",
  "serde",
  "serde_with",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "time",
  "unicode-segmentation",
  "uriparse",
@@ -7882,7 +7882,7 @@ version = "0.16.3"
 dependencies = [
  "arboard",
  "rustc_version",
- "thiserror 2.0.16",
+ "thiserror 2.0.17",
  "tokio",
  "tracing",
  "zeroize",
