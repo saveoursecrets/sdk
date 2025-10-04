@@ -1,4 +1,3 @@
-use futures::{pin_mut, StreamExt};
 use sos_archive::ZipWriter;
 use sos_client_storage::{
     ClientBaseStorage, ClientFolderStorage, ClientStorage,
@@ -10,6 +9,9 @@ use std::path::Path;
 
 mod error;
 pub use error::Error;
+
+#[cfg(feature = "audit")]
+use futures::{pin_mut, StreamExt};
 
 /// Options for debug snapshots.
 #[derive(Debug)]

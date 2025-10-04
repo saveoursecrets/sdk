@@ -14,10 +14,12 @@ use sos_sync::SyncStatus;
 use sos_vault::list_accounts;
 use sos_vfs::{self as vfs, File};
 use std::{
+    collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
 use tempfile::NamedTempFile;
+use url::Url;
 
 mod db_import;
 
@@ -55,6 +57,12 @@ pub struct UpgradeOptions {
     ///
     /// Only use this for that scenario.
     pub bypass_status_check: bool,
+
+    /// Remap servers by URL during the database upgrade.
+    ///
+    /// Certain UAT servers are incompatible with the new
+    /// protocol so will need to be mapped to new URLs.
+    pub remap_servers: HashMap<Url, Url>,
 }
 
 impl Default for UpgradeOptions {
@@ -67,6 +75,7 @@ impl Default for UpgradeOptions {
             keep_stale_files: false,
             copy_file_blobs: true,
             bypass_status_check: false,
+            remap_servers: HashMap::default(),
         }
     }
 }
@@ -159,6 +168,7 @@ async fn import_accounts(
             &mut client,
             account_paths.clone(),
             &account,
+            options,
         )
         .await?;
 
