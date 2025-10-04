@@ -184,6 +184,7 @@ impl fmt::Display for Platform {
                     Distro::Unknown => "linux",
                     Distro::Debian => "debian",
                     Distro::RedHat => "redhat",
+                    Distro::Arch => "arch",
                     Distro::Flatpak => "flatpak",
                 },
                 Self::Windows => "windows",
@@ -204,6 +205,7 @@ impl FromStr for Platform {
             "debian" => Self::Linux(Distro::Debian),
             "redhat" => Self::Linux(Distro::RedHat),
             "flatpak" => Self::Linux(Distro::Flatpak),
+            "arch" => Self::Linux(Distro::Arch),
             "windows" => Self::Windows,
             "macos" => Self::MacOS,
             "ios" => Self::iOS,
@@ -262,6 +264,8 @@ pub enum Distro {
     Debian,
     /// RedHat Linux (Fedora, CentOS etc).
     RedHat,
+    /// Arch distros (Manjaro, EndeavourOS, CachyOS etc.).
+    Arch,
     /// Flatpak bundle or repository.
     Flatpak,
 }
@@ -275,6 +279,7 @@ impl fmt::Display for Distro {
                 Self::Unknown => "linux",
                 Self::Debian => "debian",
                 Self::RedHat => "redhat",
+                Self::Arch => "arch",
                 Self::Flatpak => "flatpak",
             }
         )
