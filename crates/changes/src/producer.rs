@@ -9,20 +9,20 @@ use sos_core::{
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::{
     select,
-    sync::{watch, Mutex},
+    sync::{oneshot, Mutex},
     time,
 };
 use tokio_util::codec::LengthDelimitedCodec;
 
 /// Handle to a producer.
 pub struct ProducerHandle {
-    cancel_tx: watch::Sender<bool>,
+    cancel_tx: oneshot::Sender<()>,
 }
 
 impl ProducerHandle {
     /// Stop listening for change events.
-    pub fn cancel(&self) {
-        self.cancel_tx.send_replace(true);
+    pub fn cancel(self) {
+        let _ = self.cancel_tx.send(());
     }
 }
 
@@ -52,21 +52,19 @@ impl ChangeProducer {
             poll_interval = ?poll_interval,
             "changes::producer::listen",
         );
-        let (cancel_tx, mut cancel_rx) = watch::channel(false);
+        let (cancel_tx, mut cancel_rx) = oneshot::channel::<()>();
         let tx = changes_feed();
         let mut rx = tx.subscribe();
         let sockets = find_active_sockets(paths.clone()).await?;
-        let sockets = Mutex::new(sockets);
+        let sockets = Arc::new(Mutex::new(sockets));
         let mut interval = time::interval(poll_interval);
         tokio::task::spawn(async move {
             loop {
                 let paths = paths.clone();
                 select! {
                     // Explicit cancel notification
-                    _ = cancel_rx.changed() => {
-                        if *cancel_rx.borrow_and_update() {
-                            break;
-                        }
+                    _ = &mut cancel_rx => {
+                        break;
                     }
                     // Periodically refresh the list of consumer sockets
                     // to dispatch change events to
@@ -77,13 +75,13 @@ impl ChangeProducer {
                     }
                     // Proxy the change events to the consumer sockets
                     event = rx.changed() => {
-                        match event {
-                            Ok(_) => {
-                                let event = rx.borrow_and_update().clone();
-                                let sockets = sockets.lock().await;
-                                dispatch_sockets(event, &sockets).await?;
-                            }
-                            Err(_) => {}
+                        if event.is_ok() {
+                            let dispatch_event = rx.borrow_and_update().clone();
+                            let sockets = sockets.lock().await;
+                            dispatch_sockets(dispatch_event, &sockets).await?;
+                        } else {
+                            // Sender was dropped, can't receive any more events
+                            break;
                         }
                     }
                 }
@@ -117,7 +115,7 @@ async fn dispatch_sockets(
                 // This could happen if the consumer
                 // process aborted abnormally and
                 // wasn't able to cleanly remove the file.
-                let _ = std::fs::remove_file(file)?;
+                let _ = std::fs::remove_file(file);
                 tracing::warn!(
                     pid = %pid,
                     error = %e,
