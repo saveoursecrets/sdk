@@ -157,7 +157,7 @@ bs58 = "0.4"
 urlencoding = "2"
 parking_lot = "0.12"
 indexmap = { version = "2.2", features = ["serde"] }
-toml = "0.8"
+toml = "0.9"
 bitflags = { version = "2", features = ["serde"] }
 enum-iterator = "2"
 tempfile = "3.5"
