@@ -414,7 +414,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "itoa",
- "matchit 0.8.4",
+ "matchit",
  "memchr",
  "mime",
  "percent-encoding",
@@ -488,7 +488,7 @@ dependencies = [
  "futures-core",
  "http",
  "http-body",
- "matchit 0.8.4",
+ "matchit",
  "metrics",
  "metrics-exporter-prometheus",
  "pin-project",
@@ -2965,12 +2965,6 @@ checksum = "d1525a2a28c7f4fa0fc98bb91ae755d1e2d1505079e05539e35bc876b5d65ae9"
 dependencies = [
  "regex-automata",
 ]
-
-[[package]]
-name = "matchit"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
 
 [[package]]
 name = "matchit"
@@ -5610,7 +5604,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
- "matchit 0.7.3",
+ "matchit",
  "notify",
  "open",
  "parking_lot",

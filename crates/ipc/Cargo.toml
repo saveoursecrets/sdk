@@ -100,7 +100,7 @@ hyper-util = { version = "0.1", features = ["tokio"], optional = true }
 
 # server
 tower = { version = "0.5", features = ["util"], optional = true }
-matchit = { version = "0.7", optional = true }
+matchit = { version = "0.8", optional = true }
 
 # native bridge
 open = { version = "5", optional = true }
