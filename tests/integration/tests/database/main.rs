@@ -100,7 +100,7 @@ pub async fn assert_import_archive(
 
     // We know the backup archive has a single account so import it
     import
-        .import_account(source_accounts.get(0).unwrap())
+        .import_account(source_accounts.first().unwrap())
         .await?;
 
     // Should have one target account in the db

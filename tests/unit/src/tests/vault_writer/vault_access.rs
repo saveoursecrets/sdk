@@ -126,7 +126,7 @@ async fn assert_encrypted_entry(
     assert_eq!(&new_name, &vault_name);
 
     // Reset the fixture vault name
-    let _ = vault_access.set_vault_name(DEFAULT_VAULT_NAME.to_string());
+    let _ = vault_access.set_vault_name(DEFAULT_VAULT_NAME.to_string()).await;
 
     Ok(())
 }

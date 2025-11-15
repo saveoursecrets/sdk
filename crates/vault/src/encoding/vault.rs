@@ -12,7 +12,7 @@ use sos_core::{
     file_identity::FileIdentity,
     SecretId, UtcDateTime, VaultCommit, VaultFlags,
 };
-use std::io::{Error, ErrorKind, Result, SeekFrom};
+use std::io::{Error, Result, SeekFrom};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 #[async_trait]

@@ -29,6 +29,7 @@ enum EventTable {
     /// Device events table.
     DeviceEvents,
     /// File events table.
+    #[cfg(feature = "files")]
     FileEvents,
 }
 
@@ -52,6 +53,7 @@ impl EventTable {
             EventTable::AccountEvents => "account_events",
             EventTable::FolderEvents => "folder_events",
             EventTable::DeviceEvents => "device_events",
+            #[cfg(feature = "files")]
             EventTable::FileEvents => "file_events",
         }
     }

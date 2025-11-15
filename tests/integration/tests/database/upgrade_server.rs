@@ -25,7 +25,7 @@ async fn database_upgrade_server() -> Result<()> {
     let result = upgrade_accounts(dirs.test_dir.clone(), options).await?;
     assert!(result.database_file.exists());
 
-    assert!(result.backups.len() > 0);
+    assert!(!result.backups.is_empty());
     for file in &result.backups {
         assert!(file.exists());
     }
