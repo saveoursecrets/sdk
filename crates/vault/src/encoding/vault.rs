@@ -157,9 +157,7 @@ impl Decodable for Header {
     ) -> Result<()> {
         FileIdentity::read_identity(&mut *reader, &VAULT_IDENTITY)
             .await
-            .map_err(|_| {
-                Error::new(ErrorKind::Other, "bad vault identity bytes")
-            })?;
+            .map_err(|_| Error::other("bad vault identity bytes"))?;
 
         // Read in the header length
         let _ = reader.read_u32().await?;
@@ -221,12 +219,9 @@ impl Decodable for SharedAccess {
                     let recipient = reader.read_string().await?;
                     let _: age::x25519::Recipient =
                         recipient.parse().map_err(|e: &str| {
-                            Error::new(
-                                ErrorKind::Other,
-                                crate::Error::InvalidX25519Identity(
-                                    e.to_owned(),
-                                ),
-                            )
+                            Error::other(crate::Error::InvalidX25519Identity(
+                                e.to_owned(),
+                            ))
                         })?;
                     recipients.push(recipient);
                 }
