@@ -175,20 +175,17 @@ impl IdentityFolder {
         // name in a column whereas previously for the file system
         // backend we used the name of the identity login folder
         // so for database backends update in both places
-        match &self.target {
-            BackendTarget::Database(_, client) => {
-                let account_id = *self.private_identity.account_id();
-                client
-                    .conn_and_then(move |conn| {
-                        let account_entity = AccountEntity::new(&conn);
-                        let account = account_entity.find_one(&account_id)?;
-                        account_entity
-                            .rename_account(account.row_id, &account_name)?;
-                        Ok::<_, Error>(())
-                    })
-                    .await?;
-            }
-            _ => {}
+        if let BackendTarget::Database(_, client) = &self.target {
+            let account_id = *self.private_identity.account_id();
+            client
+                .conn_and_then(move |conn| {
+                    let account_entity = AccountEntity::new(&conn);
+                    let account = account_entity.find_one(&account_id)?;
+                    account_entity
+                        .rename_account(account.row_id, &account_name)?;
+                    Ok::<_, Error>(())
+                })
+                .await?;
         }
 
         Ok(())
@@ -207,7 +204,7 @@ impl IdentityFolder {
                 .find_folder_password(vault.id())
                 .await?
                 .ok_or(Error::NoFolderPassword(*vault.id()))?;
-            let key: AccessKey = device_password.into();
+            let key: AccessKey = device_password;
 
             let (device_manager, id) =
                 DeviceManager::open_vault(target, vault, &key).await?;
@@ -281,7 +278,7 @@ impl IdentityFolder {
         let access_point = self.folder.access_point();
         let access_point = access_point.lock().await;
         let (index, _) =
-            Self::lookup_identity_secrets(&*access_point).await?;
+            Self::lookup_identity_secrets(&access_point).await?;
         self.index = index;
         Ok(())
     }
@@ -584,7 +581,7 @@ impl DelegatedAccess for IdentityFolder {
         };
 
         if let Some(id) = &id {
-            self.folder.delete_secret(&id).await?;
+            self.folder.delete_secret(id).await?;
         } else {
             tracing::warn!("remove_folder_password::secret_id_not_found");
         }

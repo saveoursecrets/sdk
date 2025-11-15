@@ -628,7 +628,7 @@ impl Vault {
                 let access = SharedAccess::WriteAccess(recipients);
                 let buffer = encode(&access).await?;
                 let private_key = PrivateKey::Asymmetric(owner.clone());
-                let cipher = self.header.summary.cipher.clone();
+                let cipher = self.header.summary.cipher;
                 let owner_recipients = vec![owner.to_public()];
                 let aead = cipher
                     .encrypt_asymmetric(

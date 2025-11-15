@@ -61,7 +61,7 @@ fn get_entry(path: &str) -> Result<ZipEntryBuilder> {
     let month: u8 = now.month().into();
 
     let dt = ZipDateTimeBuilder::new()
-        .year(now.year().into())
+        .year(now.year())
         .month(month.into())
         .day(now.day().into())
         .hour(hours.into())

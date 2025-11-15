@@ -149,19 +149,13 @@ impl From<DashlaneIdRecord> for GenericIdRecord {
         };
 
         let issue_date = if !value.issue_date.is_empty() {
-            match UtcDateTime::parse_simple_date(&value.issue_date) {
-                Ok(date) => Some(date),
-                Err(_) => None,
-            }
+            UtcDateTime::parse_simple_date(&value.issue_date).ok()
         } else {
             None
         };
 
         let expiration_date = if !value.expiration_date.is_empty() {
-            match UtcDateTime::parse_simple_date(&value.expiration_date) {
-                Ok(date) => Some(date),
-                Err(_) => None,
-            }
+            UtcDateTime::parse_simple_date(&value.expiration_date).ok()
         } else {
             None
         };
@@ -454,7 +448,7 @@ impl From<DashlaneContactRecord> for GenericContactRecord {
             None
         };
 
-        let extended_address = vec![
+        let extended_address = &[
             value.address_recipient,
             value.address_apartment,
             value.address_floor,

@@ -284,7 +284,7 @@ where
                         .iter_mut()
                         .find(|a| a.account_id() == account_id)
                         .ok_or(Error::from(FileEventError::NoAccount(
-                            account_id.clone(),
+                            *account_id,
                         )))?;
 
                     // Reload the identity folder for account-level changes
@@ -317,7 +317,7 @@ where
                     // Send event if there are records
                     if !records.is_empty() {
                         let evt = AccountChangeEvent {
-                            account_id: account_id.clone(),
+                            account_id: *account_id,
                             records: ChangeRecords::Account(records),
                         };
                         if let Err(e) = channel.send(evt) {
@@ -333,11 +333,11 @@ where
                         .iter()
                         .find(|a| a.account_id() == account_id)
                         .ok_or(Error::from(FileEventError::NoAccount(
-                            account_id.clone(),
+                            *account_id,
                         )))?;
 
                     let folder =
-                        account.folder(&folder_id).await.ok().ok_or(
+                        account.folder(folder_id).await.ok().ok_or(
                             Error::from(FileEventError::NoFolder(*folder_id)),
                         )?;
 
@@ -379,7 +379,7 @@ where
                     // Send event if there are records
                     if !records.is_empty() {
                         let evt = AccountChangeEvent {
-                            account_id: account_id.clone(),
+                            account_id: *account_id,
                             records: ChangeRecords::Folder(
                                 *folder_id, records,
                             ),
@@ -475,13 +475,13 @@ where
                             // Now the storage should have the folder so
                             // we can access the access point and add it to
                             // the search index
-                            if let Some(folder) =
-                                account.folder(&folder_id).await.ok()
+                            if let Ok(folder) =
+                                account.folder(&folder_id).await
                             {
                                 let access_point = folder.access_point();
                                 let access_point = access_point.lock().await;
                                 let mut index = index.write().await;
-                                index.add_folder(&*access_point).await?;
+                                index.add_folder(&access_point).await?;
                             }
                         }
                         AccountEvent::DeleteFolder(_) => {
@@ -493,7 +493,7 @@ where
                 }
             }
             ChangeRecords::Folder(folder_id, events) => {
-                if let Some(folder) = account.folder(&folder_id).await.ok() {
+                if let Ok(folder) = account.folder(folder_id).await {
                     let access_point = folder.access_point();
                     let mut access_point = access_point.lock().await;
 

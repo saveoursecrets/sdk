@@ -13,7 +13,7 @@ use sos_core::{
 };
 use std::{
     collections::HashMap,
-    io::{Error, ErrorKind, Result},
+    io::{Error, Result},
 };
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use totp_rs::TOTP;
@@ -45,7 +45,7 @@ enum WebsiteUrl {
 
 impl WebsiteUrl {
     /// Convert to a vector of URLs.
-    pub fn to_vec(self) -> Vec<Url> {
+    pub fn into_vec(self) -> Vec<Url> {
         match self {
             Self::One(url) => vec![url],
             Self::Many(urls) => urls,
@@ -169,8 +169,7 @@ impl Decodable for SecretSigner {
                 *self = Self::SinglePartyEd25519(buffer);
             }
             _ => {
-                return Err(Error::new(
-                    ErrorKind::Other,
+                return Err(Error::other(
                     format!("unknown signer kind {}", kind),
                 ));
             }
@@ -272,8 +271,7 @@ impl Decodable for AgeVersion {
                 *self = Self::Version1;
             }
             _ => {
-                return Err(Error::new(
-                    ErrorKind::Other,
+                return Err(Error::other(
                     format!("unknown age version {}", kind),
                 ));
             }
@@ -369,8 +367,7 @@ impl Decodable for FileContent {
                 };
             }
             _ => {
-                return Err(Error::new(
-                    ErrorKind::Other,
+                return Err(Error::other(
                     format!("unknown file content type {}", kind),
                 ));
             }
@@ -627,12 +624,12 @@ impl Decodable for Secret {
                     let s = reader.read_string().await?;
                     // Original encoding was a String Url
                     match s.parse::<Url>() {
-                        Ok(u) => WebsiteUrl::One(u).to_vec(),
+                        Ok(u) => WebsiteUrl::One(u).into_vec(),
                         // Newer encoding is JSON to support
                         // list of Urls
                         Err(_) => {
                             let value: WebsiteUrl = serde_json::from_str(&s)?;
-                            value.to_vec()
+                            value.into_vec()
                         }
                     }
                 } else {
