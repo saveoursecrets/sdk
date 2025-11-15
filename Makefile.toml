@@ -139,6 +139,7 @@ args = ["build", "-p", "sos-integration-tests"]
 [tasks.clean-tests]
 script_runner = "@shell"
 script = '''
+mkdir -p target/integration-test
 rm -rf target/integration-test
 '''
 
