@@ -1696,10 +1696,8 @@ impl Account for LocalAccount {
             .cipher
             .take()
             .unwrap_or_else(|| *identity_folder.cipher());
-        let kdf = options
-            .kdf
-            .take()
-            .unwrap_or_else(|| *identity_folder.kdf());
+        let kdf =
+            options.kdf.take().unwrap_or_else(|| *identity_folder.kdf());
 
         options.key = Some(key.clone());
         options.cipher = Some(cipher);

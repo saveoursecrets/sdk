@@ -104,8 +104,7 @@ pub(crate) async fn import_globals(
     paths: &Paths,
 ) -> Result<()> {
     let global_preferences =
-        Paths::new_client(paths.documents_dir())
-            .preferences_file();
+        Paths::new_client(paths.documents_dir()).preferences_file();
     let global_preferences = if vfs::try_exists(&global_preferences).await? {
         let contents = vfs::read_to_string(global_preferences).await?;
         let map: PreferenceMap = serde_json::from_str(&contents)?;

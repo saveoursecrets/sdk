@@ -487,8 +487,7 @@ where
         folder_id: &VaultId,
     ) -> StdResult<FolderRow, SqlError> {
         let mut stmt = self.select_folder(true)?;
-        stmt
-            .query_row([folder_id.to_string()], |row| row.try_into())
+        stmt.query_row([folder_id.to_string()], |row| row.try_into())
     }
 
     /// Find an optional folder in the database.
@@ -498,12 +497,11 @@ where
         folder_id: &VaultId,
     ) -> StdResult<Option<FolderRow>, SqlError> {
         let mut stmt = self.select_folder(true)?;
-        stmt
-            .query_row([folder_id.to_string()], |row| {
-                let row: FolderRow = row.try_into()?;
-                Ok(row)
-            })
-            .optional()
+        stmt.query_row([folder_id.to_string()], |row| {
+            let row: FolderRow = row.try_into()?;
+            Ok(row)
+        })
+        .optional()
     }
 
     /// Find a folder in the database by primary key.
@@ -517,8 +515,7 @@ where
 
     /// Try to find a login folder for an account.
     pub fn find_login_folder(&self, account_id: i64) -> Result<FolderRow> {
-        self
-            .find_login_folder_optional(account_id)?
+        self.find_login_folder_optional(account_id)?
             .ok_or_else(|| Error::NoLoginFolder(account_id))
     }
 
@@ -536,8 +533,7 @@ where
             .where_and("login.account_id=?1");
 
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        stmt
-            .query_row([account_id], |row| row.try_into())
+        stmt.query_row([account_id], |row| row.try_into())
             .optional()
     }
 
@@ -555,8 +551,7 @@ where
             .where_and("device.account_id=?1");
 
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        stmt
-            .query_row([account_id], |row| row.try_into())
+        stmt.query_row([account_id], |row| row.try_into())
             .optional()
     }
 
@@ -800,12 +795,11 @@ where
             .where_and("identifier=?2");
 
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        stmt
-            .query_row((row.row_id, secret_id.to_string()), |row| {
-                let row: SecretRow = row.try_into()?;
-                Ok(row)
-            })
-            .optional()
+        stmt.query_row((row.row_id, secret_id.to_string()), |row| {
+            let row: SecretRow = row.try_into()?;
+            Ok(row)
+        })
+        .optional()
     }
 
     /// Update a folder secret.

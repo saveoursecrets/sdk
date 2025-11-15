@@ -336,10 +336,9 @@ where
                             *account_id,
                         )))?;
 
-                    let folder =
-                        account.folder(folder_id).await.ok().ok_or(
-                            Error::from(FileEventError::NoFolder(*folder_id)),
-                        )?;
+                    let folder = account.folder(folder_id).await.ok().ok_or(
+                        Error::from(FileEventError::NoFolder(*folder_id)),
+                    )?;
 
                     let event_log = folder.event_log();
                     let mut event_log = event_log.write().await;

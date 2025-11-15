@@ -277,8 +277,7 @@ impl IdentityFolder {
     pub async fn rebuild_lookup_index(&mut self) -> Result<()> {
         let access_point = self.folder.access_point();
         let access_point = access_point.lock().await;
-        let (index, _) =
-            Self::lookup_identity_secrets(&access_point).await?;
+        let (index, _) = Self::lookup_identity_secrets(&access_point).await?;
         self.index = index;
         Ok(())
     }
@@ -505,7 +504,7 @@ impl IdentityFolder {
         let access_point = folder.access_point();
         let access_point = access_point.lock().await;
         let (index, private_identity) =
-            Self::login_private_identity(*account_id, &*access_point).await?;
+            Self::login_private_identity(*account_id, &access_point).await?;
 
         Ok(Self {
             folder,

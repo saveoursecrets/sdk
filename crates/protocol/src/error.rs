@@ -160,12 +160,10 @@ impl Error {
         &self,
     ) -> Option<&crate::transfer::CancelReason> {
         let source = source_error(self);
-        if let Some(err) = source.downcast_ref::<Error>() {
-            if let Error::TransferCanceled(reason) = err {
-                Some(reason)
-            } else {
-                None
-            }
+        if let Some(Error::TransferCanceled(reason)) =
+            source.downcast_ref::<Error>()
+        {
+            Some(reason)
         } else {
             None
         }

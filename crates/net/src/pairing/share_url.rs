@@ -71,10 +71,10 @@ impl From<ServerPairUrl> for Url {
     fn from(value: ServerPairUrl) -> Self {
         let mut url = Url::parse("data:text/plain,sos-pair").unwrap();
         let key = hex::encode(&value.public_key);
-        let psk = hex::encode(&value.pre_shared_key);
+        let psk = hex::encode(value.pre_shared_key);
         url.query_pairs_mut()
             .append_pair(AID, &value.account_id.to_string())
-            .append_pair(URL, &value.server.to_string())
+            .append_pair(URL, value.server.as_str())
             .append_pair(KEY, &key)
             .append_pair(PSK, &psk);
         url

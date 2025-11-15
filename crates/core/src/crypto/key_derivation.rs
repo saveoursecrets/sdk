@@ -37,7 +37,9 @@ impl AsRef<[u8]> for Seed {
 }
 
 /// Supported key derivation functions.
-#[derive(Default, Debug, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+#[derive(
+    Default, Debug, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize,
+)]
 pub enum KeyDerivation {
     /// Argon2 key derivation function.
     #[default]

@@ -1,6 +1,6 @@
 use sos_backend::{BackendTarget, Preferences};
-use sos_preferences::PreferenceManager;
 use sos_core::Paths;
+use sos_preferences::PreferenceManager;
 use std::path::PathBuf;
 
 /// Helper executable used to test concurrent writes

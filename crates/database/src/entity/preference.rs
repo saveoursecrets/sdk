@@ -107,8 +107,7 @@ where
     ) -> std::result::Result<Option<PreferenceRow>, SqlError> {
         let query = self.find_preference_select(true);
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        stmt
-            .query_row((account_id, key), |row| row.try_into())
+        stmt.query_row((account_id, key), |row| row.try_into())
             .optional()
     }
 

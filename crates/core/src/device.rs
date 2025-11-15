@@ -147,8 +147,7 @@ impl TrustedDevice {
         Self {
             public_key,
             extra_info,
-            created_date: created_date
-                .unwrap_or(OffsetDateTime::now_utc()),
+            created_date: created_date.unwrap_or(OffsetDateTime::now_utc()),
         }
     }
 
@@ -188,9 +187,6 @@ impl From<DevicePublicKey> for TrustedDevice {
 impl TryFrom<&TrustedDevice> for (DevicePublicKey, String) {
     type Error = Error;
     fn try_from(value: &TrustedDevice) -> Result<Self> {
-        Ok((
-            value.public_key,
-            serde_json::to_string(&value.extra_info)?,
-        ))
+        Ok((value.public_key, serde_json::to_string(&value.extra_info)?))
     }
 }

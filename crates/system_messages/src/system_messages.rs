@@ -307,7 +307,10 @@ where
     }
 
     fn counts(&self) -> SysMessageCount {
-        let mut counts = SysMessageCount { total: self.messages.0.len(), ..Default::default() };
+        let mut counts = SysMessageCount {
+            total: self.messages.0.len(),
+            ..Default::default()
+        };
         for item in self.messages.0.values() {
             if !item.is_read {
                 counts.unread += 1;

@@ -312,7 +312,7 @@ where
         }
         Secret::Password { password, name, .. } => {
             let inputs = if let Some(name) = name {
-                vec![&name.expose_secret()[..]]
+                vec![name.expose_secret()]
             } else {
                 vec![]
             };

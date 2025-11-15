@@ -145,5 +145,5 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
 }
 
 fn is_account_id_match(event: &AuditEvent, ids: &[AccountId]) -> bool {
-    ids.into_iter().any(|addr| addr == event.account_id())
+    ids.iter().any(|addr| addr == event.account_id())
 }

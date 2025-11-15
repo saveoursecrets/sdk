@@ -136,8 +136,7 @@ pub trait HttpMessage {
     where
         Self: Sized,
     {
-        let headers =
-            std::mem::take(self.headers_mut());
+        let headers = std::mem::take(self.headers_mut());
         (headers, self.into_body())
     }
 

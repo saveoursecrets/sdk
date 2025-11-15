@@ -1,6 +1,7 @@
 include!(concat!(env!("OUT_DIR"), "/files.rs"));
 
 #[cfg(feature = "files")]
+#[allow(clippy::module_inception)]
 mod files {
     use super::*;
     use crate::{

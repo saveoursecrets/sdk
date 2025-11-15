@@ -165,9 +165,7 @@ impl BackendTarget {
         if options.select_audit_provider {
             let provider = match &target {
                 BackendTarget::FileSystem(paths) => {
-                    crate::audit::new_fs_provider(
-                        paths.audit_file(),
-                    )
+                    crate::audit::new_fs_provider(paths.audit_file())
                 }
                 BackendTarget::Database(_, client) => {
                     crate::audit::new_db_provider(client.clone())
@@ -198,19 +196,15 @@ impl BackendTarget {
                         |row| row.get(0),
                     )?;
 
-                    let mut stmt =
-                        conn.prepare("PRAGMA compile_options")?;
+                    let mut stmt = conn.prepare("PRAGMA compile_options")?;
                     let mut compile_options = Vec::new();
-                    let rows = stmt
-                        .query_map([], |row| row.get::<_, String>(0))?;
+                    let rows =
+                        stmt.query_map([], |row| row.get::<_, String>(0))?;
                     for option in rows {
                         compile_options.push(option?);
                     }
 
-                    Ok::<_, sos_database::Error>((
-                        version,
-                        compile_options,
-                    ))
+                    Ok::<_, sos_database::Error>((version, compile_options))
                 })
                 .await?;
             tracing::debug!(

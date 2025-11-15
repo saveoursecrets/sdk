@@ -101,8 +101,7 @@ where
                 let account = AccountEntity::new(&conn);
                 let account_row = account.find_one(&account_id)?;
                 let messages = SystemMessageEntity::new(&conn);
-                messages
-                    .insert_system_message(account_row.row_id, &row)
+                messages.insert_system_message(account_row.row_id, &row)
             })
             .await
             .map_err(Error::from)?)
@@ -120,8 +119,7 @@ where
                 let account = AccountEntity::new(&conn);
                 let account_row = account.find_one(&account_id)?;
                 let messages = SystemMessageEntity::new(&conn);
-                messages
-                    .delete_system_message(account_row.row_id, &key)
+                messages.delete_system_message(account_row.row_id, &key)
             })
             .await
             .map_err(Error::from)?)

@@ -327,7 +327,8 @@ where
             Ok(row.try_into()?)
         }
 
-        let rows = stmt.query_and_then([account_or_folder_id], convert_row)?;
+        let rows =
+            stmt.query_and_then([account_or_folder_id], convert_row)?;
 
         let mut commits = Vec::new();
         for row in rows {

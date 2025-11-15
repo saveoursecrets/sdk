@@ -5,7 +5,6 @@ use futures::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
-use prost::bytes::Bytes;
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use sos_account::Account;
 use sos_backend::BackendTarget;
@@ -78,8 +77,7 @@ async fn listen(
     while let Some(message) = rx.next().await {
         match message {
             Ok(message) => {
-                if let Message::Binary(msg) = message {
-                    let buf: Bytes = msg.into();
+                if let Message::Binary(buf) = message {
                     match RelayPacket::decode_proto(buf).await {
                         Ok(result) => {
                             if let Err(e) = tx.send(result).await {
@@ -1041,7 +1039,7 @@ trait NoiseTunnel {
             self.into_transport_mode()?;
             Ok(packet)
         } else {
-            return Err(Error::BadState);
+            Err(Error::BadState)
         }
     }
 

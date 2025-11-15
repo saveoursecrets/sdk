@@ -155,9 +155,10 @@ impl Decodable for Comparison {
                 *self = Self::Unknown;
             }
             _ => {
-                return Err(Error::other(
-                    format!("unknown comparison variant kind {}", kind),
-                ));
+                return Err(Error::other(format!(
+                    "unknown comparison variant kind {}",
+                    kind
+                )));
             }
         }
         Ok(())

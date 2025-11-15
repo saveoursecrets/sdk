@@ -1,11 +1,11 @@
 use anyhow::Result;
 use sos_account::LocalAccountSwitcher;
+use sos_core::Paths;
 use sos_ipc::{
     local_transport::{HttpMessage, LocalRequest},
     memory_server::LocalMemoryServer,
     ServiceAppInfo, WebAccounts,
 };
-use sos_core::Paths;
 use sos_test_utils::teardown;
 use std::sync::Arc;
 use tokio::sync::RwLock;

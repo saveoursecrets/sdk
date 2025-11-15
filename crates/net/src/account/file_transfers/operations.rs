@@ -141,7 +141,7 @@ where
     }
 
     fn inflight(&self) -> &InflightTransfers {
-        &*self.inflight
+        &self.inflight
     }
 
     fn on_response(&self, status: StatusCode) -> TransferResult {

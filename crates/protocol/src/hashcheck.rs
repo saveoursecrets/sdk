@@ -25,7 +25,7 @@ pub async fn single(
     tracing::debug!(status = %res.status(), "hashcheck");
     let res = res.error_for_status()?;
     let value = res.json::<u8>().await?;
-    let result = if value == 1 { true } else { false };
+    let result = value == 1;
     Ok(result)
 }
 

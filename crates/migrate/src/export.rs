@@ -100,15 +100,19 @@ impl<W: AsyncWrite + Unpin> PublicExport<W> {
         file_path: &str,
         secret: &mut Secret,
     ) -> Result<()> {
-        if let Secret::File { content: FileContent::Embedded { buffer, checksum, ..}, .. } = secret {
+        if let Secret::File {
+            content:
+                FileContent::Embedded {
+                    buffer, checksum, ..
+                },
+            ..
+        } = secret
+        {
             let path = format!("{}/{}", file_path, hex::encode(checksum));
 
             // Write the file buffer to the archive
-            self.append_file_buffer(
-                &path,
-                buffer.expose_secret().as_slice(),
-            )
-            .await?;
+            self.append_file_buffer(&path, buffer.expose_secret().as_slice())
+                .await?;
 
             // Clear the buffer so the export does not encode the bytes
             // in the JSON document

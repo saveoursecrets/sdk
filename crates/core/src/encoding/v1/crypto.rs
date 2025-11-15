@@ -61,9 +61,10 @@ impl Decodable for AeadPack {
                 );
             }
             _ => {
-                return Err(Error::other(
-                    format!("unknown nonce size {}", nonce_size),
-                ));
+                return Err(Error::other(format!(
+                    "unknown nonce size {}",
+                    nonce_size
+                )));
             }
         }
         let len = reader.read_u32().await?;
@@ -96,9 +97,7 @@ impl Decodable for Cipher {
             AES_GCM_256 => Cipher::AesGcm256,
             X25519 => Cipher::X25519,
             _ => {
-                return Err(Error::other(
-                    format!("unknown cipher {}", id),
-                ));
+                return Err(Error::other(format!("unknown cipher {}", id)));
             }
         };
         Ok(())
@@ -128,9 +127,10 @@ impl Decodable for KeyDerivation {
             ARGON_2_ID => KeyDerivation::Argon2Id,
             BALLOON_HASH => KeyDerivation::BalloonHash,
             _ => {
-                return Err(Error::other(
-                    format!("unknown key derivation function {}", id),
-                ));
+                return Err(Error::other(format!(
+                    "unknown key derivation function {}",
+                    id
+                )));
             }
         };
         Ok(())

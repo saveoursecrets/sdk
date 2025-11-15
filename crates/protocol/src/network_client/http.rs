@@ -124,7 +124,7 @@ impl HttpClient {
         F: Future<Output = ()> + Send + 'static,
     {
         let listener = WebSocketChangeListener::new(
-            self.account_id.clone(),
+            self.account_id,
             self.origin.clone(),
             self.device_signer.clone(),
             options,

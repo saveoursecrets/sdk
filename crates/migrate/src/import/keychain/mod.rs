@@ -12,7 +12,7 @@ use keychain_parser::{AttributeName, KeychainParser};
 use secrecy::{ExposeSecret, SecretString};
 use security_framework::{
     item::{ItemClass, ItemSearchOptions},
-    os::macos::{keychain::SecKeychain},
+    os::macos::keychain::SecKeychain,
 };
 use sos_backend::AccessPoint;
 use sos_core::crypto::AccessKey;

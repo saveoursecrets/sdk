@@ -88,8 +88,7 @@ impl Identity {
 
     /// Device manager.
     pub fn devices(&self) -> Result<&DeviceManager> {
-        self
-            .identity
+        self.identity
             .as_ref()
             .ok_or(AuthenticationError::NotAuthenticated)?
             .devices()

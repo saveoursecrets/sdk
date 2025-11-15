@@ -79,9 +79,7 @@ impl Decodable for AuditEvent {
                 }
             }
         } else {
-            return Err(Error::other(
-                "log data flags has bad bits",
-            ));
+            return Err(Error::other("log data flags has bad bits"));
         }
         Ok(())
     }

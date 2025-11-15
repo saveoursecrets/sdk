@@ -61,6 +61,7 @@ pub struct MoveFileQuery {
         ),
     ),
 )]
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn receive_file(
     Extension(state): Extension<ServerState>,
     Extension(backend): Extension<ServerBackend>,

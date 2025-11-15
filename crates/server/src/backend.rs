@@ -121,11 +121,8 @@ impl Backend {
 
         for account in accounts {
             let account_id = *account.identity.account_id();
-            let account = ServerStorage::new(
-                self.target.clone(),
-                &account_id,
-            )
-            .await?;
+            let account =
+                ServerStorage::new(self.target.clone(), &account_id).await?;
 
             let mut accounts = self.accounts.write().await;
             accounts.insert(account_id, Arc::new(RwLock::new(account)));
@@ -155,12 +152,9 @@ impl Backend {
 
         let target = self.target.clone().with_account_id(account_id);
 
-        let account = ServerStorage::create_account(
-            target,
-            account_id,
-            &account_data,
-        )
-        .await?;
+        let account =
+            ServerStorage::create_account(target, account_id, &account_data)
+                .await?;
 
         let mut accounts = self.accounts.write().await;
         accounts
@@ -203,7 +197,7 @@ impl Backend {
         account_data: UpdateSet,
     ) -> Result<MergeOutcome> {
         tracing::debug!(
-            account_id = %account_id, 
+            account_id = %account_id,
             "server_backend::update_account");
 
         let mut outcome = MergeOutcome::default();

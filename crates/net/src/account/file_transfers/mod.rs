@@ -474,7 +474,7 @@ where
         )
         .await?;
 
-        while let Some(_) = remaining {
+        while remaining.is_some() {
             remaining = Self::consume_queue(
                 paths.clone(),
                 semaphore.clone(),

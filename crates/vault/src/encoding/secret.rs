@@ -169,9 +169,10 @@ impl Decodable for SecretSigner {
                 *self = Self::SinglePartyEd25519(buffer);
             }
             _ => {
-                return Err(Error::other(
-                    format!("unknown signer kind {}", kind),
-                ));
+                return Err(Error::other(format!(
+                    "unknown signer kind {}",
+                    kind
+                )));
             }
         }
 
@@ -271,9 +272,10 @@ impl Decodable for AgeVersion {
                 *self = Self::Version1;
             }
             _ => {
-                return Err(Error::other(
-                    format!("unknown age version {}", kind),
-                ));
+                return Err(Error::other(format!(
+                    "unknown age version {}",
+                    kind
+                )));
             }
         };
         Ok(())
@@ -367,9 +369,10 @@ impl Decodable for FileContent {
                 };
             }
             _ => {
-                return Err(Error::other(
-                    format!("unknown file content type {}", kind),
-                ));
+                return Err(Error::other(format!(
+                    "unknown file content type {}",
+                    kind
+                )));
             }
         }
         Ok(())

@@ -218,7 +218,7 @@ impl NetworkAccount {
             let clients = {
                 let mut clients = Vec::new();
                 let remotes = self.remotes.read().await;
-                for (_, remote) in &*remotes {
+                for remote in remotes.values() {
                     clients.push(remote.client().clone());
                 }
                 clients
@@ -242,7 +242,7 @@ impl NetworkAccount {
 
     /// Connection identifier.
     pub fn connection_id(&self) -> Option<&str> {
-        self.connection_id.as_ref().map(|x| x.as_str())
+        self.connection_id.as_deref()
     }
 
     /// Connection identifier either explicitly set
@@ -273,7 +273,7 @@ impl NetworkAccount {
             }
 
             let result = hasher.finalize();
-            hex::encode(&result)
+            hex::encode(result)
         })
     }
 
@@ -347,7 +347,7 @@ impl NetworkAccount {
         // Note that this works because Origin only includes
         // the url for it's Hash implementation
         let mut remotes = self.remotes.write().await;
-        if let Some(remote) = remotes.remove(&old_origin) {
+        if let Some(remote) = remotes.remove(old_origin) {
             remotes.insert(new_origin.clone(), remote);
             self.server_origins
                 .as_mut()
@@ -421,7 +421,7 @@ impl NetworkAccount {
         folder_id: &VaultId,
     ) -> Result<Summary> {
         let folders = self.list_folders().await?;
-        if folders.iter().find(|f| f.id() == folder_id).is_some() {
+        if folders.iter().any(|f| f.id() == folder_id) {
             return Err(Error::FolderExists(*folder_id));
         }
 
@@ -472,7 +472,7 @@ impl NetworkAccount {
                 // Proxy file transfer queue events from the
                 // remote bridges to the file transfer event loop
                 let remotes = self.remotes.read().await;
-                for (_, remote) in &*remotes {
+                for remote in remotes.values() {
                     self.proxy_remote_file_queue(&handle, remote).await;
                 }
             }
@@ -624,7 +624,7 @@ impl NetworkAccount {
             .file_transfers
             .as_ref()
             .map(|t| Arc::clone(&t.inflight))
-            .ok_or_else(|| AuthenticationError::NotAuthenticated)?)
+            .ok_or(AuthenticationError::NotAuthenticated)?)
     }
 
     /// Convert file mutation events into file transfer queue entries.
@@ -1102,7 +1102,7 @@ impl Account for NetworkAccount {
         let folder = self
             .find(|f| f.id() == folder_id)
             .await
-            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
+            .ok_or(StorageError::FolderNotFound(*folder_id))?;
         if !folder.flags().is_sync_disabled() {
             let event_log = self.folder_log(folder_id).await?;
             let log_file = event_log.read().await;
@@ -1167,7 +1167,7 @@ impl Account for NetworkAccount {
         let folder = self
             .find(|f| f.id() == folder_id)
             .await
-            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
+            .ok_or(StorageError::FolderNotFound(*folder_id))?;
         if !folder.flags().is_sync_disabled() {
             let event_log = self.folder_log(folder_id).await?;
             let log_file = event_log.read().await;

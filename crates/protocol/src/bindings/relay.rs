@@ -44,8 +44,7 @@ impl RelayPacket {
                 let public_key = public_key.to_vec();
                 let message_len = packet.len() - boundary;
 
-                let mut message = Vec::new();
-                message.reserve(message_len);
+                let mut message = Vec::with_capacity(message_len);
                 message.extend_from_slice(&packet[boundary..]);
 
                 Ok((public_key, message))
