@@ -61,7 +61,7 @@ impl EventRecord {
 
     /// Decode this event record.
     pub async fn decode_event<T: Default + Decodable>(&self) -> Result<T> {
-        Ok(decode(&self.3).await?)
+        decode(&self.3).await
     }
 
     /// Encode an event into an event record.

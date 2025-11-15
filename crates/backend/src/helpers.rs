@@ -14,7 +14,8 @@ pub async fn extract_vault(records: &[EventRecord]) -> Result<Option<Vault>> {
         let WriteEvent::CreateVault(buf) = event else {
             return Err(sos_core::Error::CreateEventMustBeFirst.into());
         };
-        decode(&buf).await?
+        let vault: Vault = decode(&buf).await?;
+        Some(vault)
     } else {
         None
     })

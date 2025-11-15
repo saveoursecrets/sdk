@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
-use std::io::{Error, ErrorKind, Result};
+use std::io::{Error, Result};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 #[async_trait]
@@ -61,8 +61,7 @@ impl Decodable for AeadPack {
                 );
             }
             _ => {
-                return Err(Error::new(
-                    ErrorKind::Other,
+                return Err(Error::other(
                     format!("unknown nonce size {}", nonce_size),
                 ));
             }
@@ -97,8 +96,7 @@ impl Decodable for Cipher {
             AES_GCM_256 => Cipher::AesGcm256,
             X25519 => Cipher::X25519,
             _ => {
-                return Err(Error::new(
-                    ErrorKind::Other,
+                return Err(Error::other(
                     format!("unknown cipher {}", id),
                 ));
             }
@@ -130,8 +128,7 @@ impl Decodable for KeyDerivation {
             ARGON_2_ID => KeyDerivation::Argon2Id,
             BALLOON_HASH => KeyDerivation::BalloonHash,
             _ => {
-                return Err(Error::new(
-                    ErrorKind::Other,
+                return Err(Error::other(
                     format!("unknown key derivation function {}", id),
                 ));
             }
