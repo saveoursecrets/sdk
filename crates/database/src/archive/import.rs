@@ -99,7 +99,7 @@ impl BackupImport {
 
     /// Run migrations on the target database.
     pub fn migrate_target(&mut self) -> Result<refinery::Report> {
-        Ok(crate::migrations::migrate_connection(&mut *self.target_db)?)
+        Ok(crate::migrations::migrate_connection(&mut self.target_db)?)
     }
 
     /// Try to import an account from the source to the

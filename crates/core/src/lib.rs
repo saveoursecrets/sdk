@@ -215,7 +215,6 @@ pub enum ArchiveManifestVersion {
     /// and are optional.
     ///
     /// A single backup archive includes only one account.
-    #[default]
     V1 = 1,
 
     /// Version 2 backup archives correspond to the
@@ -228,6 +227,7 @@ pub enum ArchiveManifestVersion {
     /// Version 3 backup archives include the SQLite
     /// database and external file blobs and may contain
     /// multiple accounts.
+    #[default]
     V3 = 3,
 }
 
