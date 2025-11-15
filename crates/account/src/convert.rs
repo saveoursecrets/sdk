@@ -50,9 +50,9 @@ impl LocalAccount {
         let folders = self
             .storage
             .list_folders()
-            .into_iter()
+            .iter()
             .filter(|s| s.cipher() != cipher || s.kdf() != &kdf)
-            .map(|s| s.clone())
+            .cloned()
             .collect::<Vec<_>>();
 
         let identity =
@@ -145,7 +145,7 @@ impl LocalAccount {
             .public_name(name)
             .description(meta.description().to_owned())
             .flags(folder.flags().clone())
-            .kdf(kdf.clone())
+            .kdf(*kdf)
             .cipher(*cipher);
 
         let output_vault = match key {

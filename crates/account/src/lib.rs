@@ -1,5 +1,7 @@
 //! Create and manage local accounts for the
 //! [Save Our Secrets](https://saveoursecrets.com) SDK.
+#![allow(clippy::len_without_is_empty)]
+#![allow(clippy::new_without_default)]
 mod account_switcher;
 mod builder;
 mod convert;

@@ -53,7 +53,7 @@ impl Folder {
                 let folder_row = client
                     .conn(move |conn| {
                         let folder = FolderEntity::new(&conn);
-                        Ok(folder.find_one(&folder_id)?)
+                        folder.find_one(&folder_id)
                     })
                     .await
                     .map_err(sos_database::Error::from)?;
@@ -80,7 +80,7 @@ impl Folder {
 
                 let mut event_log = FolderEventLog::new_folder(
                     BackendTarget::Database(paths, client.clone()),
-                    &account_id,
+                    account_id,
                     &folder_id,
                 )
                 .await?;
