@@ -15,12 +15,10 @@ where
     // Create preferences
     prefs.insert("mock.bool".to_owned(), true.into()).await?;
 
-    prefs
-        .insert("mock.int".to_owned(), (-15 as i64).into())
-        .await?;
+    prefs.insert("mock.int".to_owned(), (-15i64).into()).await?;
 
     prefs
-        .insert("mock.double".to_owned(), (3.14 as f64).into())
+        .insert("mock.double".to_owned(), (2.54f64).into())
         .await?;
 
     prefs

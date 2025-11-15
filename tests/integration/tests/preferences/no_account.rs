@@ -49,7 +49,7 @@ async fn preferences_no_account() -> Result<()> {
     assert!(prefs.get_bool("int-1").is_err());
 
     prefs
-        .insert("double-1".to_owned(), Preference::Number(3.14))
+        .insert("double-1".to_owned(), Preference::Number(2.54))
         .await?;
     assert!(prefs.get_number("double-1")?.is_some());
     assert!(prefs.get_bool("double-1").is_err());

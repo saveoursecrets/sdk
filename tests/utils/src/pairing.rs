@@ -88,7 +88,7 @@ pub async fn run_inverted_pairing_protocol(
 ) -> Result<NetworkAccount> {
     let origin = primary_device.origin.clone();
     let password = primary_device.password.clone();
-    let account_id = primary_device.owner.account_id().clone();
+    let account_id = primary_device.owner.account_id();
     let key: AccessKey = password.into();
 
     // Get the data dir for the second client
@@ -112,7 +112,7 @@ pub async fn run_inverted_pairing_protocol(
         // in the server URL
         let (share_url, mut accept, accept_stream) =
             AcceptPairing::new_inverted(
-                account_id,
+                *account_id,
                 origin.url().clone(),
                 &device_meta,
                 target,

@@ -125,7 +125,7 @@ where
         )
         .await?;
     let (secret_data, _) = account
-        .read_secret(&secret_id, Some(destination.id()))
+        .read_secret(secret_id, Some(destination.id()))
         .await?;
     let attached = secret_data
         .secret()
@@ -178,7 +178,7 @@ where
 
     let updated_attachment = updated_secret_data
         .secret()
-        .find_field_by_id(&attachment_id)
+        .find_field_by_id(attachment_id)
         .cloned()
         .expect("attachment to exist");
 
@@ -206,7 +206,7 @@ pub async fn delete_attachment<E>(
 where
     E: std::error::Error + Send + Sync + 'static,
 {
-    secret_data.secret_mut().remove_field(&attachment_id);
+    secret_data.secret_mut().remove_field(attachment_id);
 
     let secret_id = *secret_data.id();
     let (_, meta, secret) = secret_data.into();
