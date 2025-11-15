@@ -9,22 +9,10 @@ use sos_core::{
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::{
     select,
-    sync::{oneshot, Mutex},
+    sync::Mutex,
     time,
 };
-use tokio_util::codec::LengthDelimitedCodec;
-
-/// Handle to a producer.
-pub struct ProducerHandle {
-    cancel_tx: oneshot::Sender<()>,
-}
-
-impl ProducerHandle {
-    /// Stop listening for change events.
-    pub fn cancel(self) {
-        let _ = self.cancel_tx.send(());
-    }
-}
+use tokio_util::{codec::LengthDelimitedCodec, sync::CancellationToken};
 
 /// Producer socket connection for change events.
 pub struct ChangeProducer;
@@ -46,13 +34,15 @@ impl ChangeProducer {
     pub async fn listen(
         paths: Arc<Paths>,
         poll_interval: Duration,
-    ) -> Result<ProducerHandle> {
+    ) -> Result<CancellationToken> {
         tracing::debug!(
             documents_dir = %paths.documents_dir().display(),
             poll_interval = ?poll_interval,
             "changes::producer::listen",
         );
-        let (cancel_tx, mut cancel_rx) = oneshot::channel::<()>();
+        let cancel = CancellationToken::new();
+        let child_cancel = cancel.child_token();
+
         let tx = changes_feed();
         let mut rx = tx.subscribe();
         let sockets = find_active_sockets(paths.clone()).await?;
@@ -63,7 +53,7 @@ impl ChangeProducer {
                 let paths = paths.clone();
                 select! {
                     // Explicit cancel notification
-                    _ = &mut cancel_rx => {
+                    _ = child_cancel.cancelled() => {
                         break;
                     }
                     // Periodically refresh the list of consumer sockets
@@ -88,7 +78,7 @@ impl ChangeProducer {
             }
             Ok::<_, Error>(())
         });
-        Ok(ProducerHandle { cancel_tx })
+        Ok(cancel)
     }
 }
 

@@ -1,8 +1,8 @@
 name: Checks
 
 on:
-  workflow_call:
-  # pull_request:
+  # workflow_call:
+  pull_request:
 
 env:
   RUST_TEST_TIME_INTEGRATION: "120000,300000"
