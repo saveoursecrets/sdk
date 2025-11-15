@@ -568,11 +568,12 @@ where
                 }
                 // Other operations must complete on all clients
                 _ => {
-                    for client in clients.to_vec() {
+                    for client in clients {
                         let inflight = inflight.clone();
                         let settings = settings.clone();
                         let paths = paths.clone();
                         let permit = semaphore.clone();
+                        let client = client.clone();
                         let jh = tokio::task::spawn(async move {
                             let _permit = permit.acquire().await.unwrap();
                             let request_id = inflight.request_id();
@@ -580,7 +581,7 @@ where
                                 request_id,
                                 file,
                                 op,
-                                client.clone(),
+                                client,
                                 settings.clone(),
                                 paths.clone(),
                                 inflight.clone(),
@@ -812,8 +813,8 @@ where
                 transfer_id,
                 request_id,
                 origin: request.origin.clone(),
-                file: request.file.clone(),
-                operation: request.operation.clone(),
+                file: request.file,
+                operation: request.operation,
             };
 
             inflight_transfers

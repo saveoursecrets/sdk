@@ -200,15 +200,10 @@ impl Error {
     /// whether the cancellation was triggered by the user.
     pub fn cancellation_reason(&self) -> Option<&CancelReason> {
         let source = source_error(self);
-        if let Some(err) = source.downcast_ref::<Error>() {
-            if let Error::Protocol(sos_protocol::Error::TransferCanceled(
+        if let Some(Error::Protocol(sos_protocol::Error::TransferCanceled(
                 reason,
-            )) = err
-            {
-                Some(reason)
-            } else {
-                None
-            }
+            ))) = source.downcast_ref::<Error>() {
+            Some(reason)
         } else {
             None
         }

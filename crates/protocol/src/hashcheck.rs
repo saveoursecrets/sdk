@@ -52,7 +52,7 @@ pub async fn batch(
     let value = res.json::<Vec<u8>>().await?;
     let result = value
         .into_iter()
-        .map(|value| if value == 1 { true } else { false })
+        .map(|value| value == 1)
         .collect();
     Ok(result)
 }

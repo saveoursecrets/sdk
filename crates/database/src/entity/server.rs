@@ -122,7 +122,7 @@ where
         }
 
         let rows =
-            stmt.query_and_then([account_id], |row| convert_row(row))?;
+            stmt.query_and_then([account_id], convert_row)?;
         let mut servers = Vec::new();
         for row in rows {
             servers.push(row?);
