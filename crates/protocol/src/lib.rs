@@ -96,8 +96,7 @@ where
 {
     async fn encode_proto(self) -> Result<Vec<u8>> {
         tokio::task::spawn_blocking(move || {
-            let mut buf = Vec::new();
-            buf.reserve(self.encoded_len());
+            let mut buf = Vec::with_capacity(self.encoded_len());
             self.encode(&mut buf)?;
             Ok(buf)
         })
@@ -144,8 +143,7 @@ where
     async fn encode(self) -> Result<Vec<u8>> {
         tokio::task::spawn_blocking(move || {
             let value: <Self as ProtoBinding>::Inner = self.into();
-            let mut buf = Vec::new();
-            buf.reserve(value.encoded_len());
+            let mut buf = Vec::with_capacity(value.encoded_len());
             value.encode(&mut buf)?;
             Ok(buf)
         })
@@ -160,7 +158,7 @@ where
     {
         tokio::task::spawn_blocking(move || {
             let result = <<Self as ProtoBinding>::Inner>::decode(buffer)?;
-            Ok(result.try_into()?)
+            result.try_into()
         })
         .await?
     }
