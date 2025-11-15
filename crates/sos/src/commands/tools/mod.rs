@@ -170,7 +170,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             if read_flag(Some(&prompt))? {
                 let access_key: AccessKey = password.into();
                 let conversion = owner
-                    .change_cipher(&access_key, &cipher, kdf.clone())
+                    .change_cipher(&access_key, &cipher, kdf)
                     .await?;
                 if conversion.is_empty() {
                     info(format!(

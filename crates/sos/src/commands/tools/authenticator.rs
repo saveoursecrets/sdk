@@ -61,7 +61,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let access_point = folder.access_point();
             let access_point = access_point.lock().await;
 
-            export_authenticator(file, &*access_point, qr_codes).await?;
+            export_authenticator(file, &access_point, qr_codes).await?;
             success("authenticator TOTP secrets exported");
         }
         Command::Import {
