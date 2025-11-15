@@ -581,7 +581,9 @@ pub trait ClientFolderStorage:
 
         let account_log = self.account_log().await?;
         let mut account_log = account_log.write().await;
-        account_log.apply(std::slice::from_ref(&account_event)).await?;
+        account_log
+            .apply(std::slice::from_ref(&account_event))
+            .await?;
 
         Ok(account_event)
     }
@@ -609,7 +611,9 @@ pub trait ClientFolderStorage:
 
         let account_log = self.account_log().await?;
         let mut account_log = account_log.write().await;
-        account_log.apply(std::slice::from_ref(&account_event)).await?;
+        account_log
+            .apply(std::slice::from_ref(&account_event))
+            .await?;
 
         #[cfg(feature = "audit")]
         {
@@ -1197,7 +1201,9 @@ pub trait ClientAccountStorage:
             AccountEvent::CreateFolder(*summary.id(), buf.clone());
         let account_log = self.account_log().await?;
         let mut account_log = account_log.write().await;
-        account_log.apply(std::slice::from_ref(&account_event)).await?;
+        account_log
+            .apply(std::slice::from_ref(&account_event))
+            .await?;
 
         // Must save the folder access key
         self.authenticated_user_mut()
@@ -1263,7 +1269,9 @@ pub trait ClientAccountStorage:
         if apply_event {
             let account_log = self.account_log().await?;
             let mut account_log = account_log.write().await;
-            account_log.apply(std::slice::from_ref(&account_event)).await?;
+            account_log
+                .apply(std::slice::from_ref(&account_event))
+                .await?;
         }
 
         #[cfg(feature = "audit")]
@@ -1409,7 +1417,9 @@ pub trait ClientAccountStorage:
         if apply_event {
             let account_log = self.account_log().await?;
             let mut account_log = account_log.write().await;
-            account_log.apply(std::slice::from_ref(&account_event)).await?;
+            account_log
+                .apply(std::slice::from_ref(&account_event))
+                .await?;
         }
 
         #[cfg(feature = "audit")]

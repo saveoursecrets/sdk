@@ -78,9 +78,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let accounts = list_accounts(Some(&paths)).await?;
 
             if !apply_changes {
-                warn(
-                    "dry run, use --apply-changes to perform upgrade"
-                );
+                warn("dry run, use --apply-changes to perform upgrade");
             }
             info(format!("found {} accounts to upgrade", accounts.len()));
             for account in &accounts {

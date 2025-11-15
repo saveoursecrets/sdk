@@ -33,7 +33,7 @@ async fn diff_merge_secret_update() -> Result<()> {
     let key: AccessKey = password.clone().into();
     local.sign_in(&key).await?;
     let default_folder = local.default_folder().await.unwrap();
-    let account_id = local.account_id().clone();
+    let account_id = *local.account_id();
 
     // Copy the initial account disc state
     copy_account(&data_dir, &data_dir_merge)?;

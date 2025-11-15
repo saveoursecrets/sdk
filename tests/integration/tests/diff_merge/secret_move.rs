@@ -38,7 +38,7 @@ async fn diff_merge_secret_move() -> Result<()> {
 
     let key: AccessKey = password.clone().into();
     local.sign_in(&key).await?;
-    let account_id = local.account_id().clone();
+    let account_id = *local.account_id();
     let default_folder = local.default_folder().await.unwrap();
 
     // Copy the initial account disc state
@@ -101,7 +101,7 @@ async fn diff_merge_secret_move() -> Result<()> {
     ));
     // The default folder has the create and delete events
     // normalized away but the new folder contains a created event
-    assert!(outcome.tracked.folders.get(default_folder.id()).is_none());
+    assert!(!outcome.tracked.folders.contains_key(default_folder.id()));
     let folder_changes = outcome.tracked.folders.get(summary.id()).unwrap();
     assert!(folder_changes.contains(&TrackedFolderChange::Created(new_id)));
 

@@ -103,7 +103,7 @@ async fn event_log_file() -> Result<()> {
     assert_eq!(5, events.len());
 
     // Initial file secret creation
-    assert!(matches!(events.get(0), Some(FileEvent::CreateFile(_, _))));
+    assert!(matches!(events.first(), Some(FileEvent::CreateFile(_, _))));
 
     // Moving event
     assert!(matches!(events.get(1), Some(FileEvent::MoveFile { .. })));
