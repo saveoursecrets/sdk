@@ -43,11 +43,11 @@ async fn file_transfers_multi_upload() -> Result<()> {
     let server2_paths = server2.paths(device.owner.account_id());
 
     // Assert the files on server1 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server1_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server1_paths, &file)
         .await?;
 
     // Assert the files on server2 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server2_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server2_paths, &file)
         .await?;
 
     device.owner.sign_out().await?;
@@ -102,11 +102,11 @@ async fn file_transfers_multi_update() -> Result<()> {
     let server2_paths = server2.paths(device.owner.account_id());
 
     // Assert the files on server1 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server1_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server1_paths, &file)
         .await?;
 
     // Assert the files on server2 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server2_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server2_paths, &file)
         .await?;
 
     device.owner.sign_out().await?;

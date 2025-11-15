@@ -55,7 +55,7 @@ async fn file_transfers_attach_create() -> Result<()> {
     for file in &files {
         assert_local_remote_file_eq(
             device.owner.paths(),
-            &*server_account_paths,
+            &server_account_paths,
             file,
         )
         .await?;
@@ -125,7 +125,7 @@ async fn file_transfers_attach_update() -> Result<()> {
     for file in &files {
         assert_local_remote_file_eq(
             device.owner.paths(),
-            &*server_account_paths,
+            &server_account_paths,
             file,
         )
         .await?;
@@ -208,7 +208,7 @@ async fn file_transfers_attach_move() -> Result<()> {
     for file in &files {
         assert_local_remote_file_eq(
             device.owner.paths(),
-            &*server_account_paths,
+            &server_account_paths,
             file,
         )
         .await?;
@@ -273,7 +273,7 @@ async fn file_transfers_attach_delete() -> Result<()> {
     for file in &files {
         assert_local_remote_file_not_exist(
             device.owner.paths(),
-            &*server_paths,
+            &server_paths,
             file,
         )
         .await?;

@@ -91,8 +91,7 @@ impl ServerDatabaseStorage {
             if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
                 return Err(Error::NotDirectory(
                     paths.documents_dir().to_path_buf(),
-                )
-                .into());
+                ));
             }
 
             let account_row =
@@ -236,7 +235,7 @@ impl ServerDatabaseStorage {
         Ok(client
             .conn(move |conn| {
                 let account = AccountEntity::new(&conn);
-                Ok(account.find_one(&account_id)?)
+                account.find_one(&account_id)
             })
             .await
             .map_err(sos_database::Error::from)?)
@@ -273,7 +272,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
 
     async fn rename_account(&self, name: &str) -> Result<()> {
         // Rename the folder (v1 logic)
-        let account_id = self.account_row_id.clone();
+        let account_id = self.account_row_id;
         let login_folder = self
             .client
             .conn_and_then(move |conn| {
@@ -288,7 +287,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         file.set_vault_name(name.to_owned()).await?;
 
         // Update the accounts table (v2 logic)
-        let account_id = self.account_row_id.clone();
+        let account_id = self.account_row_id;
         let name = name.to_owned();
         self.client
             .conn_and_then(move |conn| {
@@ -311,7 +310,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         self.client
             .conn(move |conn| {
                 let folder = FolderEntity::new(&conn);
-                Ok(folder.update_folder(&identity_id, &identity_row)?)
+                folder.update_folder(&identity_id, &identity_row)
             })
             .await?;
         Ok(())

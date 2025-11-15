@@ -63,7 +63,7 @@ async fn file_transfers_abort_move() -> Result<()> {
 
     assert_local_remote_file_eq(
         device.owner.paths(),
-        &*server_account_paths,
+        &server_account_paths,
         &file,
     )
     .await?;

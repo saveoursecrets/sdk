@@ -49,7 +49,7 @@ async fn event_log_init_file_log() -> Result<()> {
     let patch = event_log.diff_events(None).await?;
     assert_eq!(1, patch.len());
     let events = patch.into_events().await?;
-    assert!(matches!(events.get(0), Some(FileEvent::CreateFile(_, _))));
+    assert!(matches!(events.first(), Some(FileEvent::CreateFile(_, _))));
 
     // Sign out the account
     account.sign_out().await?;

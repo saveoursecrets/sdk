@@ -46,7 +46,7 @@ async fn file_transfers_abort_delete() -> Result<()> {
     let local_paths = device.owner.paths();
     let server_paths = server.paths(device.owner.account_id());
 
-    assert_local_remote_file_not_exist(local_paths, &*server_paths, &file)
+    assert_local_remote_file_not_exist(local_paths, &server_paths, &file)
         .await?;
 
     device.owner.sign_out().await?;

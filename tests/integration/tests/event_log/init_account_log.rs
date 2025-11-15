@@ -43,7 +43,7 @@ async fn event_log_init_account_log() -> Result<()> {
     assert_eq!(1, events.len());
 
     assert!(matches!(
-        events.get(0),
+        events.first(),
         Some(AccountEvent::CreateFolder(_, _))
     ));
 

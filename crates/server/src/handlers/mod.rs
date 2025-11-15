@@ -116,7 +116,7 @@ async fn authenticate_endpoint(
         .verify_device(
             &token.account_id,
             &token.device_signature,
-            &signed_data,
+            signed_data,
         )
         .await?;
 

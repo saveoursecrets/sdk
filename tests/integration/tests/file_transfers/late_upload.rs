@@ -91,7 +91,7 @@ async fn file_transfers_late_upload() -> Result<()> {
     for file in files {
         assert_local_remote_file_eq(
             device.owner.paths(),
-            &*server_account_paths,
+            &server_account_paths,
             &file,
         )
         .await?;
