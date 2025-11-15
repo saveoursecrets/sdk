@@ -88,7 +88,7 @@ mod proof_serde {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&hex::encode(&proof.to_bytes()))
+        serializer.serialize_str(&hex::encode(proof.to_bytes()))
     }
 
     pub fn deserialize<'de, D>(

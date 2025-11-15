@@ -107,9 +107,9 @@ where
     ) -> std::result::Result<Option<PreferenceRow>, SqlError> {
         let query = self.find_preference_select(true);
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        Ok(stmt
-            .query_row((account_id, key), |row| Ok(row.try_into()?))
-            .optional()?)
+        stmt
+            .query_row((account_id, key), |row| row.try_into())
+            .optional()
     }
 
     /// Load preferences from the database.
@@ -127,9 +127,7 @@ where
             Ok(row.try_into()?)
         }
 
-        let rows = stmt.query_and_then([account_id], |row| {
-            Ok::<_, crate::Error>(convert_row(row)?)
-        })?;
+        let rows = stmt.query_and_then([account_id], convert_row)?;
         let mut preferences = Vec::new();
         for row in rows {
             preferences.push(row?);

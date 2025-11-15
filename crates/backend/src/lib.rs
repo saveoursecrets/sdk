@@ -166,7 +166,7 @@ impl BackendTarget {
             let provider = match &target {
                 BackendTarget::FileSystem(paths) => {
                     crate::audit::new_fs_provider(
-                        paths.audit_file().to_owned(),
+                        paths.audit_file(),
                     )
                 }
                 BackendTarget::Database(_, client) => {
@@ -188,40 +188,38 @@ impl BackendTarget {
             "backend::dump_info",
         );
 
-        match self {
-            Self::Database(_, client) => {
-                let (sqlite_version, compile_options) = client
-                    .conn_and_then(|conn| {
-                        conn.execute("PRAGMA foreign_keys = ON", [])?;
-                        let version: String = conn.query_row(
-                            "SELECT sqlite_version()",
-                            [],
-                            |row| row.get(0),
-                        )?;
+        if let Self::Database(_, client) = self {
+            let (sqlite_version, compile_options) = client
+                .conn_and_then(|conn| {
+                    conn.execute("PRAGMA foreign_keys = ON", [])?;
+                    let version: String = conn.query_row(
+                        "SELECT sqlite_version()",
+                        [],
+                        |row| row.get(0),
+                    )?;
 
-                        let mut stmt =
-                            conn.prepare("PRAGMA compile_options")?;
-                        let mut compile_options = Vec::new();
-                        let rows = stmt
-                            .query_map([], |row| row.get::<_, String>(0))?;
-                        for option in rows {
-                            compile_options.push(option?);
-                        }
+                    let mut stmt =
+                        conn.prepare("PRAGMA compile_options")?;
+                    let mut compile_options = Vec::new();
+                    let rows = stmt
+                        .query_map([], |row| row.get::<_, String>(0))?;
+                    for option in rows {
+                        compile_options.push(option?);
+                    }
 
-                        Ok::<_, sos_database::Error>((
-                            version,
-                            compile_options,
-                        ))
-                    })
-                    .await?;
-                tracing::debug!(
-                    version = %sqlite_version,
-                    compile_options = ?compile_options,
-                    "backend::dump_info::sqlite",
-                );
-            }
-            _ => {}
+                    Ok::<_, sos_database::Error>((
+                        version,
+                        compile_options,
+                    ))
+                })
+                .await?;
+            tracing::debug!(
+                version = %sqlite_version,
+                compile_options = ?compile_options,
+                "backend::dump_info::sqlite",
+            );
         }
+
         Ok(())
     }
 

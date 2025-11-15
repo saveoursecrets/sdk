@@ -20,6 +20,7 @@ fn event_select_columns(sql: sql::Select) -> sql::Select {
 
 /// Enumeration of tables for events.
 #[derive(Debug, Copy, Clone)]
+#[allow(clippy::enum_variant_names)]
 enum EventTable {
     /// Account events table.
     AccountEvents,
