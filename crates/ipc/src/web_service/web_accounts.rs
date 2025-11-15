@@ -1,22 +1,21 @@
 use crate::{Error, FileEventError, Result};
-use notify::{
-    recommended_watcher, Event, RecommendedWatcher, RecursiveMode, Watcher,
-};
-use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use sos_account::{Account, AccountSwitcher};
 use sos_backend::BackendTarget;
+use sos_changes::consumer::ConsumerHandle;
 use sos_core::{
-    events::{AccountEvent, EventLog, WriteEvent},
+    events::{
+        AccountEvent, EventLog, EventLogType, LocalChangeEvent, WriteEvent,
+    },
     AccountId, ErrorExt, Paths, VaultId,
 };
 use sos_login::DelegatedAccess;
 use sos_sync::SyncStorage;
 use sos_vault::SecretAccess;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashSet, sync::Arc};
 use tokio::sync::{broadcast, RwLock};
 
-/// Event broadcast when an account changes on disc.
+/// Event broadcast when an account changes.
 #[typeshare::typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -66,7 +65,7 @@ where
         + 'static,
 {
     accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
-    watchers: Arc<Mutex<HashMap<AccountId, RecommendedWatcher>>>,
+    watched_accounts: HashSet<AccountId>,
     channel: broadcast::Sender<AccountChangeEvent>,
 }
 
@@ -91,7 +90,7 @@ where
     fn clone(&self) -> Self {
         Self {
             accounts: self.accounts.clone(),
-            watchers: self.watchers.clone(),
+            watched_accounts: self.watched_accounts.clone(),
             channel: self.channel.clone(),
         }
     }
@@ -122,7 +121,7 @@ where
         let (tx, _) = broadcast::channel::<AccountChangeEvent>(64);
         Self {
             accounts,
-            watchers: Arc::new(Mutex::new(HashMap::new())),
+            watched_accounts: HashSet::new(),
             channel: tx,
         }
     }
@@ -143,88 +142,55 @@ where
         self.channel.subscribe()
     }
 
-    /// Start watching an account for changes.
-    pub fn watch(
+    /// Start listening for changes.
+    pub fn listen_changes(
         &self,
-        account_id: AccountId,
+        mut changes_consumer: ConsumerHandle,
         paths: Arc<Paths>,
-        folder_ids: Vec<VaultId>,
+        change_handler: impl Fn(LocalChangeEvent) + Send + Sync + 'static,
     ) -> Result<()> {
-        let has_watcher = {
-            let watchers = self.watchers.lock();
-            watchers.get(&account_id).is_some()
-        };
+        // Start a background task to listen for change events
+        let channel = self.channel.clone();
+        let task_accounts = self.accounts.clone();
 
-        if !has_watcher {
-            let (tx, rx) = broadcast::channel::<Event>(32);
-            let channel = self.channel.clone();
-            let task_id = account_id.clone();
-            let task_paths = paths.clone();
-            let task_accounts = self.accounts.clone();
-            let task_watchers = self.watchers.clone();
-            tokio::task::spawn(async move {
-                if let Err(e) = notify_listener(
-                    task_id,
-                    task_paths,
-                    task_accounts,
-                    task_watchers,
-                    rx,
-                    channel,
+        tokio::task::spawn(async move {
+            let receiver = changes_consumer.changes();
+
+            while let Some(event) = receiver.recv().await {
+                tracing::debug!(
+                    event = ?event,
+                    "change_consumer::event_received"
+                );
+
+                if let Err(e) = process_change_event(
+                    &event,
+                    AccountId::default(),
+                    paths.clone(),
+                    task_accounts.clone(),
+                    channel.clone(),
                 )
                 .await
                 {
-                    tracing::error!(error = %e, "notify_listener");
+                    tracing::error!(error = %e, "process_change_event");
                 }
-            });
 
-            let mut watcher = recommended_watcher(
-                move |res: notify::Result<Event>| match res {
-                    Ok(event) => {
-                        if let Err(e) = tx.send(event) {
-                            tracing::error!(error = %e, "file_system_notify_channel::send");
-                        }
-                    }
-                    Err(e) => {
-                        tracing::error!(error = %e, "notify::error");
-                    }
-                },
-            )?;
-
-            watcher.watch(
-                &paths.identity_events(),
-                RecursiveMode::NonRecursive,
-            )?;
-
-            for id in &folder_ids {
-                watch_folder(id, &*paths, &mut watcher)?;
+                change_handler(event);
             }
 
-            let mut watchers = self.watchers.lock();
-            watchers.insert(account_id, watcher);
-        }
+            tracing::debug!("consumer_task_completed");
+        });
+
         Ok(())
     }
 
-    /// Stop watching an account for changes.
-    pub fn unwatch(
-        &self,
-        account_id: &AccountId,
-        paths: Arc<Paths>,
-        folder_ids: Vec<VaultId>,
-    ) -> Result<bool> {
-        let mut watchers = self.watchers.lock();
-        if let Some(mut watcher) = watchers.remove(account_id) {
-            watcher.watch(
-                &paths.identity_events(),
-                RecursiveMode::NonRecursive,
-            )?;
-            for id in &folder_ids {
-                unwatch_folder(id, &*paths, &mut watcher)?;
-            }
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+    /// Start watching an account for changes.
+    pub fn watch(&mut self, account_id: AccountId) {
+        self.watched_accounts.insert(account_id);
+    }
+
+    /// Stop watching for changes.
+    pub fn unwatch(&mut self, account_id: &AccountId) {
+        self.watched_accounts.remove(account_id);
     }
 }
 
@@ -249,6 +215,189 @@ where
 {
     fn as_ref(&self) -> &Arc<RwLock<AccountSwitcher<A, R, E>>> {
         &self.accounts
+    }
+}
+
+/// Process change events and update the system state accordingly
+async fn process_change_event<A, R, E>(
+    event: &LocalChangeEvent,
+    _account_id: AccountId,
+    _paths: Arc<Paths>,
+    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    channel: broadcast::Sender<AccountChangeEvent>,
+) -> Result<()>
+where
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + DelegatedAccess<Error = E>
+        + Sync
+        + Send
+        + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + std::error::Error
+        + ErrorExt
+        + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_backend::Error>
+        + From<sos_vault::Error>
+        + From<sos_search::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
+    match event {
+        LocalChangeEvent::Init => {
+            // Just initialization, nothing to do
+            Ok(())
+        }
+        LocalChangeEvent::AccountCreated(account_id) => {
+            // New account created
+            // NOTE: This would need implementation if we want to handle new accounts
+            tracing::debug!(account_id = %account_id, "account_created_event");
+            // TODO: Implement account creation handling if needed
+            Ok(())
+        }
+        LocalChangeEvent::AccountDeleted(account_id) => {
+            // Account deleted
+            tracing::debug!(account_id = %account_id, "account_deleted_event");
+            // TODO: Implement account deletion handling if needed
+            Ok(())
+        }
+        LocalChangeEvent::AccountModified {
+            account_id,
+            log_type,
+            commit_span: _,
+        } => {
+            // Account was modified - process changes based on log_type
+            tracing::debug!(account_id = %account_id, log_type = ?log_type, "account_modified_event");
+
+            match log_type {
+                EventLogType::Identity
+                | EventLogType::Account
+                | EventLogType::Device => {
+                    // Account-level changes
+                    let mut accounts_lock = accounts.write().await;
+                    let account = accounts_lock
+                        .iter_mut()
+                        .find(|a| a.account_id() == account_id)
+                        .ok_or(Error::from(FileEventError::NoAccount(
+                            account_id.clone(),
+                        )))?;
+
+                    // Reload the identity folder for account-level changes
+                    account.reload_login_folder().await.map_err(|e| {
+                        Error::from(FileEventError::ReloadIdentityFolder(
+                            e.to_string(),
+                        ))
+                    })?;
+
+                    // Load account events
+                    let records = load_account_records(account).await?;
+
+                    // Update folders in memory
+                    tracing::debug!("account_change::load_folders");
+                    if let Err(e) = account.load_folders().await {
+                        tracing::error!(error = %e, "load_folders_error");
+                    }
+
+                    // Update search index
+                    let records_clone =
+                        ChangeRecords::Account(records.clone());
+                    update_account_search_index(account, &records_clone)
+                        .await
+                        .map_err(|e| {
+                            Error::from(FileEventError::UpdateSearchIndex(
+                                e.to_string(),
+                            ))
+                        })?;
+
+                    // Send event if there are records
+                    if !records.is_empty() {
+                        let evt = AccountChangeEvent {
+                            account_id: account_id.clone(),
+                            records: ChangeRecords::Account(records),
+                        };
+                        if let Err(e) = channel.send(evt) {
+                            tracing::error!(error = ?e, "account_channel::send");
+                        }
+                    }
+                    Ok(())
+                }
+                EventLogType::Folder(folder_id) => {
+                    // Folder-level changes
+                    let accounts_lock = accounts.read().await;
+                    let account = accounts_lock
+                        .iter()
+                        .find(|a| a.account_id() == account_id)
+                        .ok_or(Error::from(FileEventError::NoAccount(
+                            account_id.clone(),
+                        )))?;
+
+                    let folder =
+                        account.folder(&folder_id).await.ok().ok_or(
+                            Error::from(FileEventError::NoFolder(*folder_id)),
+                        )?;
+
+                    let event_log = folder.event_log();
+                    let mut event_log = event_log.write().await;
+                    let commit = event_log.tree().last_commit();
+                    let patch =
+                        event_log.diff_events(commit.as_ref()).await?;
+                    let records = patch.into_events::<WriteEvent>().await?;
+
+                    event_log.load_tree().await?;
+
+                    // Update search index for folder changes
+                    {
+                        let mut accounts_lock = accounts.write().await;
+                        if let Some(account) = accounts_lock
+                            .iter_mut()
+                            .find(|a| a.account_id() == account_id)
+                        {
+                            let records_clone = ChangeRecords::Folder(
+                                *folder_id,
+                                records.clone(),
+                            );
+                            update_account_search_index(
+                                account,
+                                &records_clone,
+                            )
+                            .await
+                            .map_err(|e| {
+                                Error::from(
+                                    FileEventError::UpdateSearchIndex(
+                                        e.to_string(),
+                                    ),
+                                )
+                            })?;
+                        }
+                    }
+
+                    // Send event if there are records
+                    if !records.is_empty() {
+                        let evt = AccountChangeEvent {
+                            account_id: account_id.clone(),
+                            records: ChangeRecords::Folder(
+                                *folder_id, records,
+                            ),
+                        };
+                        if let Err(e) = channel.send(evt) {
+                            tracing::error!(error = ?e, "account_channel::send");
+                        }
+                    }
+
+                    Ok(())
+                }
+                #[cfg(feature = "files")]
+                EventLogType::Files => {
+                    // No need to handle file change events
+                    Ok(())
+                }
+            }
+        }
     }
 }
 
@@ -392,173 +541,6 @@ where
     Ok(())
 }
 
-async fn notify_listener<A, R, E>(
-    account_id: AccountId,
-    paths: Arc<Paths>,
-    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
-    watchers: Arc<Mutex<HashMap<AccountId, RecommendedWatcher>>>,
-    mut rx: broadcast::Receiver<notify::Event>,
-    channel: broadcast::Sender<AccountChangeEvent>,
-) -> Result<()>
-where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + DelegatedAccess<Error = E>
-        + Sync
-        + Send
-        + 'static,
-    R: 'static,
-    E: std::fmt::Debug
-        + std::error::Error
-        + ErrorExt
-        + From<sos_core::Error>
-        + From<sos_database::Error>
-        + From<sos_account::Error>
-        + From<sos_backend::Error>
-        + From<sos_vault::Error>
-        + From<sos_search::Error>
-        + From<std::io::Error>
-        + Send
-        + Sync
-        + 'static,
-{
-    let account_name = account_id.to_string();
-
-    while let Ok(event) = rx.recv().await {
-        let path = event.paths.get(0).ok_or(FileEventError::NoEventPath)?;
-        let name = path
-            .file_stem()
-            .ok_or(FileEventError::EventPathStem(path.to_owned()))?
-            .to_string_lossy()
-            .into_owned();
-
-        tracing::debug!(
-          file_stem = %name,
-          account_name = %account_name,
-          "notify_listener::change_event");
-
-        // Identity folder event log changes
-        let records = if name == account_name {
-            let mut accounts = accounts.write().await;
-            let account = accounts
-                .iter_mut()
-                .find(|a| a.account_id() == &account_id)
-                .ok_or(FileEventError::NoAccount(account_id))?;
-
-            // Reload the login folder
-            {
-                account.reload_login_folder().await.map_err(|e| {
-                    FileEventError::ReloadIdentityFolder(e.to_string())
-                })?;
-            }
-
-            let records = load_account_records(account).await?;
-
-            // Check for folder create events and start watching new
-            // folder as they are created.
-            {
-                let mut watchers = watchers.lock();
-                for record in &records {
-                    if let (
-                        AccountEvent::CreateFolder(folder_id, _),
-                        Some(watcher),
-                    ) = (record, watchers.get_mut(&account_id))
-                    {
-                        watch_folder(&folder_id, &*paths, watcher)?;
-                    }
-                }
-            }
-
-            // Update folders in memory
-            {
-                tracing::debug!("account_change::load_folders");
-                if let Err(e) = account.load_folders().await {
-                    tracing::error!(error = %e);
-                }
-            }
-
-            ChangeRecords::Account(records)
-        } else {
-            let folder_id: VaultId = name.parse()?;
-
-            // Event log was removed so we can treat
-            // as a folder delete event, we should
-            // stop watching the folder.
-            if event.kind.is_remove() {
-                {
-                    let mut watchers = watchers.lock();
-                    if let Some(watcher) = watchers.get_mut(&account_id) {
-                        unwatch_folder(&folder_id, &*paths, watcher)?;
-                    }
-                }
-
-                {
-                    let mut accounts = accounts.write().await;
-                    let account = accounts
-                        .iter_mut()
-                        .find(|a| a.account_id() == &account_id)
-                        .ok_or(FileEventError::NoAccount(account_id))?;
-
-                    account.forget_folder(&folder_id).await.ok();
-                }
-                ChangeRecords::Folder(folder_id, vec![])
-            } else {
-                let accounts = accounts.read().await;
-                let account = accounts
-                    .iter()
-                    .find(|a| a.account_id() == &account_id)
-                    .ok_or(FileEventError::NoAccount(account_id))?;
-
-                let folder = account
-                    .folder(&folder_id)
-                    .await
-                    .ok()
-                    .ok_or(FileEventError::NoFolder(folder_id))?;
-
-                let event_log = folder.event_log();
-                let mut event_log = event_log.write().await;
-                let commit = event_log.tree().last_commit();
-                let patch = event_log.diff_events(commit.as_ref()).await?;
-                let records = patch.into_events::<WriteEvent>().await?;
-
-                event_log.load_tree().await?;
-
-                ChangeRecords::Folder(folder_id, records)
-            }
-        };
-
-        // Update the search index
-        {
-            let mut accounts = accounts.write().await;
-
-            if let Some(account) =
-                accounts.iter_mut().find(|a| a.account_id() == &account_id)
-            {
-                update_account_search_index(account, &records)
-                    .await
-                    .map_err(|e| {
-                        FileEventError::UpdateSearchIndex(e.to_string())
-                    })?;
-            }
-        }
-
-        if !records.is_empty() {
-            // Dispatch the event
-            let evt = AccountChangeEvent {
-                account_id,
-                records,
-            };
-            if let Err(e) = channel.send(evt) {
-                tracing::error!(
-                error = ?e,
-                "account_channel::send");
-            }
-        }
-    }
-
-    Ok::<_, Error>(())
-}
-
 async fn load_account_records<A, R, E>(
     account: &A,
 ) -> Result<Vec<AccountEvent>>
@@ -593,29 +575,4 @@ where
 
     event_log.load_tree().await?;
     Ok(records)
-}
-
-/// Start watching folder event log.
-fn watch_folder(
-    folder_id: &VaultId,
-    paths: &Paths,
-    watcher: &mut RecommendedWatcher,
-) -> Result<()> {
-    tracing::debug!(folder_id = %folder_id, "watch::folder");
-    watcher.watch(
-        &paths.event_log_path(folder_id),
-        RecursiveMode::NonRecursive,
-    )?;
-    Ok(())
-}
-
-/// Stop watching folder event log.
-fn unwatch_folder(
-    folder_id: &VaultId,
-    paths: &Paths,
-    watcher: &mut RecommendedWatcher,
-) -> Result<()> {
-    tracing::debug!(folder_id = %folder_id, "unwatch::folder");
-    watcher.unwatch(&paths.event_log_path(folder_id))?;
-    Ok(())
 }

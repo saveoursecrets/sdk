@@ -167,7 +167,7 @@ async fn import_accounts(
             fs_storage,
             &mut client,
             account_paths.clone(),
-            &account,
+            account,
             options,
         )
         .await?;

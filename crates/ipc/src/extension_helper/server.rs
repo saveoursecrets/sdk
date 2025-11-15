@@ -276,7 +276,7 @@ where
         response.body = bytes;
 
         // let tx = channel.clone();
-        if let Err(e) = tx.send(response.into()) {
+        if let Err(e) = tx.send(response) {
             tracing::warn!(
             error = %e,
             "extension_helper::response_channel");

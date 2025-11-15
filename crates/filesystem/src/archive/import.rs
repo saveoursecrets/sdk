@@ -46,7 +46,7 @@ async fn import_archive_reader(
 
     // The app should check the identity does not already exist
     // but we will double check here to be safe
-    let keys = list_accounts(Some(&paths)).await?;
+    let keys = list_accounts(Some(paths)).await?;
     let existing_account = keys
         .iter()
         .find(|k| k.account_id() == &restore_targets.manifest.account_id);
@@ -328,7 +328,7 @@ async fn finish(
         let devices_vault = archive_folder(
             &mut reader,
             &devices_vault_name,
-            hex::decode(&vault_checksum)?,
+            hex::decode(vault_checksum)?,
         )
         .await?;
         let devices_event = archive_buffer(

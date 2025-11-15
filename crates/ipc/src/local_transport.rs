@@ -137,7 +137,7 @@ pub trait HttpMessage {
         Self: Sized,
     {
         let headers =
-            std::mem::replace(self.headers_mut(), Default::default());
+            std::mem::take(self.headers_mut());
         (headers, self.into_body())
     }
 
@@ -158,7 +158,7 @@ pub trait HttpMessage {
     where
         Self: Sized,
     {
-        chunks.sort_by(|a, b| a.chunk_index().cmp(&b.chunk_index()));
+        chunks.sort_by_key(|a| a.chunk_index());
         let mut it = chunks.into_iter();
         let mut message = it.next().expect("to have one chunk");
         for chunk in it {
@@ -487,7 +487,7 @@ impl HttpMessage for LocalResponse {
             vec![self]
         } else {
             let mut messages = Vec::new();
-            let status = self.status.clone();
+            let status = self.status;
             let (headers, body) = self.into_parts();
             let len = if body.len() > chunk_size {
                 let mut len = body.len() / chunk_size;

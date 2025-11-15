@@ -616,6 +616,7 @@ where
         let file = OpenOptions::new()
             .create(true)
             .write(true)
+            .truncate(false)
             .open(path.as_ref())
             .await?;
 
@@ -637,7 +638,7 @@ where
     async fn try_create_snapshot(&self) -> StdResult<Option<PathBuf>, E> {
         if let Some(root) = self.tree().root() {
             let mut snapshot_path = self.data.clone();
-            snapshot_path.set_extension(&format!("snapshot-{}", root));
+            snapshot_path.set_extension(format!("snapshot-{}", root));
 
             let metadata = vfs::metadata(&self.data).await?;
             tracing::debug!(
