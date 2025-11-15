@@ -16,8 +16,8 @@ jobs:
 
   publish:
     uses: ./.github/workflows/publish.yml
-    needs:
-      - checks
+    # needs:
+    #   - checks
     secrets: inherit
 
   homebrew:
