@@ -71,9 +71,9 @@ async fn prepare_env() -> Result<()> {
         let migrations = report.applied_migrations();
         for migration in migrations {
             println!(
-                "Migration      {} {}",
+                "Migration      {} v{}",
                 migration.name(),
-                format!("v{}", migration.version()),
+                migration.version(),
             );
         }
     }

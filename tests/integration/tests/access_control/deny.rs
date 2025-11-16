@@ -19,7 +19,7 @@ async fn access_control_deny() -> Result<()> {
 
     let mut config = default_server_config().await?;
     let mut allowed = simulate_device(TEST_ID, 2, None).await?;
-    let allowed_account_id = allowed.owner.account_id().clone();
+    let allowed_account_id = allowed.owner.account_id();
 
     // Create an account with a different account_id
     let data_dir = allowed.dirs.clients.get(1).unwrap().clone();
@@ -32,7 +32,7 @@ async fn access_control_deny() -> Result<()> {
         Default::default(),
     )
     .await?;
-    let denied_account_id = denied.account_id().clone();
+    let denied_account_id = *denied.account_id();
     let key: AccessKey = password.into();
     denied.sign_in(&key).await?;
 
