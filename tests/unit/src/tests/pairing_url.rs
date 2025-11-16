@@ -11,7 +11,7 @@ fn pair_server_url() -> Result<()> {
     let mock_url = Url::parse(&format!("{}/foo?bar=baz+qux", SERVER))?;
     let mock_key = vec![1, 2, 3, 4];
     let share = ServerPairUrl::new(
-        mock_account_id.clone(),
+        mock_account_id,
         mock_url.clone(),
         mock_key.clone(),
     );

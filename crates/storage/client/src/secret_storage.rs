@@ -9,10 +9,13 @@ use async_trait::async_trait;
 use sos_backend::StorageError;
 use sos_core::{
     events::{ReadEvent, WriteEvent},
-    AuthenticationError, SecretId, VaultCommit, VaultId,
+    SecretId, VaultCommit, VaultId,
 };
 use sos_vault::secret::{Secret, SecretMeta, SecretRow};
 use sos_vault::Summary;
+
+#[cfg(feature = "files")]
+use sos_core::AuthenticationError;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -27,7 +30,10 @@ where
     async fn create_secret(
         &mut self,
         secret_data: SecretRow,
-        #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
+        #[cfg(not(feature = "files"))]
+        options: AccessOptions,
+        #[cfg(feature = "files")]
+        mut options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
         self.guard_authenticated(Internal)?;
 
@@ -229,7 +235,10 @@ where
         folder: &Summary,
         id: &SecretId,
         mut secret_data: SecretRow,
-        #[allow(unused_variables)] is_update: bool,
+        #[cfg(not(feature = "search"))]
+        _is_update: bool,
+        #[cfg(feature = "search")]
+        is_update: bool,
         _: Internal,
     ) -> Result<WriteEvent> {
         // let summary = self.current_folder().ok_or(Error::NoOpenVault)?;

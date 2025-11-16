@@ -17,7 +17,7 @@ use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
     encode,
     events::{
-        patch::FolderPatch, AccountEvent, DeviceEvent, Event, EventKind,
+        patch::FolderPatch, AccountEvent, DeviceEvent, Event, 
         EventLog, EventRecord, ReadEvent, WriteEvent,
     },
     AccountId, AuthenticationError, FolderRef, Paths, SecretId, StorageError,
@@ -42,6 +42,7 @@ use sos_search::{AccountSearch, DocumentCount};
 use {
     sos_audit::{AuditData, AuditEvent},
     sos_backend::audit::append_audit_events,
+    sos_core::events::EventKind,
 };
 
 #[cfg(feature = "files")]
