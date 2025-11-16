@@ -56,7 +56,7 @@ pub async fn choose_account() -> Result<Option<PublicIdentity>> {
         let prompt = Some("Choose account: ");
         let result =
             choose(prompt, &options, true)?.expect("choice to be required");
-        return Ok(Some(result.clone()));
+        Ok(Some(result.clone()))
     }
 }
 

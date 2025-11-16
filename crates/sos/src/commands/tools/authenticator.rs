@@ -108,7 +108,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let access_point = folder.access_point();
                 let mut access_point = access_point.lock().await;
 
-                import_authenticator(file, &mut *access_point).await?;
+                import_authenticator(file, &mut access_point).await?;
                 success("authenticator TOTP secrets imported");
             }
         }
