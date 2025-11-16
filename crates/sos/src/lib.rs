@@ -7,6 +7,8 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 
+#![allow(clippy::result_large_err)]
+
 #[doc(hidden)]
 pub mod cli;
 #[doc(hidden)]

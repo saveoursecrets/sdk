@@ -290,7 +290,7 @@ pub(crate) async fn import_account(
             let map: SystemMessageMap = serde_json::from_str(&contents)?;
 
             let mut rows: Vec<SystemMessageRow> = Vec::new();
-            for item in map.into_iter() {
+            for item in map {
                 rows.push(item.try_into()?);
             }
             Some(rows)

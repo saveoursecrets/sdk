@@ -1479,7 +1479,7 @@ impl Secret {
             }
             Secret::File { .. } => false,
             Secret::List { items, .. } => {
-                for (_, value) in items {
+                for value in items.values_mut() {
                     redact_string(value);
                 }
                 true
