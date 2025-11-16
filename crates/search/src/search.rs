@@ -94,12 +94,7 @@ fn comment_extract(d: &Document) -> Vec<&str> {
 
 // Website
 fn website_extract(d: &Document) -> Vec<&str> {
-    if let Some(websites) = d.extra().websites() {
-        websites
-        // vec![]
-    } else {
-        vec![]
-    }
+    d.extra().websites().unwrap_or_default()
 }
 
 /// Count of documents by vault identitier and secret kind.

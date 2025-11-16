@@ -646,7 +646,7 @@ where
 
                         if vfs::try_exists(path).await? {
                             let item = FileOperation(
-                                dest.clone(),
+                                *dest,
                                 TransferOperation::Upload,
                             );
                             let mut queue = request_queue.write().await;

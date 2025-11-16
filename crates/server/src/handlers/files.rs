@@ -262,6 +262,7 @@ pub(crate) async fn send_file(
         ),
     ),
 )]
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn move_file(
     Extension(state): Extension<ServerState>,
     Extension(backend): Extension<ServerBackend>,

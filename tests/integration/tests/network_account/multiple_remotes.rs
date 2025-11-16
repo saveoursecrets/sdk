@@ -37,7 +37,7 @@ async fn network_sync_multiple_remotes() -> Result<()> {
     // Assert on first server
     let mut bridge = device
         .owner
-        .remove_server(&(server1.origin).into())
+        .remove_server(&server1.origin)
         .await?
         .unwrap();
     assert_local_remote_events_eq(
@@ -50,7 +50,7 @@ async fn network_sync_multiple_remotes() -> Result<()> {
     // Assert on second server
     let mut bridge = device
         .owner
-        .remove_server(&(server2.origin).into())
+        .remove_server(&server2.origin)
         .await?
         .unwrap();
     assert_local_remote_events_eq(

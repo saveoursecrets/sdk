@@ -130,7 +130,7 @@ impl ClientDatabaseStorage {
         login_vault.set_name(account_name.to_owned());
         *login_vault.flags_mut() = VaultFlags::IDENTITY;
 
-        let account_row = AccountRow::new_insert(&account_id, account_name)?;
+        let account_row = AccountRow::new_insert(account_id, account_name)?;
         let folder_row = FolderRow::new_insert(&login_vault).await?;
         let account_row_id = client
             .conn_mut(move |conn| {
@@ -303,7 +303,7 @@ impl ClientVaultStorage for ClientDatabaseStorage {
         FolderEntity::upsert_folder_and_secrets(
             &self.client,
             self.account_row_id,
-            &vault,
+            vault,
         )
         .await?;
         Ok(encode(vault).await?)
@@ -345,9 +345,7 @@ impl ClientVaultStorage for ClientDatabaseStorage {
             .client
             .conn_and_then(move |conn| {
                 let folders = FolderEntity::new(&conn);
-                Ok::<_, sos_database::Error>(
-                    folders.list_user_folders(account_id)?,
-                )
+                folders.list_user_folders(account_id)
             })
             .await?;
         let mut folders = Vec::new();

@@ -120,7 +120,7 @@ async fn assert_server_storage(
     let name = "Folder Name";
     storage.rename_folder(vault.id(), name).await?;
     let summaries = storage.load_folders().await?;
-    assert_eq!(name, summaries.get(0).unwrap().name());
+    assert_eq!(name, summaries.first().unwrap().name());
 
     storage.delete_folder(&folder_id).await?;
 
