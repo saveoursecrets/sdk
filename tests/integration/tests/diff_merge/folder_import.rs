@@ -1,4 +1,4 @@
-use crate::test_utils::{copy_account, mock, setup, teardown};
+use sos_test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount};
 use sos_client_storage::NewFolderOptions;
@@ -16,7 +16,7 @@ use sos_vfs as vfs;
 #[tokio::test]
 async fn diff_merge_folder_import() -> Result<()> {
     const TEST_ID: &str = "diff_merge_folder_import";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 3).await?;
     let data_dir = dirs.clients.remove(0);

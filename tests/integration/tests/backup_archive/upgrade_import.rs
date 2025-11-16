@@ -12,7 +12,7 @@ use std::{path::Path, sync::Arc};
 #[tokio::test]
 async fn backup_upgrade_import_v1() -> Result<()> {
     const TEST_ID: &str = "backup_upgrade_import_v1";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -32,7 +32,7 @@ async fn backup_upgrade_import_v1() -> Result<()> {
 #[tokio::test]
 async fn backup_upgrade_import_v2() -> Result<()> {
     const TEST_ID: &str = "backup_upgrade_import_v2";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

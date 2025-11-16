@@ -2,7 +2,7 @@
 use anyhow::Result;
 use sos_test_utils::make_client_backend;
 
-use crate::test_utils::{mock::files::create_file_secret, setup, teardown};
+use sos_test_utils::{mock::files::create_file_secret, setup, teardown};
 use sos_account::{Account, LocalAccount};
 use sos_integrity::{file_integrity, FileIntegrityEvent, IntegrityFailure};
 use sos_sdk::prelude::*;
@@ -12,7 +12,7 @@ use sos_sync::StorageEventLogs;
 #[tokio::test]
 async fn file_integrity_ok() -> Result<()> {
     const TEST_ID: &str = "file_integrity_ok";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -69,7 +69,7 @@ async fn file_integrity_ok() -> Result<()> {
 #[tokio::test]
 async fn file_integrity_missing_file() -> Result<()> {
     const TEST_ID: &str = "file_integrity_missing_file";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -132,7 +132,7 @@ async fn file_integrity_missing_file() -> Result<()> {
 #[tokio::test]
 async fn file_integrity_corrupted() -> Result<()> {
     const TEST_ID: &str = "file_integrity_corrupted";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -196,7 +196,7 @@ async fn file_integrity_corrupted() -> Result<()> {
 #[cfg_attr(windows, ignore = "fails with SendError in CI")]
 async fn file_integrity_cancel() -> Result<()> {
     const TEST_ID: &str = "file_integrity_cancel";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

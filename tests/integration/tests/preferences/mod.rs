@@ -3,9 +3,6 @@ mod global_preferences;
 mod local_account;
 mod no_account;
 
-pub use sos_test_utils as test_utils;
-pub use test_utils::assert::assert_preferences;
-
 pub fn test_preferences_concurrency<'a>(
     data_dir: &'a str,
     value: &'a str,

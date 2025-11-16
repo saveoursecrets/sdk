@@ -1,4 +1,4 @@
-use crate::test_utils::{copy_account, mock, setup, teardown};
+use sos_test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount, SecretChange};
 use sos_core::{crypto::AccessKey, Paths};
@@ -12,7 +12,7 @@ use sos_test_utils::make_client_backend;
 #[tokio::test]
 async fn diff_merge_secret_update() -> Result<()> {
     const TEST_ID: &str = "diff_merge_secret_update";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 2).await?;
     let data_dir = dirs.clients.remove(0);

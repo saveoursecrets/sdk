@@ -1,4 +1,4 @@
-use crate::test_utils::{
+use sos_test_utils::{
     assert_local_remote_events_eq, assert_local_remote_vaults_eq,
     simulate_device, spawn, sync_pause, teardown,
 };
@@ -11,7 +11,7 @@ use sos_account::{Account, FolderChange};
 #[tokio::test]
 async fn network_sync_listen_folder_rename() -> Result<()> {
     const TEST_ID: &str = "sync_listen_folder_rename";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

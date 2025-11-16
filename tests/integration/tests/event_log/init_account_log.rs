@@ -1,4 +1,4 @@
-use crate::test_utils::{setup, teardown};
+use sos_test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_backend::AccountEventLog;
@@ -14,7 +14,7 @@ use sos_test_utils::make_client_backend;
 #[tokio::test]
 async fn event_log_init_account_log() -> Result<()> {
     const TEST_ID: &str = "event_log_init_account_log";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

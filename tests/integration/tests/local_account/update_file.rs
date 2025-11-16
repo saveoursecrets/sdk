@@ -1,4 +1,4 @@
-use crate::test_utils::{mock, setup, teardown};
+use sos_test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount, SecretChange};
 use sos_core::ExternalFileName;
@@ -10,7 +10,7 @@ use sos_vfs as vfs;
 #[tokio::test]
 async fn local_update_file() -> Result<()> {
     const TEST_ID: &str = "update_file";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

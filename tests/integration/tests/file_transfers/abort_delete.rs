@@ -1,7 +1,7 @@
 //! Test for aborting an existing transfer when deleting a secret.
 use anyhow::Result;
 
-use crate::test_utils::{
+use sos_test_utils::{
     assert_local_remote_file_not_exist, mock::files::create_file_secret,
     simulate_device, spawn, teardown, wait_for_num_transfers,
 };
@@ -15,7 +15,7 @@ use sos_sdk::prelude::*;
 async fn file_transfers_abort_delete() -> Result<()> {
     const TEST_ID: &str = "file_transfers_abort_delete";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

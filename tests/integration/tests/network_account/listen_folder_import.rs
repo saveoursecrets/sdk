@@ -1,4 +1,4 @@
-use crate::test_utils::{
+use sos_test_utils::{
     assert_local_remote_events_eq, mock, simulate_device, spawn, sync_pause,
     teardown,
 };
@@ -15,7 +15,7 @@ use sos_vault::SecretAccess;
 #[tokio::test]
 async fn network_sync_listen_folder_import() -> Result<()> {
     const TEST_ID: &str = "sync_listen_folder_import";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

@@ -1,4 +1,4 @@
-use crate::test_utils::{
+use sos_test_utils::{
     assert_local_remote_events_eq, run_pairing_protocol, simulate_device,
     spawn, teardown,
 };
@@ -12,7 +12,7 @@ use sos_protocol::{AccountSync, Error as ProtocolError, NetworkError};
 #[tokio::test]
 async fn pairing_device_revoke() -> Result<()> {
     const TEST_ID: &str = "pairing_device_revoke";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

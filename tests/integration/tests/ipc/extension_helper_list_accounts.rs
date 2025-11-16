@@ -15,7 +15,7 @@ use sos_test_utils::{make_client_backend, setup, teardown};
 async fn integration_ipc_extension_helper_list_accounts_empty() -> Result<()>
 {
     const TEST_ID: &str = "ipc_extension_helper_list_accounts_empty";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -47,7 +47,7 @@ async fn integration_ipc_extension_helper_list_accounts_empty() -> Result<()>
 #[tokio::test]
 async fn integration_ipc_extension_helper_list_accounts() -> Result<()> {
     const TEST_ID: &str = "ipc_extension_helper_list_accounts";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

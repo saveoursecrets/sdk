@@ -1,4 +1,4 @@
-use crate::test_utils::{mock, simulate_device, spawn, teardown};
+use sos_test_utils::{mock, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, SecretChange};
 use sos_client_storage::NewFolderOptions;
@@ -10,7 +10,7 @@ use sos_sdk::prelude::*;
 #[tokio::test]
 async fn network_authenticator_sync() -> Result<()> {
     const TEST_ID: &str = "authenticator_sync";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

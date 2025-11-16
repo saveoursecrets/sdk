@@ -1,7 +1,4 @@
-use crate::{
-    assert_preferences,
-    test_utils::{setup, teardown},
-};
+use sos_test_utils::{setup, teardown, assert::assert_preferences};
 use anyhow::Result;
 use sos_backend::Preferences;
 use sos_core::Paths;
@@ -12,7 +9,7 @@ use sos_test_utils::make_client_backend;
 #[tokio::test]
 async fn preferences_global() -> Result<()> {
     const TEST_ID: &str = "preferences_global";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

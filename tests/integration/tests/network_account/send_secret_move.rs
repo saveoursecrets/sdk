@@ -1,4 +1,4 @@
-use crate::test_utils::{
+use sos_test_utils::{
     assert_local_remote_events_eq, mock, num_events, simulate_device, spawn,
     teardown,
 };
@@ -12,7 +12,7 @@ use sos_protocol::AccountSync;
 #[tokio::test]
 async fn network_sync_secret_move() -> Result<()> {
     const TEST_ID: &str = "sync_secret_move";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

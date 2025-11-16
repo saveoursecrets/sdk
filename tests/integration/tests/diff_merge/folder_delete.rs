@@ -1,4 +1,4 @@
-use crate::test_utils::{copy_account, setup, teardown};
+use sos_test_utils::{copy_account, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount};
 use sos_client_storage::NewFolderOptions;
@@ -12,7 +12,7 @@ use sos_test_utils::make_client_backend;
 #[tokio::test]
 async fn diff_merge_folder_delete() -> Result<()> {
     const TEST_ID: &str = "diff_merge_folder_delete";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 2).await?;
     let data_dir = dirs.clients.remove(0);

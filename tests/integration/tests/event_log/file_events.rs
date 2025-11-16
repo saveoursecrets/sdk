@@ -1,5 +1,5 @@
 use super::all_events;
-use crate::test_utils::{mock, setup, teardown};
+use sos_test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{
     Account, FolderCreate, LocalAccount, SecretChange, SecretMove,
@@ -18,7 +18,7 @@ use sos_vault::secret::SecretRow;
 async fn event_log_file() -> Result<()> {
     const TEST_ID: &str = "event_log_file";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -126,7 +126,7 @@ async fn event_log_file() -> Result<()> {
 async fn event_log_file_folder_delete() -> Result<()> {
     const TEST_ID: &str = "event_log_file_folder_delete";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

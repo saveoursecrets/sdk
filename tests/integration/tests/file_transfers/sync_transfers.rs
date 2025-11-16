@@ -1,7 +1,7 @@
 //! Tests for creating files before a remote server is configured
 //! then starting a server, adding it to the client, syncing and
 //! transferring the files to the server.
-use crate::test_utils::{
+use sos_test_utils::{
     assert_local_remote_file_eq,
     mock::files::{create_attachment, create_file_secret},
     simulate_device, spawn, teardown, wait_for_num_transfers,
@@ -23,7 +23,7 @@ use sos_sdk::prelude::*;
 async fn file_transfers_sync_file_transfers() -> Result<()> {
     const TEST_ID: &str = "file_transfers_sync_file_transfers";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 1, None).await?;

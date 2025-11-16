@@ -16,14 +16,14 @@ use sos_web_account::{LinkedAccount, LocalIntegration};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::test_utils::{mock, setup, simulate_device, spawn, teardown};
+use sos_test_utils::{mock, setup, simulate_device, spawn, teardown};
 
 /// Test for syncing between a linked account and another
 /// account.
 #[tokio::test]
 async fn integration_ipc_linked_account() -> Result<()> {
     const TEST_ID: &str = "ipc_linked_account";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
     //
 
     // Spawn a backend server and wait for it to be listening

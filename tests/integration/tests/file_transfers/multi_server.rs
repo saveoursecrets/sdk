@@ -3,7 +3,7 @@
 use anyhow::Result;
 use sos_client_storage::NewFolderOptions;
 
-use crate::test_utils::{
+use sos_test_utils::{
     assert_local_remote_file_eq, assert_local_remote_file_not_exist,
     mock::files::{create_file_secret, update_file_secret},
     simulate_device, spawn, teardown, wait_for_num_transfers,
@@ -17,7 +17,7 @@ use sos_sdk::prelude::*;
 #[tokio::test]
 async fn file_transfers_multi_upload() -> Result<()> {
     const TEST_ID: &str = "file_transfers_multi_upload";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn some backend servers
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;
@@ -63,7 +63,7 @@ async fn file_transfers_multi_upload() -> Result<()> {
 async fn file_transfers_multi_update() -> Result<()> {
     const TEST_ID: &str = "file_transfers_multi_update";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn some backend servers
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;
@@ -122,7 +122,7 @@ async fn file_transfers_multi_update() -> Result<()> {
 async fn file_transfers_multi_move() -> Result<()> {
     const TEST_ID: &str = "file_transfers_multi_move";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn some backend servers
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;
@@ -187,7 +187,7 @@ async fn file_transfers_multi_move() -> Result<()> {
 async fn file_transfers_multi_delete() -> Result<()> {
     const TEST_ID: &str = "file_transfers_multi_delete";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn some backend servers
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;
@@ -250,7 +250,7 @@ async fn file_transfers_multi_delete() -> Result<()> {
 async fn file_transfers_multi_download() -> Result<()> {
     const TEST_ID: &str = "file_transfers_multi_download";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn some backend servers
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;

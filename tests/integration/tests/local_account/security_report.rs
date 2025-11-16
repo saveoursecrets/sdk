@@ -1,4 +1,4 @@
-use crate::test_utils::{setup, teardown};
+use sos_test_utils::{setup, teardown};
 use anyhow::Result;
 use secrecy::SecretString;
 use sos_account::{Account, LocalAccount, SecretChange};
@@ -10,7 +10,7 @@ use zxcvbn::Score;
 #[tokio::test]
 async fn local_security_report() -> Result<()> {
     const TEST_ID: &str = "security_report";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

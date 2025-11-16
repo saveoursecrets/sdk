@@ -1,4 +1,4 @@
-use crate::test_utils::{
+use sos_test_utils::{
     mock::{
         self,
         files::{
@@ -24,7 +24,7 @@ use tokio::sync::{mpsc, Mutex};
 #[tokio::test]
 async fn local_external_files() -> Result<()> {
     const TEST_ID: &str = "external_files";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

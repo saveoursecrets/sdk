@@ -1,4 +1,4 @@
-use crate::test_utils::{
+use sos_test_utils::{
     assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
 };
 use anyhow::Result;
@@ -10,7 +10,7 @@ use sos_protocol::AccountSync;
 #[tokio::test]
 async fn network_sync_multiple_remotes() -> Result<()> {
     const TEST_ID: &str = "sync_multiple_remotes";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn some backend servers
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;

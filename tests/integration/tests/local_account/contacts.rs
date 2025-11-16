@@ -1,4 +1,4 @@
-use crate::test_utils::{setup, teardown};
+use sos_test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_sdk::prelude::*;
@@ -14,7 +14,7 @@ const AVATAR: &str = include_str!("../../../fixtures/avatar.vcf");
 async fn local_contacts() -> Result<()> {
     const TEST_ID: &str = "contacts";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let expected_contact = CONTACT.replace("\r", "");
 

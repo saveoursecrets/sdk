@@ -7,8 +7,6 @@ mod import_archive_server;
 mod upgrade_client;
 mod upgrade_server;
 
-pub use sos_test_utils as test_utils;
-
 use anyhow::Result;
 use sos_core::{
     constants::{IDENTITY_DIR, LOCAL_DIR, REMOTE_DIR},
@@ -17,7 +15,7 @@ use sos_core::{
 use sos_database::archive;
 use sos_external_files::list_external_files;
 use std::path::PathBuf;
-use test_utils::{copy_dir, TestDirs};
+use sos_test_utils::{copy_dir, TestDirs};
 
 pub fn prepare_client_for_upgrade(dirs: &TestDirs) -> Result<()> {
     let data_dir = &dirs.test_dir;

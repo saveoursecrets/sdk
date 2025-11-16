@@ -1,4 +1,4 @@
-use crate::test_utils::{mock, setup, teardown};
+use sos_test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount, SecretChange};
 use sos_sdk::prelude::*;
@@ -9,7 +9,7 @@ use sos_test_utils::make_client_backend;
 #[tokio::test]
 async fn local_search_favorites() -> Result<()> {
     const TEST_ID: &str = "search_favorites";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

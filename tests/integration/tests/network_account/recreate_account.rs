@@ -1,4 +1,4 @@
-use crate::test_utils::{
+use sos_test_utils::{
     assert_local_remote_events_eq, assert_local_remote_vaults_eq,
     simulate_device, spawn, teardown,
 };
@@ -12,7 +12,7 @@ use sos_remote_sync::RemoteSyncHandler;
 #[tokio::test]
 async fn network_sync_recreate_account() -> Result<()> {
     const TEST_ID: &str = "sync_recreate_account";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

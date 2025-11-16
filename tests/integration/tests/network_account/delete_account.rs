@@ -1,4 +1,4 @@
-use crate::test_utils::{simulate_device, spawn, teardown};
+use sos_test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_account::Account;
 use sos_protocol::SyncClient;
@@ -10,7 +10,7 @@ use sos_remote_sync::RemoteSyncHandler;
 async fn network_sync_delete_account() -> Result<()> {
     const TEST_ID: &str = "sync_delete_account";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

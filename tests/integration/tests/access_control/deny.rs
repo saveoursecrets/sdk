@@ -1,4 +1,4 @@
-use crate::test_utils::{
+use sos_test_utils::{
     default_server_config, simulate_device, spawn_with_config, teardown,
 };
 use anyhow::Result;
@@ -15,7 +15,7 @@ use std::collections::HashSet;
 #[tokio::test]
 async fn access_control_deny() -> Result<()> {
     const TEST_ID: &str = "access_control_deny";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut config = default_server_config().await?;
     let mut allowed = simulate_device(TEST_ID, 2, None).await?;

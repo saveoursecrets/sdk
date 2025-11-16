@@ -14,7 +14,7 @@ use sos_test_utils::{setup, teardown};
 #[tokio::test]
 async fn backup_import_v3() -> Result<()> {
     const TEST_ID: &str = "backup_import_v3";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -42,7 +42,7 @@ async fn backup_import_v3() -> Result<()> {
 #[tokio::test]
 async fn backup_import_v3_account() -> Result<()> {
     const TEST_ID: &str = "backup_import_v3_account";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

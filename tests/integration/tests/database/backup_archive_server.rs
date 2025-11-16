@@ -1,5 +1,5 @@
 use super::prepare_server_for_upgrade;
-use crate::test_utils::{setup, teardown};
+use sos_test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_core::Paths;
 use sos_database::archive;
@@ -12,7 +12,7 @@ use sos_database_upgrader::{upgrade_accounts, UpgradeOptions};
 #[tokio::test]
 async fn database_backup_archive_server() -> Result<()> {
     const TEST_ID: &str = "database_backup_archive_server";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     let dirs = setup(TEST_ID, 0).await?;
     prepare_server_for_upgrade(&dirs)?;

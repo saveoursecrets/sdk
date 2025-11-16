@@ -1,4 +1,4 @@
-use crate::test_utils::{simulate_device, spawn, teardown, wait_for_cond};
+use sos_test_utils::{simulate_device, spawn, teardown, wait_for_cond};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, FolderDelete};
 use sos_client_storage::NewFolderOptions;
@@ -11,7 +11,7 @@ use sos_vfs as vfs;
 #[tokio::test]
 async fn network_sync_listen_folder_delete() -> Result<()> {
     const TEST_ID: &str = "sync_listen_folder_delete";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

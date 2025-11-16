@@ -7,5 +7,3 @@ mod secret_create;
 mod secret_delete;
 mod secret_move;
 mod secret_update;
-
-pub use sos_test_utils as test_utils;

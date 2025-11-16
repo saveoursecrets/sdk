@@ -13,5 +13,3 @@ mod secret_lifecycle;
 mod security_report;
 mod time_travel;
 mod update_file;
-
-pub use sos_test_utils as test_utils;

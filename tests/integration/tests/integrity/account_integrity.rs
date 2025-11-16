@@ -3,7 +3,7 @@ use anyhow::Result;
 use sos_backend::BackendTarget;
 use sos_database::entity::FolderEntity;
 
-use crate::test_utils::{mock::files::create_file_secret, setup, teardown};
+use sos_test_utils::{mock::files::create_file_secret, setup, teardown};
 use sos_account::{Account, LocalAccount};
 use sos_integrity::{
     account_integrity, FolderIntegrityEvent, IntegrityFailure,
@@ -15,7 +15,7 @@ use sos_test_utils::make_client_backend;
 #[tokio::test]
 async fn account_integrity_ok() -> Result<()> {
     const TEST_ID: &str = "account_integrity_ok";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -74,7 +74,7 @@ async fn account_integrity_ok() -> Result<()> {
 async fn account_integrity_missing_file() -> Result<()> {
     const TEST_ID: &str = "account_integrity_missing_file";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -133,7 +133,7 @@ async fn account_integrity_missing_file() -> Result<()> {
 async fn account_integrity_corrupted_vault() -> Result<()> {
     const TEST_ID: &str = "account_integrity_corrupted_vault";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -192,7 +192,7 @@ async fn account_integrity_corrupted_vault() -> Result<()> {
 #[tokio::test]
 async fn account_integrity_corrupted_event() -> Result<()> {
     const TEST_ID: &str = "account_integrity_corrupted_event";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -250,7 +250,7 @@ async fn account_integrity_corrupted_event() -> Result<()> {
 async fn account_integrity_cancel() -> Result<()> {
     const TEST_ID: &str = "account_integrity_cancel";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

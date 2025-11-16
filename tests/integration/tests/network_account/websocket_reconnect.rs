@@ -1,4 +1,4 @@
-use crate::test_utils::{
+use sos_test_utils::{
     simulate_device, spawn, teardown, wait_num_websocket_connections,
 };
 use anyhow::Result;
@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 #[tokio::test]
 async fn network_websocket_reconnect() -> Result<()> {
     const TEST_ID: &str = "websocket_reconnect";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

@@ -4,8 +4,6 @@ mod extension_helper_list_accounts;
 mod extension_helper_probe;
 mod memory_server;
 
-pub use sos_test_utils as test_utils;
-
 pub fn extension_helper_cmd<'a>(
     data_dir: &'a str,
 ) -> (&'static str, Vec<&'a str>) {

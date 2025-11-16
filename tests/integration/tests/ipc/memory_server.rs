@@ -10,7 +10,7 @@ use sos_test_utils::teardown;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::test_utils::setup;
+use sos_test_utils::setup;
 
 /// Test the in-memory HTTP server in isolation outside
 /// of the context of the native bridge code.
@@ -20,7 +20,7 @@ use crate::test_utils::setup;
 #[tokio::test]
 async fn integration_ipc_memory_server() -> Result<()> {
     const TEST_ID: &str = "ipc_memory_server";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

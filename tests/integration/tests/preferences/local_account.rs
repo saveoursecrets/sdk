@@ -1,7 +1,4 @@
-use crate::{
-    assert_preferences,
-    test_utils::{make_client_backend, setup, teardown},
-};
+use sos_test_utils::{make_client_backend, setup, teardown, assert::assert_preferences};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_backend::Preferences;
@@ -13,7 +10,7 @@ use sos_sdk::prelude::*;
 #[tokio::test]
 async fn preferences_local_account() -> Result<()> {
     const TEST_ID: &str = "preferences_local_account";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
