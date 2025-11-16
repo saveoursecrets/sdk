@@ -1,11 +1,11 @@
-use sos_test_utils::{
-    assert_local_remote_events_eq, num_events, simulate_device, spawn,
-    teardown,
-};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
 use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
+use sos_test_utils::{
+    assert_local_remote_events_eq, num_events, simulate_device, spawn,
+    teardown,
+};
 
 /// Tests sending create folder events to a remote.
 #[tokio::test]

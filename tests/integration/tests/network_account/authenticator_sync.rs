@@ -1,9 +1,9 @@
-use sos_test_utils::{mock, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, SecretChange};
 use sos_client_storage::NewFolderOptions;
 use sos_protocol::AccountSync;
 use sos_sdk::prelude::*;
+use sos_test_utils::{mock, simulate_device, spawn, teardown};
 
 /// Tests syncing an authenticator folder after
 /// disabling the NO_SYNC flag.

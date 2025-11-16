@@ -1,9 +1,9 @@
+use anyhow::Result;
+use sos_account::{Account, FolderChange};
 use sos_test_utils::{
     assert_local_remote_events_eq, assert_local_remote_vaults_eq,
     simulate_device, spawn, sync_pause, teardown,
 };
-use anyhow::Result;
-use sos_account::{Account, FolderChange};
 
 /// Tests syncing folder rename events between two clients
 /// where the second client listens for changes emitted

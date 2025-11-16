@@ -1,9 +1,9 @@
-use sos_test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount, SecretChange};
 use sos_sdk::prelude::*;
 use sos_search::DocumentView;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{mock, setup, teardown};
 
 /// Tests the favorites view.
 #[tokio::test]

@@ -1,10 +1,10 @@
-use sos_test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_backend::Preferences;
 use sos_core::AccountId;
 use sos_preferences::{Preference, PreferenceManager};
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{setup, teardown};
 
 /// Tests the cached preferences without any accounts or authentication.
 #[tokio::test]

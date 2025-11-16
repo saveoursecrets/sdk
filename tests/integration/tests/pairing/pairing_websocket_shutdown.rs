@@ -1,8 +1,8 @@
-use sos_test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
 use futures::{stream::FuturesUnordered, Future, StreamExt};
 use sos_account::Account;
 use sos_net::pairing::{self, OfferPairing};
+use sos_test_utils::{simulate_device, spawn, teardown};
 use std::pin::Pin;
 use tokio::sync::mpsc;
 

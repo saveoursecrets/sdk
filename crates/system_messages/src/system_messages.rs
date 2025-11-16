@@ -2,10 +2,10 @@ use crate::Error;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
+use std::collections::hash_map::{IntoIter, Iter, IterMut};
 use std::{cmp::Ordering, collections::HashMap};
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
-use std::collections::hash_map::{Iter, IterMut, IntoIter};
 use urn::Urn;
 
 /// Boxed storage provider.
@@ -217,12 +217,16 @@ pub struct SystemMessageMap(
 
 impl SystemMessageMap {
     /// Iterator for the system messages.
-    pub fn iter(&self) -> std::collections::hash_map::Iter<'_, Urn, SysMessage> {
+    pub fn iter(
+        &self,
+    ) -> std::collections::hash_map::Iter<'_, Urn, SysMessage> {
         self.0.iter()
     }
 
     /// Mutable iterator for the system messages.
-    pub fn iter_mut(&mut self) -> std::collections::hash_map::IterMut<'_, Urn, SysMessage> {
+    pub fn iter_mut(
+        &mut self,
+    ) -> std::collections::hash_map::IterMut<'_, Urn, SysMessage> {
         self.0.iter_mut()
     }
 }

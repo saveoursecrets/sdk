@@ -1,8 +1,8 @@
+use anyhow::Result;
+use sos_account::{Account, FolderChange};
 use sos_test_utils::{
     assert_local_remote_events_eq, simulate_device, spawn, teardown,
 };
-use anyhow::Result;
-use sos_account::{Account, FolderChange};
 
 /// Tests sending create folder events to a remote.
 #[tokio::test]

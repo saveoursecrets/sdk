@@ -1,7 +1,7 @@
-use sos_test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_account::Account;
 use sos_sdk::prelude::*;
+use sos_test_utils::{simulate_device, spawn, teardown};
 
 /// Tests the logic for saving and loading remote definitions.
 #[tokio::test]

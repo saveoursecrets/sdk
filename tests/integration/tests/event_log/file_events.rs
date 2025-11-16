@@ -1,5 +1,4 @@
 use super::all_events;
-use sos_test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{
     Account, FolderCreate, LocalAccount, SecretChange, SecretMove,
@@ -11,6 +10,7 @@ use sos_core::{
 };
 use sos_password::diceware::generate_passphrase;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{mock, setup, teardown};
 use sos_vault::secret::SecretRow;
 
 /// Tests the various file events are being logged.

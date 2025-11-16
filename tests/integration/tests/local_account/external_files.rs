@@ -1,3 +1,11 @@
+use anyhow::Result;
+use sos_account::{Account, FolderCreate, LocalAccount, SecretMove};
+use sos_client_storage::{AccessOptions, NewFolderOptions};
+use sos_core::commit::ZERO;
+use sos_core::ExternalFileName;
+use sos_external_files::FileProgress;
+use sos_sdk::prelude::*;
+use sos_test_utils::make_client_backend;
 use sos_test_utils::{
     mock::{
         self,
@@ -8,14 +16,6 @@ use sos_test_utils::{
     },
     setup, teardown,
 };
-use anyhow::Result;
-use sos_account::{Account, FolderCreate, LocalAccount, SecretMove};
-use sos_client_storage::{AccessOptions, NewFolderOptions};
-use sos_core::commit::ZERO;
-use sos_core::ExternalFileName;
-use sos_external_files::FileProgress;
-use sos_sdk::prelude::*;
-use sos_test_utils::make_client_backend;
 use sos_vfs as vfs;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};

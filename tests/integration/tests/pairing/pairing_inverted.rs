@@ -1,10 +1,10 @@
+use anyhow::Result;
+use sos_account::Account;
+use sos_protocol::AccountSync;
 use sos_test_utils::{
     assert_local_remote_events_eq, mock, run_inverted_pairing_protocol,
     simulate_device, spawn, teardown,
 };
-use anyhow::Result;
-use sos_account::Account;
-use sos_protocol::AccountSync;
 
 /// Tests the protocol for pairing devices using the inverted flow.
 #[tokio::test]

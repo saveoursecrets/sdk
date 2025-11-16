@@ -1,11 +1,11 @@
-use sos_test_utils::{
-    assert_local_remote_events_eq, assert_local_remote_vaults_eq,
-    simulate_device, spawn, teardown,
-};
 use anyhow::Result;
 use sos_account::Account;
 use sos_protocol::{AccountSync, SyncClient};
 use sos_remote_sync::RemoteSyncHandler;
+use sos_test_utils::{
+    assert_local_remote_events_eq, assert_local_remote_vaults_eq,
+    simulate_device, spawn, teardown,
+};
 
 /// Tests creating an account on the remote, deleting it
 /// and then creating the same account again.

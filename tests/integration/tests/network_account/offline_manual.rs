@@ -1,10 +1,10 @@
+use anyhow::Result;
+use sos_account::{Account, SecretChange, SecretDelete};
+use sos_protocol::AccountSync;
 use sos_test_utils::{
     assert_local_remote_events_eq, mock, num_events, simulate_device, spawn,
     sync_pause, teardown,
 };
-use anyhow::Result;
-use sos_account::{Account, SecretChange, SecretDelete};
-use sos_protocol::AccountSync;
 
 /// Tests syncing events between two clients after
 /// a server goes offline and a client commits changes

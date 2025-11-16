@@ -1,12 +1,12 @@
-use sos_test_utils::{
-    assert_local_remote_events_eq, mock, simulate_device, spawn, sync_pause,
-    teardown,
-};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
 use sos_client_storage::NewFolderOptions;
 use sos_login::DelegatedAccess;
 use sos_sdk::prelude::*;
+use sos_test_utils::{
+    assert_local_remote_events_eq, mock, simulate_device, spawn, sync_pause,
+    teardown,
+};
 use sos_vault::SecretAccess;
 
 /// Tests syncing update folder events between two clients

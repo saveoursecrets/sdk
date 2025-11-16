@@ -477,9 +477,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         let (vault, events) = FolderReducer::split::<Error>(vault).await?;
 
         if id != vault.id() {
-            return Err(
-                Error::VaultIdentifierMismatch(*id, *vault.id())
-            );
+            return Err(Error::VaultIdentifierMismatch(*id, *vault.id()));
         }
 
         FolderEntity::upsert_folder_and_secrets(

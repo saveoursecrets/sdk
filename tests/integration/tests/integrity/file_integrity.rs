@@ -2,11 +2,11 @@
 use anyhow::Result;
 use sos_test_utils::make_client_backend;
 
-use sos_test_utils::{mock::files::create_file_secret, setup, teardown};
 use sos_account::{Account, LocalAccount};
 use sos_integrity::{file_integrity, FileIntegrityEvent, IntegrityFailure};
 use sos_sdk::prelude::*;
 use sos_sync::StorageEventLogs;
+use sos_test_utils::{mock::files::create_file_secret, setup, teardown};
 
 /// Tests an ok file integrity report.
 #[tokio::test]
@@ -109,11 +109,8 @@ async fn file_integrity_missing_file() -> Result<()> {
     let mut failures = Vec::new();
 
     while let Some(event) = receiver.recv().await {
-        match event {
-            FileIntegrityEvent::Failure(_, reason) => {
-                failures.push(reason);
-            }
-            _ => {}
+        if let FileIntegrityEvent::Failure(_, reason) = event {
+            failures.push(reason);
         }
     }
     assert_eq!(1, failures.len());
@@ -225,13 +222,10 @@ async fn file_integrity_cancel() -> Result<()> {
     let mut canceled = false;
 
     while let Some(event) = receiver.recv().await {
-        match event {
-            FileIntegrityEvent::OpenFile(_, _) => {
-                canceled = true;
-                let _ = cancel_tx.send(true);
-                break;
-            }
-            _ => {}
+        if let FileIntegrityEvent::OpenFile(_, _) = event {
+            canceled = true;
+            let _ = cancel_tx.send(true);
+            break;
         }
     }
 

@@ -1,4 +1,3 @@
-use sos_test_utils::{copy_account, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount};
 use sos_client_storage::NewFolderOptions;
@@ -6,6 +5,7 @@ use sos_protocol::diff;
 use sos_sdk::prelude::*;
 use sos_sync::{Merge, MergeOutcome, SyncStorage};
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{copy_account, setup, teardown};
 
 /// Tests creating a diff and merging a delete folder
 /// event without any networking.

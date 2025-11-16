@@ -1,5 +1,4 @@
 use super::last_log_event;
-use sos_test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_backend::AccountEventLog;
@@ -10,6 +9,7 @@ use sos_core::{
 };
 use sos_password::diceware::generate_passphrase;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{mock, setup, teardown};
 
 /// Tests the account events after changing the encryption
 /// password of a folder.

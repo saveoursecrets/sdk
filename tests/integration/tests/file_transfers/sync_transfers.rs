@@ -1,15 +1,15 @@
 //! Tests for creating files before a remote server is configured
 //! then starting a server, adding it to the client, syncing and
 //! transferring the files to the server.
+use anyhow::Result;
+use sos_account::Account;
+use sos_core::ExternalFile;
+use sos_sdk::prelude::*;
 use sos_test_utils::{
     assert_local_remote_file_eq,
     mock::files::{create_attachment, create_file_secret},
     simulate_device, spawn, teardown, wait_for_num_transfers,
 };
-use anyhow::Result;
-use sos_account::Account;
-use sos_core::ExternalFile;
-use sos_sdk::prelude::*;
 
 /// Tests creating external files then adding a remote
 /// server, syncing and uploading the files.

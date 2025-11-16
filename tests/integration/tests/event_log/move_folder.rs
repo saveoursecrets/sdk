@@ -1,5 +1,4 @@
 use super::all_events;
-use sos_test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_backend::{AccountEventLog, FolderEventLog};
@@ -11,6 +10,7 @@ use sos_core::{
 };
 use sos_password::diceware::generate_passphrase;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{mock, setup, teardown};
 use sos_vault::Vault;
 
 /// Tests events after moving a folder between accounts.

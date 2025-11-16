@@ -1,9 +1,9 @@
-use sos_test_utils::{
-    assert_local_remote_events_eq, simulate_device, spawn, teardown,
-};
 use anyhow::Result;
 use sos_account::Account;
 use sos_protocol::AccountSync;
+use sos_test_utils::{
+    assert_local_remote_events_eq, simulate_device, spawn, teardown,
+};
 
 /// Tests changing the account name is synced.
 #[tokio::test]

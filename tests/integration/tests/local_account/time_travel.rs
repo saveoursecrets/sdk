@@ -1,9 +1,9 @@
-use sos_test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount, SecretChange};
 use sos_core::commit::CommitState;
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{mock, setup, teardown};
 use sos_vault::SecretAccess;
 
 /// Tests creating a detached view at a point in time of a

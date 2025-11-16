@@ -1,9 +1,9 @@
+use anyhow::Result;
+use sos_account::{Account, SecretDelete};
 use sos_test_utils::{
     assert_local_remote_events_eq, mock, num_events, simulate_device, spawn,
     teardown,
 };
-use anyhow::Result;
-use sos_account::{Account, SecretDelete};
 
 /// Tests sending delete secret events to a remote.
 #[tokio::test]

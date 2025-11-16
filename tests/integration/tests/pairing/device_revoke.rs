@@ -1,12 +1,12 @@
-use sos_test_utils::{
-    assert_local_remote_events_eq, run_pairing_protocol, simulate_device,
-    spawn, teardown,
-};
 use anyhow::Result;
 use http::StatusCode;
 use sos_account::Account;
 use sos_net::Error as ClientError;
 use sos_protocol::{AccountSync, Error as ProtocolError, NetworkError};
+use sos_test_utils::{
+    assert_local_remote_events_eq, run_pairing_protocol, simulate_device,
+    spawn, teardown,
+};
 
 /// Tests pairing a new device and revoking trust in the device.
 #[tokio::test]

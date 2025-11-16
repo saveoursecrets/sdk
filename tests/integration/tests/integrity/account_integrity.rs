@@ -3,13 +3,13 @@ use anyhow::Result;
 use sos_backend::BackendTarget;
 use sos_database::entity::FolderEntity;
 
-use sos_test_utils::{mock::files::create_file_secret, setup, teardown};
 use sos_account::{Account, LocalAccount};
 use sos_integrity::{
     account_integrity, FolderIntegrityEvent, IntegrityFailure,
 };
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{mock::files::create_file_secret, setup, teardown};
 
 /// Tests an ok account integrity report.
 #[tokio::test]
@@ -108,11 +108,8 @@ async fn account_integrity_missing_file() -> Result<()> {
     let mut failures = Vec::new();
 
     while let Some(event) = receiver.recv().await {
-        match event {
-            FolderIntegrityEvent::Failure(_, reason) => {
-                failures.push(reason);
-            }
-            _ => {}
+        if let FolderIntegrityEvent::Failure(_, reason) = event {
+            failures.push(reason);
         }
     }
     assert_eq!(1, failures.len());
@@ -225,11 +222,8 @@ async fn account_integrity_corrupted_event() -> Result<()> {
     let mut failures = Vec::new();
 
     while let Some(event) = receiver.recv().await {
-        match event {
-            FolderIntegrityEvent::Failure(_, reason) => {
-                failures.push(reason);
-            }
-            _ => {}
+        if let FolderIntegrityEvent::Failure(_, reason) = event {
+            failures.push(reason);
         }
     }
 
@@ -279,16 +273,13 @@ async fn account_integrity_cancel() -> Result<()> {
     let mut canceled = false;
 
     while let Some(event) = receiver.recv().await {
-        match event {
-            FolderIntegrityEvent::OpenFolder(_) => {
-                canceled = true;
-                // The process may have already completed
-                // and the cancel receiver may have already
-                // been dropped which would cause the send()
-                // to fail
-                let _ = cancel_tx.send(true);
-            }
-            _ => {}
+        if let FolderIntegrityEvent::OpenFolder(_) = event {
+            canceled = true;
+            // The process may have already completed
+            // and the cancel receiver may have already
+            // been dropped which would cause the send()
+            // to fail
+            let _ = cancel_tx.send(true);
         }
     }
 

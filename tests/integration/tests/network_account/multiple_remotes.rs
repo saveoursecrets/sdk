@@ -1,9 +1,9 @@
-use sos_test_utils::{
-    assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
-};
 use anyhow::Result;
 use sos_account::Account;
 use sos_protocol::AccountSync;
+use sos_test_utils::{
+    assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
+};
 
 /// Tests syncing a single client with multiple
 /// remote servers.

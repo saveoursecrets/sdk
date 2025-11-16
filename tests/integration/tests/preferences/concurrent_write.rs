@@ -1,12 +1,10 @@
-use super::{
-    test_preferences_concurrency,
-};
-use sos_test_utils::{setup, teardown};
+use super::test_preferences_concurrency;
 use anyhow::Result;
 use sos_backend::Preferences;
 use sos_preferences::*;
 use sos_sdk::prelude::Paths;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{setup, teardown};
 use tokio::process::Command;
 
 /// Tests concurrent writes to the global preferences.

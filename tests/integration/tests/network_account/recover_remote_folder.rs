@@ -1,11 +1,11 @@
-use sos_test_utils::{
-    assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
-};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, SecretChange};
 use sos_backend::BackendTarget;
 use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
+use sos_test_utils::{
+    assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
+};
 use sos_vfs as vfs;
 
 /// Tests recovering a folder from a remote origin after

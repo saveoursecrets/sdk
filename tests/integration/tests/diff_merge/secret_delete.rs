@@ -1,4 +1,3 @@
-use sos_test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount, SecretChange};
 use sos_core::{crypto::AccessKey, ErrorExt, Paths};
@@ -7,6 +6,7 @@ use sos_protocol::diff;
 use sos_sync::MergeOutcome;
 use sos_sync::{Merge, SyncStorage};
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{copy_account, mock, setup, teardown};
 
 /// Tests creating a diff and merging a delete secret
 /// event without any networking.

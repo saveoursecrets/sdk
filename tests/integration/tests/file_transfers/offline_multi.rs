@@ -4,15 +4,15 @@
 use anyhow::Result;
 use sos_client_storage::NewFolderOptions;
 
+use sos_account::{Account, FolderCreate, SecretMove};
+use sos_core::ExternalFile;
+use sos_protocol::AccountSync;
+use sos_sdk::prelude::*;
 use sos_test_utils::{
     assert_local_remote_file_eq, assert_local_remote_file_not_exist,
     mock::files::{create_file_secret, update_file_secret},
     simulate_device, spawn, teardown, wait_for_file, wait_for_file_not_exist,
 };
-use sos_account::{Account, FolderCreate, SecretMove};
-use sos_core::ExternalFile;
-use sos_protocol::AccountSync;
-use sos_sdk::prelude::*;
 
 /// Tests uploading an external file to multiple servers
 /// when the first server is offline.

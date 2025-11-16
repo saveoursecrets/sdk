@@ -1,12 +1,12 @@
-use sos_test_utils::{
-    assert_local_remote_events_eq, assert_local_remote_vaults_eq,
-    simulate_device, spawn, teardown,
-};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
 use sos_client_storage::NewFolderOptions;
 use sos_login::DelegatedAccess;
 use sos_sdk::prelude::*;
+use sos_test_utils::{
+    assert_local_remote_events_eq, assert_local_remote_vaults_eq,
+    simulate_device, spawn, teardown,
+};
 use sos_vault::SecretAccess;
 
 /// Tests sending import folder events to a remote.

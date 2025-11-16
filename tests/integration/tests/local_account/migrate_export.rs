@@ -1,8 +1,8 @@
-use sos_test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{setup, teardown};
 use sos_vfs as vfs;
 
 /// Tests exporting an archive of plain text secrets.

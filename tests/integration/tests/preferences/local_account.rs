@@ -1,10 +1,12 @@
-use sos_test_utils::{make_client_backend, setup, teardown, assert::assert_preferences};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_backend::Preferences;
 use sos_core::Paths;
 use sos_preferences::PreferenceManager;
 use sos_sdk::prelude::*;
+use sos_test_utils::{
+    assert::assert_preferences, make_client_backend, setup, teardown,
+};
 
 /// Tests the preferences in the context of a local account.
 #[tokio::test]

@@ -1,4 +1,3 @@
-use sos_test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_backend::AccountEventLog;
@@ -9,6 +8,7 @@ use sos_core::{
 };
 use sos_password::diceware::generate_passphrase;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{setup, teardown};
 
 /// Tests lazy initialization of the account events log.
 #[tokio::test]

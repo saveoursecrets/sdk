@@ -1,10 +1,10 @@
+use anyhow::Result;
+use sos_account::{Account, SecretChange, SecretMove};
+use sos_protocol::AccountSync;
 use sos_test_utils::{
     assert_local_remote_events_eq, mock, num_events,
     simulate_device_with_builder, spawn, teardown,
 };
-use anyhow::Result;
-use sos_account::{Account, SecretChange, SecretMove};
-use sos_protocol::AccountSync;
 
 /// Tests moving to and from an archive folder.
 #[tokio::test]

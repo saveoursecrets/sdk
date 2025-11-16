@@ -2,13 +2,13 @@
 //! the server is online.
 use anyhow::Result;
 
+use sos_account::Account;
+use sos_core::ExternalFile;
+use sos_sdk::prelude::*;
 use sos_test_utils::{
     assert_local_remote_file_eq, mock::files::create_file_secret,
     simulate_device, spawn, teardown, wait_for_num_transfers,
 };
-use sos_account::Account;
-use sos_core::ExternalFile;
-use sos_sdk::prelude::*;
 
 /// Tests uploading an external file to a server that was
 /// added.

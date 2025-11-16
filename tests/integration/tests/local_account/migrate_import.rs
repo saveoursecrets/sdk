@@ -1,9 +1,9 @@
-use sos_test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_migrate::import::{ImportFormat, ImportTarget};
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{setup, teardown};
 use std::path::PathBuf;
 
 /// Tests importing plain text secrets from other apps.

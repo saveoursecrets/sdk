@@ -1,10 +1,10 @@
-use sos_test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount};
 use sos_client_storage::NewFolderOptions;
 use sos_login::DelegatedAccess;
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{setup, teardown};
 
 /// Tests sign in when a folder password is missing.
 #[tokio::test]

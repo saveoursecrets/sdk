@@ -1,14 +1,14 @@
 //! Tests for attachment external files.
-use sos_test_utils::{
-    assert_local_remote_file_eq, assert_local_remote_file_not_exist,
-    mock::files::{create_attachment, create_file_secret, update_attachment},
-    simulate_device, spawn, teardown, wait_for_num_transfers,
-};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, SecretMove};
 use sos_client_storage::NewFolderOptions;
 use sos_core::ExternalFile;
 use sos_sdk::prelude::*;
+use sos_test_utils::{
+    assert_local_remote_file_eq, assert_local_remote_file_not_exist,
+    mock::files::{create_attachment, create_file_secret, update_attachment},
+    simulate_device, spawn, teardown, wait_for_num_transfers,
+};
 
 /// Tests creating an attachment.
 #[tokio::test]

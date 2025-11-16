@@ -1,9 +1,9 @@
-use sos_test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_core::{crypto::AccessKey, Paths, VaultId};
 use sos_login::{DelegatedAccess, Identity, IdentityFolder};
 use sos_password::diceware::generate_passphrase;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{setup, teardown};
 
 /// Tests creating an identity vault and logging in
 /// with the new vault and managing delegated passwords.

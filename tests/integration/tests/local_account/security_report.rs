@@ -1,10 +1,10 @@
-use sos_test_utils::{setup, teardown};
 use anyhow::Result;
 use secrecy::SecretString;
 use sos_account::{Account, LocalAccount, SecretChange};
 use sos_sdk::prelude::*;
 use sos_security_report::*;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{setup, teardown};
 use zxcvbn::Score;
 
 #[tokio::test]

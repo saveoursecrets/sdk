@@ -1,10 +1,10 @@
+use anyhow::Result;
+use sos_account::{Account, SecretChange};
+use sos_protocol::AccountSync;
 use sos_test_utils::{
     assert_local_remote_events_eq, mock, simulate_device, spawn, sync_pause,
     teardown,
 };
-use anyhow::Result;
-use sos_account::{Account, SecretChange};
-use sos_protocol::AccountSync;
 
 /// Tests making conflicting edits to a folder whilst
 /// a server is offline and resolving the conflicts with

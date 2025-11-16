@@ -1,6 +1,3 @@
-use sos_test_utils::{
-    default_server_config, simulate_device, spawn_with_config, teardown,
-};
 use anyhow::Result;
 use http::StatusCode;
 use sos_account::Account;
@@ -9,6 +6,9 @@ use sos_protocol::{AccountSync, Error as ProtocolError, NetworkError};
 use sos_sdk::prelude::*;
 use sos_server::AccessControlConfig;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{
+    default_server_config, simulate_device, spawn_with_config, teardown,
+};
 use std::collections::HashSet;
 
 /// Tests server allow access control.

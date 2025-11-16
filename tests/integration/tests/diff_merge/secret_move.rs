@@ -1,4 +1,3 @@
-use sos_test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{
     Account, FolderCreate, LocalAccount, SecretChange, SecretMove,
@@ -12,6 +11,7 @@ use sos_sync::{
     TrackedFolderChange,
 };
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{copy_account, mock, setup, teardown};
 
 /// Tests creating a diff and merging a move secret
 /// event without any networking.

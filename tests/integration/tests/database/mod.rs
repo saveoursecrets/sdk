@@ -14,8 +14,8 @@ use sos_core::{
 };
 use sos_database::archive;
 use sos_external_files::list_external_files;
-use std::path::PathBuf;
 use sos_test_utils::{copy_dir, TestDirs};
+use std::path::PathBuf;
 
 pub fn prepare_client_for_upgrade(dirs: &TestDirs) -> Result<()> {
     let data_dir = &dirs.test_dir;

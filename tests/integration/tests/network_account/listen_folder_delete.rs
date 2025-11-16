@@ -1,8 +1,8 @@
-use sos_test_utils::{simulate_device, spawn, teardown, wait_for_cond};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, FolderDelete};
 use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
+use sos_test_utils::{simulate_device, spawn, teardown, wait_for_cond};
 use sos_vfs as vfs;
 
 /// Tests syncing delete folder events between two clients

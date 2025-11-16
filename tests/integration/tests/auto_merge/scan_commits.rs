@@ -1,4 +1,3 @@
-use sos_test_utils::{mock, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_account::Account;
 use sos_core::{commit::Comparison, events::EventLogType};
@@ -6,6 +5,7 @@ use sos_protocol::{ScanRequest, SyncClient};
 use sos_remote_sync::RemoteSyncHandler;
 use sos_sdk::prelude::*;
 use sos_sync::StorageEventLogs;
+use sos_test_utils::{mock, simulate_device, spawn, teardown};
 
 /// Tests scanning commit hashes on remote servers.
 #[tokio::test]
