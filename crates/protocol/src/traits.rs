@@ -44,9 +44,9 @@ impl<E> SyncResult<E> {
 
     /// Find the first sync error by reference.
     pub fn first_error_ref(&self) -> Option<&E> {
-        self.remotes.iter().find_map(|res| {
-            res.result.as_ref().err()
-        })
+        self.remotes
+            .iter()
+            .find_map(|res| res.result.as_ref().err())
     }
 
     /// Determine if the sync has one or more errors.

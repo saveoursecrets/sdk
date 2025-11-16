@@ -1,9 +1,8 @@
 //! Local account storage and search index.
 use crate::{
     convert::CipherComparison, Account, AccountBuilder, AccountChange,
-    AccountData, DetachedView, Error, FolderChange, FolderCreate,
-    FolderDelete, Result, SecretChange, SecretDelete, SecretInsert,
-    SecretMove,
+    AccountData, Error, FolderChange, FolderCreate, FolderDelete, Result,
+    SecretChange, SecretDelete, SecretInsert, SecretMove,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -50,7 +49,13 @@ use std::{
 use tokio::sync::RwLock;
 
 #[cfg(feature = "search")]
-use sos_search::{DocumentCount, SearchIndex};
+use {
+    crate::DetachedView,
+    sos_search::{
+        AccountStatistics, ArchiveFilter, Document, DocumentCount,
+        DocumentView, QueryFilter, SearchIndex,
+    },
+};
 
 #[cfg(feature = "audit")]
 use {
@@ -60,9 +65,6 @@ use {
 
 #[cfg(feature = "files")]
 use sos_external_files::FileMutationEvent;
-
-#[cfg(feature = "search")]
-use sos_search::*;
 
 #[cfg(feature = "contacts")]
 use crate::ContactImportProgress;

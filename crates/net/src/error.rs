@@ -201,8 +201,9 @@ impl Error {
     pub fn cancellation_reason(&self) -> Option<&CancelReason> {
         let source = source_error(self);
         if let Some(Error::Protocol(sos_protocol::Error::TransferCanceled(
-                reason,
-            ))) = source.downcast_ref::<Error>() {
+            reason,
+        ))) = source.downcast_ref::<Error>()
+        {
             Some(reason)
         } else {
             None

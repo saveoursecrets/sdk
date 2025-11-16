@@ -50,9 +50,6 @@ pub async fn batch(
     tracing::debug!(status = %res.status(), "hashcheck");
     let res = res.error_for_status()?;
     let value = res.json::<Vec<u8>>().await?;
-    let result = value
-        .into_iter()
-        .map(|value| value == 1)
-        .collect();
+    let result = value.into_iter().map(|value| value == 1).collect();
     Ok(result)
 }

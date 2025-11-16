@@ -27,7 +27,8 @@ use tokio_tungstenite::{
 
 use super::{bearer_prefix, encode_device_signature};
 
-type ChangeEventFuture = Pin<Box<dyn Future<Output = Result<NetworkChangeEvent>> + Send>>;
+type ChangeEventFuture =
+    Pin<Box<dyn Future<Output = Result<NetworkChangeEvent>> + Send>>;
 
 /// Options used when listening for change notifications.
 #[derive(Clone)]
@@ -124,9 +125,7 @@ pub fn changes(
     SplitStream<WsStream>,
     impl FnMut(
         std::result::Result<Message, tungstenite::Error>,
-    ) -> Result<
-        ChangeEventFuture,
-    >,
+    ) -> Result<ChangeEventFuture>,
 > {
     let (_, read) = stream.split();
     read.map(

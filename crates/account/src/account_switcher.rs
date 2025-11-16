@@ -1,13 +1,16 @@
-use crate::{Account, Error, LocalAccount, Result};
+use crate::{Account, LocalAccount, Result};
 use sos_backend::BackendTarget;
 use sos_core::{AccountId, Paths};
 use sos_login::PublicIdentity;
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::{collections::HashMap, future::Future};
 
 #[cfg(feature = "search")]
-use sos_search::{ArchiveFilter, Document, DocumentView, QueryFilter};
+use {
+    sos_search::{ArchiveFilter, Document, DocumentView, QueryFilter},
+    std::collections::HashMap,
+};
 
 #[cfg(feature = "clipboard")]
 use {crate::ClipboardCopyRequest, xclipboard::Clipboard};
@@ -252,7 +255,7 @@ where
         request: &ClipboardCopyRequest,
     ) -> std::result::Result<bool, E> {
         let Some(clipboard) = self.clipboard.clone() else {
-            return Err(Error::NoClipboard.into());
+            return Err(crate::Error::NoClipboard.into());
         };
 
         let account = self.iter().find(|a| a.account_id() == account_id);
