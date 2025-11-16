@@ -60,9 +60,9 @@ async fn assert_upgrade_import(
     assert_eq!(1, accounts.len());
 
     let target =
-        target.with_account_id(accounts.get(0).unwrap().account_id());
+        target.with_account_id(accounts.first().unwrap().account_id());
     let files = target.list_files().await?;
-    assert!(files.len() > 0);
+    assert!(!files.is_empty());
 
     Ok(())
 }

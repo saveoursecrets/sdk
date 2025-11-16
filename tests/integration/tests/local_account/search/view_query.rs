@@ -111,7 +111,7 @@ async fn local_search_view_query() -> Result<()> {
     assert_eq!(1, documents.len());
 
     // Query by specific document identifiers
-    let identifiers = (&ids[0..4]).into_iter().map(|id| *id).collect();
+    let identifiers = ids[0..4].to_vec();
     let documents = account
         .query_view(
             &[DocumentView::Documents {

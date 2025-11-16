@@ -167,7 +167,7 @@ async fn event_log_file_folder_delete() -> Result<()> {
     println!("{events:?}");
 
     assert_eq!(4, events.len());
-    assert!(matches!(events.get(0), Some(FileEvent::CreateFile(_, _))));
+    assert!(matches!(events.first(), Some(FileEvent::CreateFile(_, _))));
     assert!(matches!(events.get(1), Some(FileEvent::CreateFile(_, _))));
     // Both files were deleted
     assert!(matches!(events.get(2), Some(FileEvent::DeleteFile(_, _))));

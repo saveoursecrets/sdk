@@ -171,6 +171,7 @@ pub async fn simulate_device_with_builder(
 
         // Sync the local account to create the account on remote
         let sync_result = owner.sync().await;
+        // println!("{:#?}", sync_result.first_error_ref());
         assert!(sync_result.first_error().is_none());
 
         (origin, server.account_path(owner.account_id()))

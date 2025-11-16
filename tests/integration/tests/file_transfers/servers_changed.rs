@@ -39,7 +39,7 @@ async fn file_transfers_servers_changed_upload() -> Result<()> {
     let server_paths = server.paths(device.owner.account_id());
 
     // Assert the files on disc are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server_paths, &file)
         .await?;
 
     // Start a new server

@@ -34,7 +34,7 @@ async fn diff_merge_secret_delete() -> Result<()> {
     let key: AccessKey = password.clone().into();
     local.sign_in(&key).await?;
     let default_folder = local.default_folder().await.unwrap();
-    let account_id = local.account_id().clone();
+    let account_id = *local.account_id();
 
     // Copy the initial account disc state
     copy_account(&data_dir, &data_dir_merge)?;
@@ -71,7 +71,7 @@ async fn diff_merge_secret_delete() -> Result<()> {
     // Collection of changes exists but the collection is
     // empty because the create event followed by a
     // delete event was normalized
-    assert!(outcome.tracked.folders.get(default_folder.id()).is_none());
+    assert!(!outcome.tracked.folders.contains_key(default_folder.id()));
 
     // Check we can't read the secret
     let err = remote.read_secret(&id, None).await.err().unwrap();

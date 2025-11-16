@@ -31,7 +31,7 @@ async fn diff_merge_folder_rename() -> Result<()> {
 
     let key: AccessKey = password.clone().into();
     local.sign_in(&key).await?;
-    let account_id = local.account_id().clone();
+    let account_id = *local.account_id();
     let default_folder = local.default_folder().await.unwrap();
 
     // Copy the initial account disc state

@@ -164,11 +164,8 @@ async fn account_integrity_corrupted_vault() -> Result<()> {
     let mut failures = Vec::new();
 
     while let Some(event) = receiver.recv().await {
-        match event {
-            FolderIntegrityEvent::Failure(_, reason) => {
-                failures.push(reason);
-            }
-            _ => {}
+        if let FolderIntegrityEvent::Failure(_, reason) = event {
+            failures.push(reason);
         }
     }
 

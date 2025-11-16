@@ -68,7 +68,7 @@ async fn file_transfers_sync_file_transfers() -> Result<()> {
     for file in files {
         assert_local_remote_file_eq(
             device.owner.paths(),
-            &*server_paths,
+            &server_paths,
             &file,
         )
         .await?;

@@ -169,11 +169,8 @@ async fn file_integrity_corrupted() -> Result<()> {
     let mut failures = Vec::new();
 
     while let Some(event) = receiver.recv().await {
-        match event {
-            FileIntegrityEvent::Failure(_, reason) => {
-                failures.push(reason);
-            }
-            _ => {}
+        if let FileIntegrityEvent::Failure(_, reason) = event {
+            failures.push(reason);
         }
     }
     assert_eq!(1, failures.len());

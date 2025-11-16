@@ -41,7 +41,7 @@ async fn file_transfers_single_upload() -> Result<()> {
     let server_paths = server.paths(device.owner.account_id());
 
     // Assert the files on disc are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server_paths, &file)
         .await?;
 
     device.owner.sign_out().await?;
@@ -93,7 +93,7 @@ async fn file_transfers_single_update() -> Result<()> {
     let server_paths = server.paths(device.owner.account_id());
 
     // Assert the files on disc are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server_paths, &file)
         .await?;
 
     device.owner.sign_out().await?;
@@ -155,7 +155,7 @@ async fn file_transfers_single_move() -> Result<()> {
     let server_paths = server.paths(device.owner.account_id());
 
     // Assert the files on disc are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server_paths, &file)
         .await?;
 
     device.owner.sign_out().await?;
@@ -193,7 +193,7 @@ async fn file_transfers_single_delete() -> Result<()> {
     let server_paths = server.paths(device.owner.account_id());
 
     // Assert the files on disc are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server_paths, &file)
         .await?;
 
     device
@@ -206,7 +206,7 @@ async fn file_transfers_single_delete() -> Result<()> {
 
     let local_paths = device.owner.paths();
 
-    assert_local_remote_file_not_exist(local_paths, &*server_paths, &file)
+    assert_local_remote_file_not_exist(local_paths, &server_paths, &file)
         .await?;
 
     device.owner.sign_out().await?;
@@ -250,7 +250,7 @@ async fn file_transfers_single_download() -> Result<()> {
 
         assert_local_remote_file_eq(
             uploader.owner.paths(),
-            &*uploader_server_paths,
+            &uploader_server_paths,
             &file,
         )
         .await?;
@@ -267,7 +267,7 @@ async fn file_transfers_single_download() -> Result<()> {
 
         assert_local_remote_file_eq(
             downloader.owner.paths(),
-            &*downloader_server_paths,
+            &downloader_server_paths,
             &file,
         )
         .await?;

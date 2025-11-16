@@ -4,9 +4,7 @@ mod extension_helper_list_accounts;
 mod extension_helper_probe;
 mod memory_server;
 
-pub fn extension_helper_cmd<'a>(
-    data_dir: &'a str,
-) -> (&'static str, Vec<&'a str>) {
+pub fn extension_helper_cmd(data_dir: &str) -> (&'static str, Vec<&str>) {
     let command = "cargo";
     let arguments = vec![
         "run",

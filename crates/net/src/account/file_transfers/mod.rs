@@ -959,6 +959,7 @@ async fn normalize(
                     item.1,
                     TransferOperation::Upload | TransferOperation::Download
                 );
+                // !(&item.0 == file && is_transfer_op)
                 if &item.0 == file && is_transfer_op {
                     false
                 } else {
@@ -973,6 +974,7 @@ async fn normalize(
                     failure.operation,
                     TransferOperation::Upload | TransferOperation::Download
                 );
+                // !(&failure.file == file && is_transfer_op)
                 if &failure.file == file && is_transfer_op {
                     false
                 } else {
