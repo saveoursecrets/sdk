@@ -3,6 +3,8 @@
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 #![allow(clippy::result_large_err)]
 #![allow(clippy::large_enum_variant)]
+// For the prost generated types
+#![allow(clippy::enum_variant_names)]
 
 //! Networking and sync protocol types for the
 //! [Save Our Secrets](https://saveoursecrets.com) SDK.

@@ -502,7 +502,7 @@ impl<'a> NoiseTunnel for OfferPairing<'a> {
         self.tunnel.as_mut()
     }
 
-    fn into_transport_mode(&mut self) -> Result<()> {
+    fn to_transport_mode(&mut self) -> Result<()> {
         let tunnel = self.tunnel.take().unwrap();
         if let Tunnel::Handshake(state) = tunnel {
             self.tunnel =
@@ -906,7 +906,7 @@ impl<'a> NoiseTunnel for AcceptPairing<'a> {
         self.tunnel.as_mut()
     }
 
-    fn into_transport_mode(&mut self) -> Result<()> {
+    fn to_transport_mode(&mut self) -> Result<()> {
         let tunnel = self.tunnel.take().unwrap();
         if let Tunnel::Handshake(state) = tunnel {
             self.tunnel =
@@ -930,7 +930,7 @@ trait NoiseTunnel {
     fn tunnel_mut(&mut self) -> Option<&mut Tunnel>;
 
     /// Update the noise tunnel state.
-    fn into_transport_mode(&mut self) -> Result<()>;
+    fn to_transport_mode(&mut self) -> Result<()>;
 
     /// Send the first packet of the initial noise handshake.
     async fn noise_send_e(&mut self) -> Result<()> {
@@ -1036,7 +1036,7 @@ trait NoiseTunnel {
         };
 
         if let Some(packet) = packet {
-            self.into_transport_mode()?;
+            self.to_transport_mode()?;
             Ok(packet)
         } else {
             Err(Error::BadState)
@@ -1061,7 +1061,7 @@ trait NoiseTunnel {
             tracing::debug!("<- s, se");
             state.read_message(&init_msg[..len], &mut buf)?;
 
-            self.into_transport_mode()?;
+            self.to_transport_mode()?;
 
             let payload = if let Some(Tunnel::Transport(transport)) =
                 self.tunnel_mut()

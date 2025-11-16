@@ -31,7 +31,7 @@ async fn export_roundtrip() -> Result<()> {
         target.clone(),
     )
     .await?;
-    let account_id = account.account_id().clone();
+    let account_id = *account.account_id();
 
     let key: AccessKey = password.clone().into();
     account.sign_in(&key).await?;
