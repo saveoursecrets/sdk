@@ -444,9 +444,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
             .client
             .conn_and_then(move |conn| {
                 let folders = FolderEntity::new(&conn);
-                Ok::<_, sos_database::Error>(
-                    folders.list_user_folders(account_id)?,
-                )
+                folders.list_user_folders(account_id)
             })
             .await?;
 
@@ -460,7 +458,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         // already exist.
         for summary in &folders {
             // Ensure we don't overwrite existing data
-            if self.folders.get(summary.id()).is_none() {
+            if !self.folders.contains_key(summary.id()) {
                 self.create_folder_entry(summary.id()).await?;
             }
         }
@@ -473,14 +471,14 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         id: &VaultId,
         buffer: &[u8],
     ) -> Result<()> {
-        let exists = self.folders.get(id).is_some();
+        let exists = self.folders.contains_key(id);
 
         let vault: Vault = decode(buffer).await?;
         let (vault, events) = FolderReducer::split::<Error>(vault).await?;
 
         if id != vault.id() {
             return Err(
-                Error::VaultIdentifierMismatch(*id, *vault.id()).into()
+                Error::VaultIdentifierMismatch(*id, *vault.id())
             );
         }
 
@@ -530,7 +528,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
 
         #[cfg(feature = "files")]
         {
-            let blob_folder = self.paths.into_file_folder_path(&id);
+            let blob_folder = self.paths.into_file_folder_path(id);
             if vfs::try_exists(&blob_folder).await? {
                 vfs::remove_dir_all(&blob_folder).await?;
             }
@@ -569,7 +567,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
 
     async fn delete_account(&mut self) -> Result<()> {
         // Remove all account data from the database
-        let account_id = self.account_id.clone();
+        let account_id = self.account_id;
         self.client
             .conn(move |conn| {
                 let account = AccountEntity::new(&conn);
@@ -618,7 +616,7 @@ impl StorageEventLogs for ServerDatabaseStorage {
                 .client
                 .conn(move |conn| {
                     let folder = FolderEntity::new(&conn);
-                    Ok(folder.find_one(&id)?)
+                    folder.find_one(&id)
                 })
                 .await?;
             let record = FolderRecord::from_row(row).await?;

@@ -76,7 +76,7 @@ async fn vault_shared_folder_writable() -> Result<()> {
     let owner = age::x25519::Identity::generate();
     let other_1 = age::x25519::Identity::generate();
 
-    let mut recipients = vec![other_1.to_public()];
+    let recipients = vec![other_1.to_public()];
 
     let vault = VaultBuilder::new()
         .build(BuilderCredentials::Shared {
