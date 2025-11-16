@@ -764,7 +764,7 @@ impl StorageEventLogs for ClientDatabaseStorage {
 
     async fn folder_details(&self) -> Result<IndexSet<Summary>> {
         let folders = self.list_folders();
-        Ok(folders.into_iter().cloned().collect())
+        Ok(folders.iter().cloned().collect())
     }
 
     async fn folder_log(

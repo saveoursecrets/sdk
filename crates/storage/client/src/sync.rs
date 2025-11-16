@@ -470,8 +470,7 @@ where
         if let CheckedPatch::Success(_) = &checked_patch {
             let flags_changed = events
                 .iter()
-                .find(|e| matches!(e, WriteEvent::SetVaultFlags(_)))
-                .is_some();
+                .any(|e| matches!(e, WriteEvent::SetVaultFlags(_)));
 
             // If the flags changed ensure the in-memory summaries
             // are up to date

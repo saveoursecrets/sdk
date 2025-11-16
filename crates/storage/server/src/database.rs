@@ -339,7 +339,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         AccountEntity::upsert_login_folder(
             &self.client,
             &self.account_id,
-            &vault,
+            vault,
         )
         .await?;
         Ok(())
@@ -356,7 +356,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
             folder_id,
         )
         .await?;
-        event_log.replace_all_events(&diff).await?;
+        event_log.replace_all_events(diff).await?;
 
         let vault = FolderReducer::new()
             .reduce(&event_log)
