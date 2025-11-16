@@ -300,9 +300,10 @@ impl From<Summary> for Header {
 
 impl From<Summary> for Vault {
     fn from(value: Summary) -> Self {
-        let mut vault: Vault = Default::default();
-        vault.header = value.into();
-        vault
+        Vault {
+            header: value.into(),
+            ..Default::default()
+        }
     }
 }
 

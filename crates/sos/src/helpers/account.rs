@@ -140,7 +140,7 @@ pub async fn resolve_account(
             let owner = USER.read().await;
             if let Some(owner) = owner.selected_account() {
                 if owner.is_authenticated().await {
-                    return Ok(Some((&*owner).into()));
+                    return Ok(Some((owner).into()));
                 }
             }
         }

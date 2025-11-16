@@ -627,7 +627,7 @@ mod handlers {
         tracing::debug!(
             local_set_len = %local_set.len(), "compare_files");
 
-        let remote_set = list_external_files(&*paths).await?;
+        let remote_set = list_external_files(&paths).await?;
         tracing::debug!(
             remote_set_len = %remote_set.len(), "compare_files");
 

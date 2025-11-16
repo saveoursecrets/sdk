@@ -91,7 +91,7 @@ impl Server {
         let reader = state.read().await;
         let origins = Server::read_origins(&reader)?;
         let ssl = reader.config.net.ssl.clone();
-        let addr = reader.config.bind_address().clone();
+        let addr = *reader.config.bind_address();
         drop(reader);
 
         match ssl {

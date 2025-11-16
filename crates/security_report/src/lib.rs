@@ -1,3 +1,6 @@
+#![forbid(unsafe_code)]
+#![allow(clippy::type_complexity)]
+
 //! Helpers for security report generation.
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};

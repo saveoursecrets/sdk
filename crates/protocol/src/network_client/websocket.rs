@@ -133,9 +133,11 @@ pub fn changes(
             Pin<Box<dyn Future<Output = Result<NetworkChangeEvent>> + Send>>,
         > {
             match message {
-                Ok(message) => Ok(Box::pin(async move {
-                    Ok(decode_notification(message).await?)
-                })),
+                Ok(message) => {
+                    Ok(Box::pin(
+                        async move { decode_notification(message).await },
+                    ))
+                }
                 Err(e) => Ok(Box::pin(async move { Err(e.into()) })),
             }
         },
@@ -145,7 +147,7 @@ pub fn changes(
 async fn decode_notification(message: Message) -> Result<NetworkChangeEvent> {
     match message {
         Message::Binary(buffer) => {
-            let buf: Bytes = buffer.into();
+            let buf: Bytes = buffer;
             let notification = NetworkChangeEvent::decode(buf).await?;
             Ok(notification)
         }
@@ -283,7 +285,7 @@ impl WebSocketChangeListener {
 
     async fn stream(&self) -> Result<WsStream> {
         connect(
-            self.account_id.clone(),
+            self.account_id,
             self.origin.clone(),
             self.device.clone(),
             self.options.connection_id.clone(),

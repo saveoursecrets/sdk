@@ -157,8 +157,10 @@ where
             while let Ok(event) = notifications.recv().await {
                 let body = serde_json::to_vec(&event)
                     .expect("to convert event to JSON");
-                let mut response = LocalResponse::default();
-                response.status = StatusCode::RESET_CONTENT.into();
+                let mut response = LocalResponse {
+                    status: StatusCode::RESET_CONTENT.into(),
+                    ..Default::default()
+                };
                 response.set_json_content_type();
                 response.body = body;
                 if let Err(e) = notifications_tx.send(response) {

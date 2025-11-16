@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use sos_logs::Logger;
 use sos_server::{LogConfig, Result};
 
@@ -192,7 +194,7 @@ mod cli {
             #[cfg(feature = "audit")]
             {
                 let provider = sos_backend::audit::new_fs_provider(
-                    backend.paths().audit_file().to_owned(),
+                    backend.paths().audit_file(),
                 );
                 sos_backend::audit::init_providers(vec![provider]);
             }

@@ -16,7 +16,7 @@ async fn auto_merge_edit_secrets() -> Result<()> {
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
-    let addr = server.addr.clone();
+    let addr = server.addr;
 
     // Prepare mock devices
     let mut device1 = simulate_device(TEST_ID, 2, Some(&server)).await?;
