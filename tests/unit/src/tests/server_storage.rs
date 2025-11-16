@@ -73,8 +73,8 @@ async fn assert_server_storage(
     let record = EventRecord::encode_event(&event).await?;
 
     let mock_key: [u8; 32] = OsRng.gen();
-    let public_key: DevicePublicKey = mock_key.try_into()?;
-    let device = TrustedDevice::new(public_key.clone(), None, None);
+    let public_key: DevicePublicKey = mock_key.into();
+    let device = TrustedDevice::new(public_key, None, None);
     let device_event = DeviceEvent::Trust(device.clone());
     let device_record = EventRecord::encode_event(&device_event).await?;
 

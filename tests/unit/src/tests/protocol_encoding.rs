@@ -253,13 +253,13 @@ async fn encode_decode_change_notification() -> Result<()> {
 #[tokio::test]
 async fn encode_decode_event_log_type() -> Result<()> {
     let value = EventLogType::Identity;
-    let buffer = value.clone().encode().await?;
+    let buffer = value.encode().await?;
     let buffer: Bytes = buffer.into();
     let decoded = EventLogType::decode(buffer).await?;
     assert_eq!(value, decoded);
 
     let value = EventLogType::Folder(VaultId::new_v4());
-    let buffer = value.clone().encode().await?;
+    let buffer = value.encode().await?;
     let buffer: Bytes = buffer.into();
     let decoded = EventLogType::decode(buffer).await?;
     assert_eq!(value, decoded);

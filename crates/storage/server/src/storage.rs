@@ -147,7 +147,7 @@ impl ServerStorage {
             Arc::new(RwLock::new(identity_log)),
         )
         .await?;
-        storage.import_account(&account_data).await?;
+        storage.import_account(account_data).await?;
 
         Ok(Self::FileSystem(SyncImpl::new(storage)))
     }
@@ -164,7 +164,7 @@ impl ServerStorage {
         debug_assert!(paths.is_server());
 
         let (_, login_folder) =
-            AccountEntity::find_account_with_login(&client, account_id)
+            AccountEntity::find_account_with_login(client, account_id)
                 .await?;
 
         let mut event_log = FolderEventLog::new_folder(
@@ -211,7 +211,7 @@ impl ServerStorage {
             Arc::new(RwLock::new(identity_log)),
         )
         .await?;
-        storage.import_account(&account_data).await?;
+        storage.import_account(account_data).await?;
 
         Ok(Self::Database(SyncImpl::new(storage)))
     }
