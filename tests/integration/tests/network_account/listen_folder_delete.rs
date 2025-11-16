@@ -18,7 +18,7 @@ async fn network_sync_listen_folder_delete() -> Result<()> {
 
     // Prepare mock devices
     let mut device1 = simulate_device(TEST_ID, 2, Some(&server)).await?;
-    let _default_folder_id = device1.default_folder_id.clone();
+    let _default_folder_id = device1.default_folder_id;
     let folders = device1.folders.clone();
     let mut device2 = device1.connect(1, None).await?;
 

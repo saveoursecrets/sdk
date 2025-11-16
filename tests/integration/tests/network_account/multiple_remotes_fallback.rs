@@ -17,7 +17,7 @@ async fn network_sync_multiple_remotes_fallback() -> Result<()> {
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;
     let server2 = spawn(TEST_ID, None, Some("server2")).await?;
 
-    let addr = server1.addr.clone();
+    let addr = server1.addr;
 
     // Prepare mock devices
     let mut device = simulate_device(TEST_ID, 1, Some(&server1)).await?;

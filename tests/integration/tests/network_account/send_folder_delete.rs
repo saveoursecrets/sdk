@@ -27,7 +27,7 @@ async fn network_sync_folder_delete() -> Result<()> {
 
     // Path that we expect the remote server to write to
     let server_path = server.account_path(device.owner.account_id());
-    let address = device.owner.account_id().clone();
+    let address = *device.owner.account_id();
 
     let FolderCreate {
         folder: new_folder,

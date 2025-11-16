@@ -49,7 +49,7 @@ async fn network_sync_change_cipher() -> Result<()> {
 
     // Check in-memory folders report correct target cipher
     let folders = device1.owner.list_folders().await?;
-    assert!(folders.len() > 0);
+    assert!(!folders.is_empty());
     assert_eq!(original_folders.len(), folders.len());
     for folder in &folders {
         assert_eq!(&target_cipher, folder.cipher());

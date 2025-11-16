@@ -35,7 +35,7 @@ async fn diff_merge_folder_create() -> Result<()> {
 
     let key: AccessKey = password.clone().into();
     local.sign_in(&key).await?;
-    let account_id = local.account_id().clone();
+    let account_id = *local.account_id();
 
     // Copy the initial account disc state
     copy_account(&data_dir, &data_dir_merge)?;
