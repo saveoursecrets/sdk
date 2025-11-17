@@ -23,6 +23,12 @@ jobs:
             distro: linux
             variant: none
           - os: ubuntu-latest
+            binary_target: aarch64-unknown-linux-gnu
+            platform: unknown-linux-gnu
+            arch: aarch64
+            distro: linux
+            variant: none
+          - os: ubuntu-latest
             binary_target: x86_64-unknown-linux-musl
             platform: unknown-linux-musl
             arch: x86_64
