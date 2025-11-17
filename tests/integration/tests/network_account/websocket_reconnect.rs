@@ -16,7 +16,7 @@ async fn network_websocket_reconnect() -> Result<()> {
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
-    let addr = server.addr.clone();
+    let addr = server.addr;
 
     // Prepare a mock device
     let device = simulate_device(TEST_ID, 1, Some(&server)).await?;

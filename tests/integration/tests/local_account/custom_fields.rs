@@ -48,7 +48,7 @@ async fn local_custom_fields() -> Result<()> {
 
     // Add the custom field
     data.secret_mut().add_field(SecretRow::new(
-        field_id.clone(),
+        field_id,
         field_meta,
         field_secret,
     ));
@@ -102,11 +102,7 @@ async fn local_custom_fields() -> Result<()> {
         mock::link("link_field", "https://example.com");
     data.secret_mut().insert_field(
         0,
-        SecretRow::new(
-            link_field_id.clone(),
-            link_field_meta,
-            link_field_secret,
-        ),
+        SecretRow::new(link_field_id, link_field_meta, link_field_secret),
     );
     assert_eq!(2, data.secret().user_data().fields().len());
 

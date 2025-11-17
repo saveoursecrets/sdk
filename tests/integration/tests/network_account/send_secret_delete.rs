@@ -18,7 +18,7 @@ async fn network_sync_secret_delete() -> Result<()> {
     let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
     let origin = device.origin.clone();
     let folders = device.folders.clone();
-    let default_folder_id = device.default_folder_id.clone();
+    let default_folder_id = device.default_folder_id;
 
     // Create a secret
     let (meta, secret) = mock::note("note", "secret1");

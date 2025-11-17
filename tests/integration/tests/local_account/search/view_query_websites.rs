@@ -120,7 +120,7 @@ async fn local_search_view_query_websites() -> Result<()> {
     let mut websites: Vec<&str> = Vec::new();
     for doc in &documents {
         if let Some(sites) = doc.extra().websites() {
-            websites.append(&mut sites.into_iter().map(|u| &u[..]).collect());
+            websites.append(&mut sites.clone());
         }
     }
 

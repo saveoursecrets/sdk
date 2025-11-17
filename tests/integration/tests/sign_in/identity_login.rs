@@ -31,7 +31,7 @@ async fn sign_in_identity_login() -> Result<()> {
     )
     .await?;
 
-    let account_id = identity_vault.account_id().clone();
+    let account_id = *identity_vault.account_id();
     let paths = Paths::new_client(data_dir).with_account_id(&account_id);
     paths.ensure().await?;
     let mut identity = Identity::new(target.clone());

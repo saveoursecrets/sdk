@@ -42,7 +42,7 @@ async fn local_contacts() -> Result<()> {
     let ids = account.import_contacts(CONTACT, |_| {}).await?;
     assert_eq!(1, ids.len());
 
-    let id = ids.get(0).unwrap();
+    let id = ids.first().unwrap();
     let contact = data_dir.join("contact.vcf");
     account.export_contact(&contact, id, None).await?;
     assert!(vfs::try_exists(&contact).await?);
@@ -62,7 +62,7 @@ async fn local_contacts() -> Result<()> {
     // Try loading bytes for a JPEG avatar
     let ids = account.import_contacts(AVATAR, |_| {}).await?;
     assert_eq!(1, ids.len());
-    let id = ids.get(0).unwrap();
+    let id = ids.first().unwrap();
     let avatar_bytes = account.load_avatar(id, None).await?;
     assert!(avatar_bytes.is_some());
 

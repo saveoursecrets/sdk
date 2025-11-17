@@ -17,7 +17,7 @@ async fn network_sync_secret_update() -> Result<()> {
     // Prepare a mock device
     let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
     let origin = device.origin.clone();
-    let default_folder_id = device.default_folder_id.clone();
+    let default_folder_id = device.default_folder_id;
     let folders = device.folders.clone();
 
     // Create a secret

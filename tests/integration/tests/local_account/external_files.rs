@@ -491,7 +491,7 @@ async fn assert_attach_file_secret(
 
     // Add an attachment
     let (attachment_id, mut secret_data, file_name) =
-        create_attachment(account, &id, &folder, Some(progress_tx.clone()))
+        create_attachment(account, &id, folder, Some(progress_tx.clone()))
             .await?;
 
     // We never modify the root secret so assert on every change
@@ -579,7 +579,7 @@ async fn assert_attach_file_secret(
                 account,
                 &mut secret_data,
                 &attachment_id,
-                &folder,
+                folder,
                 Some(progress_tx.clone()),
             )
             .await?;
@@ -698,7 +698,7 @@ async fn assert_attach_file_secret(
             account,
             insert_field_secret_data,
             &attachment_id,
-            &folder,
+            folder,
             Some(progress_tx.clone()),
         )
         .await?;

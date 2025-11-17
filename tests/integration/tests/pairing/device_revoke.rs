@@ -29,15 +29,11 @@ async fn pairing_device_revoke() -> Result<()> {
             .unwrap();
 
     // Cannot revoke the current device
-    let current_device_public_key = primary_device
-        .owner
-        .current_device()
-        .await?
-        .public_key()
-        .clone();
+    let current_device = primary_device.owner.current_device().await?;
+    let current_device_public_key = current_device.public_key();
     let result = primary_device
         .owner
-        .revoke_device(&current_device_public_key)
+        .revoke_device(current_device_public_key)
         .await;
     assert!(matches!(result, Err(ClientError::RevokeDeviceSelf)));
 
@@ -53,7 +49,7 @@ async fn pairing_device_revoke() -> Result<()> {
         .await?;
 
     let revoke_error = enrolled_account
-        .revoke_device(&current_device_public_key)
+        .revoke_device(current_device_public_key)
         .await;
 
     // println!("{:#?}", revoke_error);
