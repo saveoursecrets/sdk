@@ -85,7 +85,7 @@ jobs:
           token: ${{ secrets.GH_RELEASE_DOWNLOAD }}
           repo: saveoursecrets/release-tools
           platform: ${{ matrix.platform }}
-          arch: x86_64
+          arch: ${{ matrix.arch }}
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3.6.0
