@@ -115,7 +115,7 @@ where
             .set(
                 "
                 modified_at = ?1,
-                json_data = json_replace (json_data, '$.isRead', ?2)
+                json_data = json_replace (json_data, '$.isRead', json(?2))
             ",
             )
             .where_clause("account_id = ?3")
