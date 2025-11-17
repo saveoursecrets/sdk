@@ -153,6 +153,7 @@ pub struct SysMessage {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
     /// Indicates if the message has been read.
+    #[serde(deserialize_with = "serde_hotfix::bool_or_int")]
     pub is_read: bool,
     /// Level indicator.
     pub level: SysMessageLevel,
@@ -430,5 +431,35 @@ where
         self.provider.clear_system_messages().await?;
         self.send_counts();
         Ok(())
+    }
+}
+
+// Hotfix for https://github.com/saveoursecrets/sdk/issues/811
+mod serde_hotfix {
+    use serde::{Deserialize, Deserializer};
+    pub(super) fn bool_or_int<'de, D>(deserializer: D) -> Result<bool, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum BoolOrInt {
+            Bool(bool),
+            Int(i64),
+            Str(String),
+        }
+
+        match BoolOrInt::deserialize(deserializer)? {
+            BoolOrInt::Bool(b) => Ok(b),
+            BoolOrInt::Int(i) => Ok(i != 0),
+            BoolOrInt::Str(s) => {
+                let s = s.to_lowercase();
+                match s.as_str() {
+                    "true" | "1" => Ok(true),
+                    "false" | "0" => Ok(false),
+                    _ => Err(serde::de::Error::custom("invalid bool")),
+                }
+            }
+        }
     }
 }
