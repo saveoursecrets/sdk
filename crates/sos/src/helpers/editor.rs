@@ -15,7 +15,7 @@ use std::{
     process::{Command, ExitStatus},
 };
 use tempfile::Builder;
-use {secrecy, vcard4::Vcard};
+use vcard4::Vcard;
 
 /// The result of editing a secret.
 ///

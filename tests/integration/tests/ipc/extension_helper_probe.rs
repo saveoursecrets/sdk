@@ -14,7 +14,7 @@ use sos_test_utils::{setup, teardown};
 #[tokio::test]
 async fn integration_ipc_extension_helper_probe() -> Result<()> {
     const TEST_ID: &str = "ipc_extension_helper_probe";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

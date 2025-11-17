@@ -1,17 +1,17 @@
-use crate::test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount, SecretChange};
 use sos_protocol::diff;
 use sos_sdk::prelude::*;
 use sos_sync::{Merge, MergeOutcome, SyncStorage, TrackedFolderChange};
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{copy_account, mock, setup, teardown};
 
 /// Tests creating a diff and merging a create secret
 /// event without any networking.
 #[tokio::test]
 async fn diff_merge_secret_create() -> Result<()> {
     const TEST_ID: &str = "diff_merge_secret_create";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 2).await?;
     let data_dir = dirs.clients.remove(0);
@@ -32,7 +32,7 @@ async fn diff_merge_secret_create() -> Result<()> {
     let key: AccessKey = password.clone().into();
     local.sign_in(&key).await?;
     let default_folder = local.default_folder().await.unwrap();
-    let account_id = local.account_id().clone();
+    let account_id = *local.account_id();
 
     // Copy the initial account disc state
     copy_account(&data_dir, &data_dir_merge)?;

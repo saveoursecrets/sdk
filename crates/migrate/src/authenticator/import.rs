@@ -44,7 +44,7 @@ pub async fn import_authenticator(
     ))?;
 
     for (id, url) in urls.otp {
-        let totp = TOTP::from_url(url.to_string())?;
+        let totp = TOTP::from_url(url)?;
         let label = totp.account_name.clone();
         let secret = Secret::Totp {
             totp,

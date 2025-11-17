@@ -1,12 +1,10 @@
-use crate::{
-    test_preferences_concurrency,
-    test_utils::{setup, teardown},
-};
+use super::test_preferences_concurrency;
 use anyhow::Result;
 use sos_backend::Preferences;
 use sos_preferences::*;
 use sos_sdk::prelude::Paths;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{setup, teardown};
 use tokio::process::Command;
 
 /// Tests concurrent writes to the global preferences.
@@ -14,7 +12,7 @@ use tokio::process::Command;
 #[ignore]
 async fn preferences_concurrent_write() -> Result<()> {
     const TEST_ID: &str = "preferences_concurrent_write";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

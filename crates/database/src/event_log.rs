@@ -388,9 +388,7 @@ where
                         Ok(row.try_into()?)
                     }
 
-                    let rows = stmt.query_and_then([id], |row| {
-                        convert_row(row)
-                    })?;
+                    let rows = stmt.query_and_then([id], convert_row)?;
 
                     for row in rows {
                         if tx.is_closed() {

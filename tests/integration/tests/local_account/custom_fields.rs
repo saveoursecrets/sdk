@@ -1,15 +1,15 @@
-use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount, SecretChange};
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{mock, setup, teardown};
 
 /// Tests modifiying custom fields. Custom fields are
 /// nested secrets included in a secret's user data.
 #[tokio::test]
 async fn local_custom_fields() -> Result<()> {
     const TEST_ID: &str = "custom_fields";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -48,7 +48,7 @@ async fn local_custom_fields() -> Result<()> {
 
     // Add the custom field
     data.secret_mut().add_field(SecretRow::new(
-        field_id.clone(),
+        field_id,
         field_meta,
         field_secret,
     ));
@@ -102,11 +102,7 @@ async fn local_custom_fields() -> Result<()> {
         mock::link("link_field", "https://example.com");
     data.secret_mut().insert_field(
         0,
-        SecretRow::new(
-            link_field_id.clone(),
-            link_field_meta,
-            link_field_secret,
-        ),
+        SecretRow::new(link_field_id, link_field_meta, link_field_secret),
     );
     assert_eq!(2, data.secret().user_data().fields().len());
 

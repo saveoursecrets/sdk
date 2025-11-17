@@ -102,7 +102,7 @@ impl AuditLogFile {
 
         let mut stream = BufReader::new(Cursor::new(&buf));
         let mut reader = BinaryReader::new(&mut stream, encoding_options());
-        Ok(Self::decode_row(&mut reader).await?)
+        Self::decode_row(&mut reader).await
     }
 }
 

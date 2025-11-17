@@ -15,7 +15,7 @@ use sos_vfs as vfs;
 #[tokio::test]
 async fn export_roundtrip() -> Result<()> {
     const TEST_ID: &str = "export_roundtrip";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -31,7 +31,7 @@ async fn export_roundtrip() -> Result<()> {
         target.clone(),
     )
     .await?;
-    let account_id = account.account_id().clone();
+    let account_id = *account.account_id();
 
     let key: AccessKey = password.clone().into();
     account.sign_in(&key).await?;

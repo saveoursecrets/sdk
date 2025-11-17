@@ -1,9 +1,9 @@
-use crate::test_utils::{
+use anyhow::Result;
+use sos_account::{Account, SecretDelete};
+use sos_test_utils::{
     assert_local_remote_events_eq, mock, num_events, simulate_device, spawn,
     sync_pause, teardown,
 };
-use anyhow::Result;
-use sos_account::{Account, SecretDelete};
 
 /// Tests syncing delete secret events between two clients
 /// where the second client listens for changes emitted
@@ -11,14 +11,14 @@ use sos_account::{Account, SecretDelete};
 #[tokio::test]
 async fn network_sync_listen_secret_delete() -> Result<()> {
     const TEST_ID: &str = "sync_listen_secret_delete";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare mock devices
     let mut device1 = simulate_device(TEST_ID, 2, Some(&server)).await?;
-    let default_folder_id = device1.default_folder_id.clone();
+    let default_folder_id = device1.default_folder_id;
     let origin = device1.origin.clone();
     let folders = device1.folders.clone();
     let mut device2 = device1.connect(1, None).await?;

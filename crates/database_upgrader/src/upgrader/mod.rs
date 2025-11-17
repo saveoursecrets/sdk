@@ -167,7 +167,7 @@ async fn import_accounts(
             fs_storage,
             &mut client,
             account_paths.clone(),
-            &account,
+            account,
             options,
         )
         .await?;
@@ -202,7 +202,7 @@ pub async fn upgrade_accounts(
         return Err(Error::DatabaseExists(db_file.to_owned()));
     }
 
-    let mut result = UpgradeResult::new((&*options.paths).clone());
+    let mut result = UpgradeResult::new((*options.paths).clone());
 
     if !options.dry_run && options.backup_directory.is_some() {
         tracing::debug!("upgrade_accounts::create_backups");

@@ -1,8 +1,8 @@
-use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_account::Account;
 use sos_protocol::SyncClient;
 use sos_remote_sync::RemoteSyncHandler;
+use sos_test_utils::{simulate_device, spawn, teardown};
 
 /// Tests creating and then deleting all the account data
 /// on a remote server.
@@ -10,14 +10,14 @@ use sos_remote_sync::RemoteSyncHandler;
 async fn network_sync_delete_account() -> Result<()> {
     const TEST_ID: &str = "sync_delete_account";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare a mock device
     let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
-    let address = device.owner.account_id().clone();
+    let address = *device.owner.account_id();
     let origin = device.origin.clone();
 
     // Note that setting up the mock device automatically

@@ -18,7 +18,7 @@ use tokio::io::{AsyncRead, AsyncSeek};
 pub fn encoding_error(
     e: impl std::error::Error + Send + Sync + 'static,
 ) -> std::io::Error {
-    std::io::Error::new(std::io::ErrorKind::Other, e)
+    std::io::Error::other(e)
 }
 
 /// Maximum buffer size allowed when encoding and decoding.

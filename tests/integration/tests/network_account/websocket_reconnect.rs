@@ -1,9 +1,9 @@
-use crate::test_utils::{
-    simulate_device, spawn, teardown, wait_num_websocket_connections,
-};
 use anyhow::Result;
 use sos_account::Account;
 use sos_protocol::network_client::{ListenOptions, NetworkRetry};
+use sos_test_utils::{
+    simulate_device, spawn, teardown, wait_num_websocket_connections,
+};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -12,11 +12,11 @@ use tokio::sync::Mutex;
 #[tokio::test]
 async fn network_websocket_reconnect() -> Result<()> {
     const TEST_ID: &str = "websocket_reconnect";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
-    let addr = server.addr.clone();
+    let addr = server.addr;
 
     // Prepare a mock device
     let device = simulate_device(TEST_ID, 1, Some(&server)).await?;

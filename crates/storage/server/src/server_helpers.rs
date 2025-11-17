@@ -94,28 +94,28 @@ where
         EventLogType::Identity => {
             let log = storage.identity_log().await?;
             let event_log = log.read().await;
-            diff_log(&req, &*event_log).await
+            diff_log(req, &*event_log).await
         }
         EventLogType::Account => {
             let log = storage.account_log().await?;
             let event_log = log.read().await;
-            diff_log(&req, &*event_log).await
+            diff_log(req, &*event_log).await
         }
         EventLogType::Device => {
             let log = storage.device_log().await?;
             let event_log = log.read().await;
-            diff_log(&req, &*event_log).await
+            diff_log(req, &*event_log).await
         }
         #[cfg(feature = "files")]
         EventLogType::Files => {
             let log = storage.file_log().await?;
             let event_log = log.read().await;
-            diff_log(&req, &*event_log).await
+            diff_log(req, &*event_log).await
         }
         EventLogType::Folder(id) => {
             let log = storage.folder_log(id).await?;
             let event_log = log.read().await;
-            diff_log(&req, &*event_log).await
+            diff_log(req, &*event_log).await
         }
     }
 }
@@ -156,28 +156,28 @@ where
         EventLogType::Identity => {
             let log = storage.identity_log().await?;
             let event_log = log.read().await;
-            scan_log(&req, &*event_log).await?
+            scan_log(req, &*event_log).await?
         }
         EventLogType::Account => {
             let log = storage.account_log().await?;
             let event_log = log.read().await;
-            scan_log(&req, &*event_log).await?
+            scan_log(req, &*event_log).await?
         }
         EventLogType::Device => {
             let log = storage.device_log().await?;
             let event_log = log.read().await;
-            scan_log(&req, &*event_log).await?
+            scan_log(req, &*event_log).await?
         }
         #[cfg(feature = "files")]
         EventLogType::Files => {
             let log = storage.file_log().await?;
             let event_log = log.read().await;
-            scan_log(&req, &*event_log).await?
+            scan_log(req, &*event_log).await?
         }
         EventLogType::Folder(id) => {
-            let log = storage.folder_log(&id).await?;
+            let log = storage.folder_log(id).await?;
             let event_log = log.read().await;
-            scan_log(&req, &*event_log).await?
+            scan_log(req, &*event_log).await?
         }
     };
 
@@ -200,13 +200,13 @@ where
     let offset = req.offset;
     let num_commits = event_log.tree().len() as u64;
 
-    let mut index = if event_log.tree().len() > 0 {
+    let mut index = if !event_log.tree().is_empty() {
         event_log.tree().len() - 1
     } else {
         0
     };
 
-    if event_log.tree().len() > 0 {
+    if !event_log.tree().is_empty() {
         res.first_proof = Some(event_log.tree().proof(&[0])?);
     }
 
@@ -223,9 +223,7 @@ where
     loop {
         let record = stream.next().await;
         if offset > 0 && skip < offset {
-            if index > 0 {
-                index -= 1;
-            }
+            index = index.saturating_sub(1);
             skip += 1;
             continue;
         }
@@ -233,11 +231,7 @@ where
             let proof = event_log.tree().proof(&[index])?;
             res.proofs.insert(0, proof);
             res.offset = offset + res.proofs.len() as u64;
-
-            if index > 0 {
-                index -= 1;
-            }
-
+            index = index.saturating_sub(1);
             if res.proofs.len() == req.limit as usize {
                 break;
             }
@@ -365,7 +359,7 @@ where
         EventLogType::Folder(id) => {
             let patch = Patch::<WriteEvent>::new(req.patch);
             let (last_commit, records) = if let Some(commit) = &req.commit {
-                let log = storage.folder_log(&id).await?;
+                let log = storage.folder_log(id).await?;
                 let mut event_log = log.write().await;
                 let records = event_log.rewind(commit).await?;
                 (Some(*commit), records)
@@ -381,7 +375,7 @@ where
 
             let mut outcome = MergeOutcome::default();
             (
-                storage.merge_folder(&id, diff, &mut outcome).await?.0,
+                storage.merge_folder(id, diff, &mut outcome).await?.0,
                 outcome,
                 records,
             )

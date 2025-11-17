@@ -12,7 +12,7 @@ use keychain_parser::{AttributeName, KeychainParser};
 use secrecy::{ExposeSecret, SecretString};
 use security_framework::{
     item::{ItemClass, ItemSearchOptions},
-    os::macos::{item::ItemSearchOptionsExt, keychain::SecKeychain},
+    os::macos::keychain::SecKeychain,
 };
 use sos_backend::AccessPoint;
 use sos_core::crypto::AccessKey;
@@ -146,7 +146,7 @@ impl Convert for KeychainImport {
 
         let mut index = SearchIndex::new();
         let mut keeper = AccessPoint::from_vault(vault);
-        keeper.unlock(&key).await?;
+        keeper.unlock(key).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();
 
@@ -309,6 +309,7 @@ end tell
     );
 
     std::thread::spawn(move || {
+        #[allow(clippy::zombie_processes)]
         let mut child = Command::new("osascript")
             .stdin(Stdio::piped())
             .spawn()

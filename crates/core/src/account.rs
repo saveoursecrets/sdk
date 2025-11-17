@@ -7,7 +7,9 @@ use std::{fmt, str::FromStr};
 ///
 /// String encoding starts with 0x and is followed with
 /// 20 bytes hex-encoded.
-#[derive(Debug, Default, Serialize, Deserialize, Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(
+    Debug, Default, Serialize, Deserialize, Clone, Copy, Hash, Eq, PartialEq,
+)]
 #[serde(try_from = "String", into = "String")]
 pub struct AccountId([u8; 20]);
 

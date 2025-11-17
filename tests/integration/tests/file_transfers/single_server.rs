@@ -3,22 +3,22 @@
 use anyhow::Result;
 use sos_client_storage::NewFolderOptions;
 
-use crate::test_utils::{
-    assert_local_remote_file_eq, assert_local_remote_file_not_exist,
-    mock::files::{create_file_secret, update_file_secret},
-    simulate_device, spawn, teardown, wait_for_num_transfers,
-};
 use sos_account::{Account, FolderCreate, SecretMove};
 use sos_core::ExternalFile;
 use sos_protocol::AccountSync;
 use sos_sdk::prelude::*;
+use sos_test_utils::{
+    assert_local_remote_file_eq, assert_local_remote_file_not_exist,
+    mock::files::{create_file_secret, update_file_secret},
+    simulate_device, spawn, teardown, wait_for_num_transfers,
+};
 
 /// Tests uploading an external file.
 #[tokio::test]
 async fn file_transfers_single_upload() -> Result<()> {
     const TEST_ID: &str = "file_transfers_single_upload";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -41,7 +41,7 @@ async fn file_transfers_single_upload() -> Result<()> {
     let server_paths = server.paths(device.owner.account_id());
 
     // Assert the files on disc are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server_paths, &file)
         .await?;
 
     device.owner.sign_out().await?;
@@ -57,7 +57,7 @@ async fn file_transfers_single_upload() -> Result<()> {
 async fn file_transfers_single_update() -> Result<()> {
     const TEST_ID: &str = "file_transfers_single_update";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -93,7 +93,7 @@ async fn file_transfers_single_update() -> Result<()> {
     let server_paths = server.paths(device.owner.account_id());
 
     // Assert the files on disc are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server_paths, &file)
         .await?;
 
     device.owner.sign_out().await?;
@@ -109,7 +109,7 @@ async fn file_transfers_single_update() -> Result<()> {
 async fn file_transfers_single_move() -> Result<()> {
     const TEST_ID: &str = "file_transfers_single_move";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -155,7 +155,7 @@ async fn file_transfers_single_move() -> Result<()> {
     let server_paths = server.paths(device.owner.account_id());
 
     // Assert the files on disc are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server_paths, &file)
         .await?;
 
     device.owner.sign_out().await?;
@@ -170,7 +170,7 @@ async fn file_transfers_single_move() -> Result<()> {
 async fn file_transfers_single_delete() -> Result<()> {
     const TEST_ID: &str = "file_transfers_single_delete";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -193,7 +193,7 @@ async fn file_transfers_single_delete() -> Result<()> {
     let server_paths = server.paths(device.owner.account_id());
 
     // Assert the files on disc are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server_paths, &file)
         .await?;
 
     device
@@ -206,7 +206,7 @@ async fn file_transfers_single_delete() -> Result<()> {
 
     let local_paths = device.owner.paths();
 
-    assert_local_remote_file_not_exist(local_paths, &*server_paths, &file)
+    assert_local_remote_file_not_exist(local_paths, &server_paths, &file)
         .await?;
 
     device.owner.sign_out().await?;
@@ -221,7 +221,7 @@ async fn file_transfers_single_delete() -> Result<()> {
 async fn file_transfers_single_download() -> Result<()> {
     const TEST_ID: &str = "file_transfers_single_download";
 
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -250,7 +250,7 @@ async fn file_transfers_single_download() -> Result<()> {
 
         assert_local_remote_file_eq(
             uploader.owner.paths(),
-            &*uploader_server_paths,
+            &uploader_server_paths,
             &file,
         )
         .await?;
@@ -267,7 +267,7 @@ async fn file_transfers_single_download() -> Result<()> {
 
         assert_local_remote_file_eq(
             downloader.owner.paths(),
-            &*downloader_server_paths,
+            &downloader_server_paths,
             &file,
         )
         .await?;

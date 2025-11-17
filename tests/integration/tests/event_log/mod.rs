@@ -16,9 +16,6 @@ mod init_account_log;
 mod init_file_log;
 mod move_folder;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub use sos_test_utils as test_utils;
-
 /// Get the last event from an event log.
 async fn last_log_event<
     T: LogEvent + Encodable + Decodable + Default + Send + Sync + 'static,

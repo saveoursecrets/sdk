@@ -24,7 +24,7 @@ use std::{
     path::PathBuf,
 };
 use terminal_banner::{Banner, Padding};
-use {secrecy, url::Url};
+use url::Url;
 
 /// Resolved secret data.
 pub(crate) struct ResolvedSecret {
@@ -342,7 +342,7 @@ pub fn add_list(
     let mut credentials: HashMap<String, SecretString> = HashMap::new();
     loop {
         let mut name = read_line(Some("Key: "))?;
-        while credentials.get(&name).is_some() {
+        while credentials.contains_key(&name) {
             fail(format!("name '{}' already exists", &name));
             name = read_line(Some("Key: "))?;
         }

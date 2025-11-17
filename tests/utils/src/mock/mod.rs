@@ -289,7 +289,7 @@ pub async fn insert_database_vault(
     let record = EventRecord::encode_event(&event).await?;
     let event_rows = vec![EventRecordRow::new(&record)?];
 
-    Ok(client
+    client
         .conn_mut_and_then(move |conn| {
             let folder = FolderEntity::new(&conn);
             let folder_id = folder.insert_folder(account_id, &folder_row)?;
@@ -316,7 +316,7 @@ pub async fn insert_database_vault(
                 folder_id,
             ))
         })
-        .await?)
+        .await
 }
 
 /// Create a login secret.
@@ -431,7 +431,7 @@ pub fn internal_file(
         content: FileContent::Embedded {
             name: name.to_string(),
             mime: mime.to_string(),
-            checksum: checksum.try_into().unwrap(),
+            checksum: checksum.into(),
             buffer: secrecy::SecretBox::new(
                 buffer.as_ref().to_owned().into(),
             ),

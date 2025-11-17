@@ -1,4 +1,3 @@
-use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_backend::AccountEventLog;
@@ -9,12 +8,13 @@ use sos_core::{
 };
 use sos_password::diceware::generate_passphrase;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{setup, teardown};
 
 /// Tests lazy initialization of the account events log.
 #[tokio::test]
 async fn event_log_init_account_log() -> Result<()> {
     const TEST_ID: &str = "event_log_init_account_log";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -43,7 +43,7 @@ async fn event_log_init_account_log() -> Result<()> {
     assert_eq!(1, events.len());
 
     assert!(matches!(
-        events.get(0),
+        events.first(),
         Some(AccountEvent::CreateFolder(_, _))
     ));
 

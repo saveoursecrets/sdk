@@ -1,18 +1,18 @@
-use crate::test_utils::{
-    assert_local_remote_events_eq, run_pairing_protocol, simulate_device,
-    spawn, teardown,
-};
 use anyhow::Result;
 use http::StatusCode;
 use sos_account::Account;
 use sos_net::Error as ClientError;
 use sos_protocol::{AccountSync, Error as ProtocolError, NetworkError};
+use sos_test_utils::{
+    assert_local_remote_events_eq, run_pairing_protocol, simulate_device,
+    spawn, teardown,
+};
 
 /// Tests pairing a new device and revoking trust in the device.
 #[tokio::test]
 async fn pairing_device_revoke() -> Result<()> {
     const TEST_ID: &str = "pairing_device_revoke";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -29,15 +29,11 @@ async fn pairing_device_revoke() -> Result<()> {
             .unwrap();
 
     // Cannot revoke the current device
-    let current_device_public_key = primary_device
-        .owner
-        .current_device()
-        .await?
-        .public_key()
-        .clone();
+    let current_device = primary_device.owner.current_device().await?;
+    let current_device_public_key = current_device.public_key();
     let result = primary_device
         .owner
-        .revoke_device(&current_device_public_key)
+        .revoke_device(current_device_public_key)
         .await;
     assert!(matches!(result, Err(ClientError::RevokeDeviceSelf)));
 
@@ -53,7 +49,7 @@ async fn pairing_device_revoke() -> Result<()> {
         .await?;
 
     let revoke_error = enrolled_account
-        .revoke_device(&current_device_public_key)
+        .revoke_device(current_device_public_key)
         .await;
 
     // println!("{:#?}", revoke_error);

@@ -78,7 +78,7 @@ impl SimulatedDevice {
         origin: Option<Origin>,
     ) -> Result<SimulatedDevice> {
         let data_dir = self.dirs.clients.get(index).unwrap();
-        let paths = Paths::new_client(&data_dir)
+        let paths = Paths::new_client(data_dir)
             .with_account_id(self.owner.account_id());
         let target = make_client_backend(&paths).await?;
         let mut owner = NetworkAccount::new_unauthenticated(
@@ -108,7 +108,7 @@ impl SimulatedDevice {
             owner,
             data_dir: data_dir.clone(),
             default_folder: self.default_folder.clone(),
-            default_folder_id: self.default_folder_id.clone(),
+            default_folder_id: self.default_folder_id,
             folders: self.folders.clone(),
             origin: origin.clone(),
             dirs: self.dirs.clone(),
@@ -133,7 +133,7 @@ pub async fn simulate_device_with_builder(
     builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
 ) -> Result<SimulatedDevice> {
     let dirs = setup(test_id, num_clients).await?;
-    let data_dir = dirs.clients.get(0).unwrap().clone();
+    let data_dir = dirs.clients.first().unwrap().clone();
     let paths = Paths::new_client(&data_dir);
     let target = make_client_backend(&paths).await?;
 
@@ -160,8 +160,8 @@ pub async fn simulate_device_with_builder(
     // exactly the same initial data
     for index in 1..dirs.clients.len() {
         let dir = dirs.clients.get(index).unwrap();
-        std::fs::remove_dir(&dir)?;
-        copy_dir(&data_dir, &dir)?;
+        std::fs::remove_dir(dir)?;
+        copy_dir(&data_dir, dir)?;
     }
 
     // Create the remote provider
@@ -171,6 +171,7 @@ pub async fn simulate_device_with_builder(
 
         // Sync the local account to create the account on remote
         let sync_result = owner.sync().await;
+        // println!("{:#?}", sync_result.first_error_ref());
         assert!(sync_result.first_error().is_none());
 
         (origin, server.account_path(owner.account_id()))
@@ -378,11 +379,7 @@ pub async fn wait_for_file(
         if path.exists() {
             let contents = std::fs::read(&path).unwrap();
             let checksum = Sha256::digest(&contents);
-            if checksum.as_slice() == file.file_name().as_ref() {
-                true
-            } else {
-                false
-            }
+            checksum.as_slice() == file.file_name().as_ref()
         } else {
             false
         }

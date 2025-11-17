@@ -33,7 +33,7 @@ async fn assert_diff_events(mut event_log: AccountEventLog) -> Result<()> {
         ])
         .await?;
 
-    assert!(event_log.tree().len() > 0);
+    assert!(!event_log.tree().is_empty());
     assert!(event_log.tree().root().is_some());
     assert!(event_log.tree().last_commit().is_some());
 

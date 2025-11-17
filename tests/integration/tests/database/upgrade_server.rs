@@ -1,14 +1,14 @@
 use super::prepare_server_for_upgrade;
-use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_core::Paths;
 use sos_database_upgrader::{upgrade_accounts, UpgradeOptions};
+use sos_test_utils::{setup, teardown};
 
 /// Upgrade v1 accounts to the v2 backend for server-side storage.
 #[tokio::test]
 async fn database_upgrade_server() -> Result<()> {
     const TEST_ID: &str = "database_upgrade_server";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     let dirs = setup(TEST_ID, 0).await?;
     prepare_server_for_upgrade(&dirs)?;
@@ -25,7 +25,7 @@ async fn database_upgrade_server() -> Result<()> {
     let result = upgrade_accounts(dirs.test_dir.clone(), options).await?;
     assert!(result.database_file.exists());
 
-    assert!(result.backups.len() > 0);
+    assert!(!result.backups.is_empty());
     for file in &result.backups {
         assert!(file.exists());
     }

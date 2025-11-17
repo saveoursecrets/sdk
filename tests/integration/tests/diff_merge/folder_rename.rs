@@ -1,17 +1,17 @@
-use crate::test_utils::{copy_account, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_protocol::diff;
 use sos_sdk::prelude::*;
 use sos_sync::{Merge, MergeOutcome, SyncStorage, TrackedAccountChange};
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{copy_account, setup, teardown};
 
 /// Tests creating a diff and merging a rename folder
 /// event without any networking.
 #[tokio::test]
 async fn diff_merge_folder_rename() -> Result<()> {
     const TEST_ID: &str = "diff_merge_folder_rename";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 2).await?;
     let data_dir = dirs.clients.remove(0);
@@ -31,7 +31,7 @@ async fn diff_merge_folder_rename() -> Result<()> {
 
     let key: AccessKey = password.clone().into();
     local.sign_in(&key).await?;
-    let account_id = local.account_id().clone();
+    let account_id = *local.account_id();
     let default_folder = local.default_folder().await.unwrap();
 
     // Copy the initial account disc state

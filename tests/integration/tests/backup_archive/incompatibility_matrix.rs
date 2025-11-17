@@ -9,7 +9,7 @@ use sos_test_utils::{setup, teardown};
 #[tokio::test]
 async fn backup_incompatible_v1_db() -> Result<()> {
     const TEST_ID: &str = "backup_incompatible_v1_db";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -37,7 +37,7 @@ async fn backup_incompatible_v1_db() -> Result<()> {
 #[tokio::test]
 async fn backup_incompatible_v2_db() -> Result<()> {
     const TEST_ID: &str = "backup_incompatible_v2_db";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -65,7 +65,7 @@ async fn backup_incompatible_v2_db() -> Result<()> {
 #[tokio::test]
 async fn backup_incompatible_v3_fs() -> Result<()> {
     const TEST_ID: &str = "backup_incompatible_v3_fs";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

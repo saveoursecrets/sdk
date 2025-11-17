@@ -63,11 +63,7 @@ impl DeviceEnrollment {
         }
 
         let accounts = target.list_accounts().await?;
-        if accounts
-            .iter()
-            .find(|a| a.account_id() == &account_id)
-            .is_some()
-        {
+        if accounts.iter().any(|a| a.account_id() == &account_id) {
             return Err(Error::EnrollAccountExists(account_id));
         }
 

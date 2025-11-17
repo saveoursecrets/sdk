@@ -74,14 +74,14 @@ impl ExternalFileManager {
         source: P,
     ) -> Result<EncryptedFile> {
         // Encrypt and write to disc
-        Ok(FileStorage::encrypt_file_storage(
+        FileStorage::encrypt_file_storage(
             self.file_password.clone(),
             source,
             &self.paths,
             vault_id,
             secret_id,
         )
-        .await?)
+        .await
     }
 
     /// Decrypt a file in the storage location and return the buffer.
@@ -91,14 +91,14 @@ impl ExternalFileManager {
         secret_id: &SecretId,
         file_name: &ExternalFileName,
     ) -> Result<Vec<u8>> {
-        Ok(FileStorage::decrypt_file_storage(
+        FileStorage::decrypt_file_storage(
             &self.file_password,
             &self.paths,
             vault_id,
             secret_id,
             file_name,
         )
-        .await?)
+        .await
     }
 
     /// Decrypt a file and return the buffer.
@@ -668,7 +668,7 @@ fn get_file_secret_diff<'a>(
                         // be changed in a rename operation so comparing
                         // the fields would result in deleting the file
                         // when an attachment is renamed
-                        return field.secret() == other.secret();
+                        field.secret() == other.secret()
                     });
 
                 if existing.is_none() {

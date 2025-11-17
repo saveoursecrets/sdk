@@ -619,7 +619,7 @@ pub trait AutoMerge: RemoteSyncHandler {
         }
 
         // Combine the event records
-        local.extend(remote.into_iter());
+        local.extend(remote);
 
         // Sort by time so the more recent changes will win (LWW)
         local.sort_by(|a, b| a.time().cmp(b.time()));

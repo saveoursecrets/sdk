@@ -78,8 +78,7 @@ pub async fn list_backup_archive_accounts(
             use sos_vault::Vault;
             let file = File::open(input.as_ref()).await?;
             let mut zip_reader = ZipReader::new(BufReader::new(file)).await?;
-            let name =
-                format!("{}.{}", manifest.account_id.to_string(), VAULT_EXT);
+            let name = format!("{}.{}", manifest.account_id, VAULT_EXT);
             if let Some(identity_buffer) = zip_reader.by_name(&name).await? {
                 let identity_vault: Vault = decode(&identity_buffer).await?;
                 let label = identity_vault.name().to_owned();
@@ -101,7 +100,7 @@ pub async fn list_backup_archive_accounts(
 
             let mut import = archive::import_backup_archive(
                 paths.database_file(),
-                &*paths,
+                &paths,
                 input.as_ref(),
             )
             .await?;
@@ -125,11 +124,11 @@ pub async fn export_backup_archive(
     match target {
         BackendTarget::FileSystem(paths) => {
             use sos_filesystem::archive;
-            let paths = paths.with_account_id(&account_id);
+            let paths = paths.with_account_id(account_id);
             archive::export_backup_archive(
                 output.as_ref(),
-                &account_id,
-                &*paths,
+                account_id,
+                &paths,
             )
             .await?;
         }

@@ -130,7 +130,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 println!("[{} = {}]", origin.name(), origin.url());
                 match maybe_status {
                     Ok(status) => {
-                        print_status(&owner, &local_status, &status).await?;
+                        print_status(owner, &local_status, &status).await?;
                     }
                     Err(e) => {
                         println!("error: {}", e);

@@ -87,7 +87,7 @@ fn search_index() {
 
     let docs = idx.query_map("secret", |_| true);
     assert_eq!(1, docs.len());
-    assert_eq!(&id2, docs.get(0).unwrap().id());
+    assert_eq!(&id2, docs.first().unwrap().id());
 
     idx.remove(&folder_id, &id2);
     assert_eq!(0, idx.len());

@@ -1,15 +1,15 @@
-use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount, SecretChange};
 use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{mock, setup, teardown};
 
 /// Tests moving a secret between folders.
 #[tokio::test]
 async fn local_move_secret() -> Result<()> {
     const TEST_ID: &str = "move_secret";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

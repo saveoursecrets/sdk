@@ -1,5 +1,4 @@
 use super::all_events;
-use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_backend::{AccountEventLog, FolderEventLog};
@@ -11,13 +10,14 @@ use sos_core::{
 };
 use sos_password::diceware::generate_passphrase;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{mock, setup, teardown};
 use sos_vault::Vault;
 
 /// Tests events after moving a folder between accounts.
 #[tokio::test]
 async fn event_log_move_folder() -> Result<()> {
     const TEST_ID: &str = "event_log_move_folder";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -93,7 +93,7 @@ async fn event_log_move_folder() -> Result<()> {
     // one for the default folder and one for the imported folder
     assert_eq!(2, events.len());
     assert!(matches!(
-        events.get(0),
+        events.first(),
         Some(AccountEvent::CreateFolder(_, _))
     ));
     assert!(matches!(
@@ -112,7 +112,7 @@ async fn event_log_move_folder() -> Result<()> {
     let events = all_events(&mut event_log).await?;
     // Should have the create vault and 3 create secret events
     assert_eq!(4, events.len());
-    assert!(matches!(events.get(0), Some(WriteEvent::CreateVault(_))));
+    assert!(matches!(events.first(), Some(WriteEvent::CreateVault(_))));
     assert!(matches!(
         events.get(1),
         Some(WriteEvent::CreateSecret(_, _))

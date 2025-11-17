@@ -43,5 +43,3 @@ mod change_folder_password;
 
 mod compact_account;
 mod compact_folder;
-
-pub use sos_test_utils as test_utils;

@@ -245,12 +245,10 @@ pub trait Merge: StorageEventLogs {
             Some(MaybeDiff::Diff(diff)) => {
                 self.merge_identity(diff, outcome).await?;
             }
-            Some(MaybeDiff::Compare(state)) => {
-                if let Some(state) = state {
-                    compare.identity =
-                        Some(self.compare_identity(&state).await?);
-                }
+            Some(MaybeDiff::Compare(Some(state))) => {
+                compare.identity = Some(self.compare_identity(&state).await?);
             }
+            Some(MaybeDiff::Compare(None)) => {}
             None => {}
         }
 

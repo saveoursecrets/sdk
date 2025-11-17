@@ -90,10 +90,10 @@ fn vault_stream(
                             Ok(row.try_into()?)
                         }
 
-                        let rows = stmt
-                            .query_and_then([folder_row.row_id], |row| {
-                                Ok::<_, Error>(convert_row(row)?)
-                            })?;
+                        let rows = stmt.query_and_then(
+                            [folder_row.row_id],
+                            convert_row,
+                        )?;
 
                         for row in rows {
                             let row = row?;

@@ -1,15 +1,15 @@
-use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use maplit2::hashset;
 use sos_account::{Account, LocalAccount, SecretChange, SecretMove};
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{mock, setup, teardown};
 
 /// Tests the statistics maintained whilst modifting the search index.
 #[tokio::test]
 async fn local_search_statistics() -> Result<()> {
     const TEST_ID: &str = "search_statistics";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

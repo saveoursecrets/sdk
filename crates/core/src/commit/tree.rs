@@ -109,7 +109,7 @@ impl CommitTree {
         } else {
             let leaves = self.tree.leaves().unwrap_or_default();
             let leaves_to_prove = indices_to_prove
-                .into_iter()
+                .iter()
                 .filter_map(|i| leaves.get(*i).cloned())
                 .collect::<Vec<_>>();
             if leaves_to_prove.len() == indices_to_prove.len() {

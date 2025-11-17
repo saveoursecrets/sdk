@@ -825,7 +825,7 @@ mod handlers {
                     outcome,
                 );
                 let reader = state.read().await;
-                send_notification(&*reader, &caller, notification).await;
+                send_notification(&reader, &caller, notification).await;
             }
         }
 
@@ -875,7 +875,7 @@ mod handlers {
                     outcome,
                 );
                 let reader = state.read().await;
-                send_notification(&*reader, &caller, notification).await;
+                send_notification(&reader, &caller, notification).await;
             }
         }
 

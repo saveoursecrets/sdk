@@ -1,23 +1,23 @@
-use crate::test_utils::{
-    assert_local_remote_events_eq, mock, simulate_device, spawn, sync_pause,
-    teardown,
-};
 use anyhow::Result;
 use sos_account::Account;
 use sos_protocol::AccountSync;
+use sos_test_utils::{
+    assert_local_remote_events_eq, mock, simulate_device, spawn, sync_pause,
+    teardown,
+};
 
 /// Tests syncing a single client with multiple
 /// remote servers when one of the servers is offline.
 #[tokio::test]
 async fn network_sync_multiple_remotes_fallback() -> Result<()> {
     const TEST_ID: &str = "sync_multiple_remotes_fallback";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn some backend servers
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;
     let server2 = spawn(TEST_ID, None, Some("server2")).await?;
 
-    let addr = server1.addr.clone();
+    let addr = server1.addr;
 
     // Prepare mock devices
     let mut device = simulate_device(TEST_ID, 1, Some(&server1)).await?;

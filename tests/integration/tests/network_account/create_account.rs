@@ -1,9 +1,9 @@
-use crate::test_utils::{
+use anyhow::Result;
+use sos_account::Account;
+use sos_test_utils::{
     assert_local_remote_events_eq, assert_local_remote_vaults_eq,
     simulate_device, spawn, teardown,
 };
-use anyhow::Result;
-use sos_account::Account;
 
 /// Tests creating all the account data on a remote
 /// when the server does not have the account data yet.
@@ -11,7 +11,7 @@ use sos_account::Account;
 async fn network_sync_create_account() -> Result<()> {
     const TEST_ID: &str = "sync_create_account";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

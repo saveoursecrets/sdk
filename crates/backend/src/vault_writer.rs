@@ -137,6 +137,7 @@ impl EncryptedEntry for VaultWriter {
     }
 
     async fn replace_vault(&mut self, vault: &Vault) -> Result<()> {
+        #[allow(clippy::unit_arg)]
         Ok(match self {
             Self::Database(inner) => inner.replace_vault(vault).await?,
             Self::FileSystem(inner) => inner.replace_vault(vault).await?,

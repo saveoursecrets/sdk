@@ -1,15 +1,15 @@
-use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_sdk::prelude::*;
 use sos_search::DocumentView;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{mock, setup, teardown};
 
 /// Tests querying the search index using a websites view.
 #[tokio::test]
 async fn local_search_view_query_websites() -> Result<()> {
     const TEST_ID: &str = "search_view_query_websites";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -120,7 +120,7 @@ async fn local_search_view_query_websites() -> Result<()> {
     let mut websites: Vec<&str> = Vec::new();
     for doc in &documents {
         if let Some(sites) = doc.extra().websites() {
-            websites.append(&mut sites.into_iter().map(|u| &u[..]).collect());
+            websites.append(&mut sites.clone());
         }
     }
 

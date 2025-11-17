@@ -1,8 +1,8 @@
-use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
 use futures::{stream::FuturesUnordered, Future, StreamExt};
 use sos_account::Account;
 use sos_net::pairing::{self, OfferPairing};
+use sos_test_utils::{simulate_device, spawn, teardown};
 use std::pin::Pin;
 use tokio::sync::mpsc;
 
@@ -11,7 +11,7 @@ use tokio::sync::mpsc;
 #[tokio::test]
 async fn pairing_websocket_shutdown() -> Result<()> {
     const TEST_ID: &str = "pairing_websocket_shutdown";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

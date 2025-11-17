@@ -1,15 +1,15 @@
-use crate::test_utils::{
+use anyhow::Result;
+use sos_account::{Account, SecretDelete};
+use sos_test_utils::{
     assert_local_remote_events_eq, mock, num_events, simulate_device, spawn,
     teardown,
 };
-use anyhow::Result;
-use sos_account::{Account, SecretDelete};
 
 /// Tests sending delete secret events to a remote.
 #[tokio::test]
 async fn network_sync_secret_delete() -> Result<()> {
     const TEST_ID: &str = "sync_secret_delete";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -18,7 +18,7 @@ async fn network_sync_secret_delete() -> Result<()> {
     let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
     let origin = device.origin.clone();
     let folders = device.folders.clone();
-    let default_folder_id = device.default_folder_id.clone();
+    let default_folder_id = device.default_folder_id;
 
     // Create a secret
     let (meta, secret) = mock::note("note", "secret1");

@@ -1,4 +1,4 @@
-use crate::test_utils::{setup, simulate_device, spawn, teardown};
+use sos_test_utils::{setup, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
 use sos_client_storage::NewFolderOptions;
@@ -13,7 +13,7 @@ use sos_sync::SyncStorage;
 #[tokio::test]
 async fn network_no_sync_create_account() -> Result<()> {
     const TEST_ID: &str = "no_sync_create_account";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -71,7 +71,7 @@ async fn network_no_sync_create_account() -> Result<()> {
 #[tokio::test]
 async fn network_no_sync_update_account() -> Result<()> {
     const TEST_ID: &str = "no_sync_update_account";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

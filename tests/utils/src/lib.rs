@@ -288,7 +288,7 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
 
     let mut clients = Vec::new();
     for index in 0..num_clients {
-        let client = test_dir.join(&format!("client{}", index + 1));
+        let client = test_dir.join(format!("client{}", index + 1));
         let _ = vfs::remove_dir_all(&client).await;
         vfs::create_dir_all(&client).await?;
 

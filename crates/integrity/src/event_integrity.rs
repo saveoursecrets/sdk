@@ -37,16 +37,14 @@ pub fn event_integrity(
                 if let Err(err) = tx.send(Ok(record)).await {
                     tracing::error!(error = %err);
                 }
-            } else {
-                if let Err(err) = tx
-                    .send(Err(Error::HashMismatch {
-                        commit: *commit,
-                        value: checksum,
-                    }))
-                    .await
-                {
-                    tracing::error!(error = %err);
-                }
+            } else if let Err(err) = tx
+                .send(Err(Error::HashMismatch {
+                    commit: *commit,
+                    value: checksum,
+                }))
+                .await
+            {
+                tracing::error!(error = %err);
             }
         }
 

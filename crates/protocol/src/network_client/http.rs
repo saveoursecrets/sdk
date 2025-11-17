@@ -124,7 +124,7 @@ impl HttpClient {
         F: Future<Output = ()> + Send + 'static,
     {
         let listener = WebSocketChangeListener::new(
-            self.account_id.clone(),
+            self.account_id,
             self.origin.clone(),
             self.device_signer.clone(),
             options,
@@ -163,7 +163,7 @@ impl HttpClient {
         match (status, content_type) {
             // OK with the correct MIME type can be handled
             (http::StatusCode::OK, Some(content_type)) => {
-                if content_type == &protobuf_type {
+                if *content_type == protobuf_type {
                     Ok(response)
                 } else {
                     Err(NetworkError::ContentType(
@@ -699,8 +699,8 @@ impl FileSyncClient for HttpClient {
         &self,
         local_files: FileSet,
     ) -> Result<FileTransfersSet> {
-        let url_path = format!("api/v1/sync/files");
-        let url = self.build_url(&url_path)?;
+        let url_path = "api/v1/sync/files";
+        let url = self.build_url(url_path)?;
         let sign_url = url.path().to_owned();
         let body = local_files.encode().await?;
 

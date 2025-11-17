@@ -1,17 +1,17 @@
-use crate::test_utils::{
-    assert_local_remote_events_eq, num_events, simulate_device, spawn,
-    teardown,
-};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
 use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
+use sos_test_utils::{
+    assert_local_remote_events_eq, num_events, simulate_device, spawn,
+    teardown,
+};
 
 /// Tests sending create folder events to a remote.
 #[tokio::test]
 async fn network_sync_folder_create() -> Result<()> {
     const TEST_ID: &str = "sync_folder_create";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

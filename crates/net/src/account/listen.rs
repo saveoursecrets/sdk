@@ -45,7 +45,7 @@ impl NetworkAccount {
     ) -> Result<()> {
         let remotes = self.remotes.read().await;
         if let Some(remote) = remotes.get(origin) {
-            self.stop_listening(&origin).await;
+            self.stop_listening(origin).await;
 
             let remote = Arc::new(remote.clone());
             let (tx, mut rx) = mpsc::channel::<NetworkChangeEvent>(32);

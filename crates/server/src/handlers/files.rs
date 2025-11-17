@@ -61,6 +61,7 @@ pub struct MoveFileQuery {
         ),
     ),
 )]
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn receive_file(
     Extension(state): Extension<ServerState>,
     Extension(backend): Extension<ServerBackend>,
@@ -261,6 +262,7 @@ pub(crate) async fn send_file(
         ),
     ),
 )]
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn move_file(
     Extension(state): Extension<ServerState>,
     Extension(backend): Extension<ServerBackend>,
@@ -625,7 +627,7 @@ mod handlers {
         tracing::debug!(
             local_set_len = %local_set.len(), "compare_files");
 
-        let remote_set = list_external_files(&*paths).await?;
+        let remote_set = list_external_files(&paths).await?;
         tracing::debug!(
             remote_set_len = %remote_set.len(), "compare_files");
 

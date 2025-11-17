@@ -1,13 +1,13 @@
-use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_account::Account;
 use sos_sdk::prelude::*;
+use sos_test_utils::{simulate_device, spawn, teardown};
 
 /// Tests the logic for saving and loading remote definitions.
 #[tokio::test]
 async fn network_sync_server_definitions() -> Result<()> {
     const TEST_ID: &str = "server_definitions";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

@@ -207,7 +207,7 @@ impl VaultFlags {
 
 /// Manifest version for backup archives.
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ArchiveManifestVersion {
     /// Version 1 backup archives correspond to the
     /// v1 file system storage but do not include some
@@ -227,18 +227,8 @@ pub enum ArchiveManifestVersion {
     /// Version 3 backup archives include the SQLite
     /// database and external file blobs and may contain
     /// multiple accounts.
+    #[default]
     V3 = 3,
-}
-
-impl Default for ArchiveManifestVersion {
-    // Backwards compatible before we added tracking
-    // of backup archive manifest versions.
-    //
-    // For version 2 and version 3 the version is
-    // explicitly added to each manifest file.
-    fn default() -> Self {
-        Self::V1
-    }
 }
 
 // Implement serialization manually

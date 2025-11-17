@@ -1,9 +1,9 @@
 use super::{assert_import_archive, prepare_client_for_upgrade};
-use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_core::Paths;
 use sos_database::archive;
 use sos_database_upgrader::{upgrade_accounts, UpgradeOptions};
+use sos_test_utils::{setup, teardown};
 
 /// Create and import a backup archive for client-side database storage.
 ///
@@ -12,7 +12,7 @@ use sos_database_upgrader::{upgrade_accounts, UpgradeOptions};
 #[tokio::test]
 async fn database_import_archive_client() -> Result<()> {
     const TEST_ID: &str = "database_import_archive_client";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     let dirs = setup(TEST_ID, 0).await?;
     prepare_client_for_upgrade(&dirs)?;

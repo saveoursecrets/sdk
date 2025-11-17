@@ -79,9 +79,12 @@ const DOWNLOAD_FILE: u16 = 34;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
-#[derive(Debug, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
+#[derive(
+    Default, Debug, Serialize, Deserialize, Copy, Clone, Eq, PartialEq,
+)]
 pub enum EventKind {
     /// No operation.
+    #[default]
     Noop,
     /// Event to create an account.
     CreateAccount,
@@ -151,12 +154,6 @@ pub enum EventKind {
     RenameAccount,
     /// Event for when a file buffer is downloaded.
     DownloadFile,
-}
-
-impl Default for EventKind {
-    fn default() -> Self {
-        Self::Noop
-    }
 }
 
 impl TryFrom<u16> for EventKind {

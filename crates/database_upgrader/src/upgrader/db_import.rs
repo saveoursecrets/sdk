@@ -104,14 +104,13 @@ pub(crate) async fn import_globals(
     paths: &Paths,
 ) -> Result<()> {
     let global_preferences =
-        Paths::new_client(paths.documents_dir().to_owned())
-            .preferences_file();
+        Paths::new_client(paths.documents_dir()).preferences_file();
     let global_preferences = if vfs::try_exists(&global_preferences).await? {
         let contents = vfs::read_to_string(global_preferences).await?;
         let map: PreferenceMap = serde_json::from_str(&contents)?;
         let mut rows = Vec::new();
         for (key, value) in map.iter() {
-            rows.push(PreferenceRow::new_insert(&key, &value)?);
+            rows.push(PreferenceRow::new_insert(key, value)?);
         }
         Some(rows)
     } else {
@@ -247,7 +246,7 @@ pub(crate) async fn import_account(
 
     // User folders
     let mut folders = Vec::new();
-    let user_folders = list_local_folders(&*paths).await?;
+    let user_folders = list_local_folders(&paths).await?;
     for (summary, path) in user_folders {
         let buffer = vfs::read(path).await?;
         let vault: Vault = decode(&buffer).await?;
@@ -277,7 +276,7 @@ pub(crate) async fn import_account(
         let map: PreferenceMap = serde_json::from_str(&contents)?;
         let mut rows = Vec::new();
         for (key, value) in map.iter() {
-            rows.push(PreferenceRow::new_insert(&key, &value)?);
+            rows.push(PreferenceRow::new_insert(key, value)?);
         }
         Some(rows)
     } else {
@@ -291,7 +290,7 @@ pub(crate) async fn import_account(
             let map: SystemMessageMap = serde_json::from_str(&contents)?;
 
             let mut rows: Vec<SystemMessageRow> = Vec::new();
-            for item in map.into_iter() {
+            for item in map {
                 rows.push(item.try_into()?);
             }
             Some(rows)
@@ -406,7 +405,7 @@ pub(crate) async fn import_account(
             if let Some(rows) = account_messages {
                 let msg_entity = SystemMessageEntity::new(&tx);
                 msg_entity
-                    .insert_system_messages(account_id, &rows.as_slice())?;
+                    .insert_system_messages(account_id, rows.as_slice())?;
             }
 
             if let Some(servers) = remote_servers {

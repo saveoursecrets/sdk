@@ -7,8 +7,6 @@ mod import_archive_server;
 mod upgrade_client;
 mod upgrade_server;
 
-pub use sos_test_utils as test_utils;
-
 use anyhow::Result;
 use sos_core::{
     constants::{IDENTITY_DIR, LOCAL_DIR, REMOTE_DIR},
@@ -16,8 +14,8 @@ use sos_core::{
 };
 use sos_database::archive;
 use sos_external_files::list_external_files;
+use sos_test_utils::{copy_dir, TestDirs};
 use std::path::PathBuf;
-use test_utils::{copy_dir, TestDirs};
 
 pub fn prepare_client_for_upgrade(dirs: &TestDirs) -> Result<()> {
     let data_dir = &dirs.test_dir;
@@ -100,7 +98,7 @@ pub async fn assert_import_archive(
 
     // We know the backup archive has a single account so import it
     import
-        .import_account(source_accounts.get(0).unwrap())
+        .import_account(source_accounts.first().unwrap())
         .await?;
 
     // Should have one target account in the db

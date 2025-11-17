@@ -229,7 +229,7 @@ async fn assert_client_storage(
     let main = {
         let folders = storage.list_folders();
         assert_eq!(1, folders.len());
-        let main = folders.get(0).unwrap();
+        let main = folders.first().unwrap();
         assert_eq!(MAIN_NAME, main.name());
 
         let main_folder_by_name = storage

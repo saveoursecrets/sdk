@@ -556,12 +556,10 @@ impl Paths {
     pub fn data_dir() -> Result<PathBuf> {
         let dir = if let Ok(env_data_dir) = std::env::var("SOS_DATA_DIR") {
             Ok(PathBuf::from(env_data_dir))
+        } else if let Some(data_dir) = DATA_DIR.get() {
+            Ok(data_dir.to_owned())
         } else {
-            if let Some(data_dir) = DATA_DIR.get() {
-                Ok(data_dir.to_owned())
-            } else {
-                default_storage_dir()
-            }
+            default_storage_dir()
         };
 
         let has_explicit_env = std::env::var("SOS_DATA_DIR").ok().is_some();

@@ -25,7 +25,7 @@ pub async fn single(
     tracing::debug!(status = %res.status(), "hashcheck");
     let res = res.error_for_status()?;
     let value = res.json::<u8>().await?;
-    let result = if value == 1 { true } else { false };
+    let result = value == 1;
     Ok(result)
 }
 
@@ -50,9 +50,6 @@ pub async fn batch(
     tracing::debug!(status = %res.status(), "hashcheck");
     let res = res.error_for_status()?;
     let value = res.json::<Vec<u8>>().await?;
-    let result = value
-        .into_iter()
-        .map(|value| if value == 1 { true } else { false })
-        .collect();
+    let result = value.into_iter().map(|value| value == 1).collect();
     Ok(result)
 }

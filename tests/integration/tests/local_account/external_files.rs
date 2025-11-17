@@ -1,4 +1,12 @@
-use crate::test_utils::{
+use anyhow::Result;
+use sos_account::{Account, FolderCreate, LocalAccount, SecretMove};
+use sos_client_storage::{AccessOptions, NewFolderOptions};
+use sos_core::commit::ZERO;
+use sos_core::ExternalFileName;
+use sos_external_files::FileProgress;
+use sos_sdk::prelude::*;
+use sos_test_utils::make_client_backend;
+use sos_test_utils::{
     mock::{
         self,
         files::{
@@ -8,14 +16,6 @@ use crate::test_utils::{
     },
     setup, teardown,
 };
-use anyhow::Result;
-use sos_account::{Account, FolderCreate, LocalAccount, SecretMove};
-use sos_client_storage::{AccessOptions, NewFolderOptions};
-use sos_core::commit::ZERO;
-use sos_core::ExternalFileName;
-use sos_external_files::FileProgress;
-use sos_sdk::prelude::*;
-use sos_test_utils::make_client_backend;
 use sos_vfs as vfs;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
@@ -24,7 +24,7 @@ use tokio::sync::{mpsc, Mutex};
 #[tokio::test]
 async fn local_external_files() -> Result<()> {
     const TEST_ID: &str = "external_files";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -491,7 +491,7 @@ async fn assert_attach_file_secret(
 
     // Add an attachment
     let (attachment_id, mut secret_data, file_name) =
-        create_attachment(account, &id, &folder, Some(progress_tx.clone()))
+        create_attachment(account, &id, folder, Some(progress_tx.clone()))
             .await?;
 
     // We never modify the root secret so assert on every change
@@ -579,7 +579,7 @@ async fn assert_attach_file_secret(
                 account,
                 &mut secret_data,
                 &attachment_id,
-                &folder,
+                folder,
                 Some(progress_tx.clone()),
             )
             .await?;
@@ -698,7 +698,7 @@ async fn assert_attach_file_secret(
             account,
             insert_field_secret_data,
             &attachment_id,
-            &folder,
+            folder,
             Some(progress_tx.clone()),
         )
         .await?;

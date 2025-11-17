@@ -1,4 +1,3 @@
-use crate::test_utils::{mock, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_account::Account;
 use sos_core::{commit::Comparison, events::EventLogType};
@@ -6,12 +5,13 @@ use sos_protocol::{ScanRequest, SyncClient};
 use sos_remote_sync::RemoteSyncHandler;
 use sos_sdk::prelude::*;
 use sos_sync::StorageEventLogs;
+use sos_test_utils::{mock, simulate_device, spawn, teardown};
 
 /// Tests scanning commit hashes on remote servers.
 #[tokio::test]
 async fn auto_merge_scan_commits() -> Result<()> {
     const TEST_ID: &str = "auto_merge_scan_commits";
-    crate::test_utils::init_tracing();
+    sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

@@ -1,16 +1,16 @@
-use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_core::{crypto::AccessKey, Paths, VaultId};
 use sos_login::{DelegatedAccess, Identity, IdentityFolder};
 use sos_password::diceware::generate_passphrase;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{setup, teardown};
 
 /// Tests creating an identity vault and logging in
 /// with the new vault and managing delegated passwords.
 #[tokio::test]
 async fn sign_in_identity_login() -> Result<()> {
     const TEST_ID: &str = "identity_login";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -31,7 +31,7 @@ async fn sign_in_identity_login() -> Result<()> {
     )
     .await?;
 
-    let account_id = identity_vault.account_id().clone();
+    let account_id = *identity_vault.account_id();
     let paths = Paths::new_client(data_dir).with_account_id(&account_id);
     paths.ensure().await?;
     let mut identity = Identity::new(target.clone());

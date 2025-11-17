@@ -1,16 +1,16 @@
-use crate::test_utils::{
-    assert_local_remote_events_eq, mock, run_pairing_protocol,
-    simulate_device, spawn, teardown,
-};
 use anyhow::Result;
 use sos_account::Account;
 use sos_protocol::AccountSync;
+use sos_test_utils::{
+    assert_local_remote_events_eq, mock, run_pairing_protocol,
+    simulate_device, spawn, teardown,
+};
 
 /// Tests the protocol for pairing devices.
 #[tokio::test]
 async fn pairing_protocol() -> Result<()> {
     const TEST_ID: &str = "pairing_protocol";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

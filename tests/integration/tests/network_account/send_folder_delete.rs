@@ -1,19 +1,19 @@
-use crate::test_utils::{
-    assert_local_remote_events_eq, mock::files::create_file_secret,
-    num_events, simulate_device, spawn, teardown,
-};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, FolderDelete};
 use sos_client_storage::NewFolderOptions;
 use sos_core::ExternalFile;
 use sos_sdk::prelude::*;
+use sos_test_utils::{
+    assert_local_remote_events_eq, mock::files::create_file_secret,
+    num_events, simulate_device, spawn, teardown,
+};
 use sos_vfs as vfs;
 
 /// Tests sending delete folder events to a remote.
 #[tokio::test]
 async fn network_sync_folder_delete() -> Result<()> {
     const TEST_ID: &str = "sync_folder_delete";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -27,7 +27,7 @@ async fn network_sync_folder_delete() -> Result<()> {
 
     // Path that we expect the remote server to write to
     let server_path = server.account_path(device.owner.account_id());
-    let address = device.owner.account_id().clone();
+    let address = *device.owner.account_id();
 
     let FolderCreate {
         folder: new_folder,

@@ -121,6 +121,7 @@ impl EventLogRecord {
 
     /// Byte length of this record.
     pub fn byte_length(&self) -> u64 {
+        #[allow(clippy::implicit_saturating_sub)]
         if self.offset.end >= self.offset.start {
             self.offset.end - self.offset.start
         } else {

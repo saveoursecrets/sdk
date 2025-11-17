@@ -3,14 +3,14 @@ use sos_account::{Account, LocalAccount};
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
 
-use crate::test_utils::{setup, teardown};
+use sos_test_utils::{setup, teardown};
 
 /// Tests the basic account lifecycle. Account creation, sign in
 /// and sign out followed by account deletion.
 #[tokio::test]
 async fn local_account_lifecycle() -> Result<()> {
     const TEST_ID: &str = "account_lifecycle";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

@@ -53,7 +53,7 @@ impl Folder {
                 let folder_row = client
                     .conn(move |conn| {
                         let folder = FolderEntity::new(&conn);
-                        Ok(folder.find_one(&folder_id)?)
+                        folder.find_one(&folder_id)
                     })
                     .await
                     .map_err(sos_database::Error::from)?;
@@ -80,14 +80,14 @@ impl Folder {
 
                 let mut event_log = FolderEventLog::new_folder(
                     BackendTarget::Database(paths, client.clone()),
-                    &account_id,
+                    account_id,
                     &folder_id,
                 )
                 .await?;
 
                 event_log.load_tree().await?;
 
-                if event_log.tree().len() == 0 {
+                if event_log.tree().is_empty() {
                     let buffer = encode(&vault).await?;
                     let event = WriteEvent::CreateVault(buffer);
                     event_log.apply(&[event]).await?;
@@ -217,7 +217,7 @@ impl Folder {
         key: &AccessKey,
     ) -> crate::Result<VaultMeta> {
         let mut access_point = self.access_point.lock().await;
-        Ok(access_point.unlock(key).await?)
+        access_point.unlock(key).await
     }
 
     /// Lock the folder.
@@ -234,7 +234,7 @@ impl Folder {
         let mut access_point = self.access_point.lock().await;
         let event = access_point.create_secret(secret_data).await?;
         let mut events = self.events.write().await;
-        events.apply(&[event.clone()]).await?;
+        events.apply(std::slice::from_ref(&event)).await?;
         Ok(event)
     }
 
@@ -244,7 +244,7 @@ impl Folder {
         id: &SecretId,
     ) -> crate::Result<Option<(SecretMeta, Secret, ReadEvent)>> {
         let access_point = self.access_point.lock().await;
-        Ok(access_point.read_secret(id).await?)
+        access_point.read_secret(id).await
     }
 
     /// Read the encrypted contents of a secret.
@@ -253,7 +253,7 @@ impl Folder {
         id: &SecretId,
     ) -> crate::Result<Option<(VaultCommit, ReadEvent)>> {
         let access_point = self.access_point.lock().await;
-        Ok(access_point.raw_secret(id).await?)
+        access_point.raw_secret(id).await
     }
 
     /// Update a secret.
@@ -268,7 +268,7 @@ impl Folder {
             access_point.update_secret(id, secret_meta, secret).await?
         {
             let mut events = self.events.write().await;
-            events.apply(&[event.clone()]).await?;
+            events.apply(std::slice::from_ref(&event)).await?;
             Ok(Some(event))
         } else {
             Ok(None)
@@ -283,7 +283,7 @@ impl Folder {
         let mut access_point = self.access_point.lock().await;
         if let Some(event) = access_point.delete_secret(id).await? {
             let mut events = self.events.write().await;
-            events.apply(&[event.clone()]).await?;
+            events.apply(std::slice::from_ref(&event)).await?;
             Ok(Some(event))
         } else {
             Ok(None)
@@ -301,7 +301,7 @@ impl Folder {
             .await?;
         let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
         let mut events = self.events.write().await;
-        events.apply(&[event.clone()]).await?;
+        events.apply(std::slice::from_ref(&event)).await?;
         Ok(event)
     }
 
@@ -314,7 +314,7 @@ impl Folder {
         access_point.set_vault_flags(flags.clone()).await?;
         let event = WriteEvent::SetVaultFlags(flags);
         let mut events = self.events.write().await;
-        events.apply(&[event.clone()]).await?;
+        events.apply(std::slice::from_ref(&event)).await?;
         Ok(event)
     }
 
@@ -343,7 +343,7 @@ impl Folder {
         let mut access_point = self.access_point.lock().await;
         let event = access_point.set_vault_meta(meta).await?;
         let mut events = self.events.write().await;
-        events.apply(&[event.clone()]).await?;
+        events.apply(std::slice::from_ref(&event)).await?;
         Ok(event)
     }
 

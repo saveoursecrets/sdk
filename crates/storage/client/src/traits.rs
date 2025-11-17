@@ -17,7 +17,7 @@ use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
     encode,
     events::{
-        patch::FolderPatch, AccountEvent, DeviceEvent, Event, EventKind,
+        patch::FolderPatch, AccountEvent, DeviceEvent, Event, 
         EventLog, EventRecord, ReadEvent, WriteEvent,
     },
     AccountId, AuthenticationError, FolderRef, Paths, SecretId, StorageError,
@@ -42,6 +42,7 @@ use sos_search::{AccountSearch, DocumentCount};
 use {
     sos_audit::{AuditData, AuditEvent},
     sos_backend::audit::append_audit_events,
+    sos_core::events::EventKind,
 };
 
 #[cfg(feature = "files")]
@@ -570,7 +571,7 @@ pub trait ClientFolderStorage:
             let event_log = folder.event_log();
             let mut log_file = event_log.write().await;
 
-            compact_folder(self.account_id(), folder_id, &mut *log_file)
+            compact_folder(self.account_id(), folder_id, &mut log_file)
                 .await?;
         }
 
@@ -581,7 +582,9 @@ pub trait ClientFolderStorage:
 
         let account_log = self.account_log().await?;
         let mut account_log = account_log.write().await;
-        account_log.apply(&[account_event.clone()]).await?;
+        account_log
+            .apply(std::slice::from_ref(&account_event))
+            .await?;
 
         Ok(account_event)
     }
@@ -609,7 +612,9 @@ pub trait ClientFolderStorage:
 
         let account_log = self.account_log().await?;
         let mut account_log = account_log.write().await;
-        account_log.apply(&[account_event.clone()]).await?;
+        account_log
+            .apply(std::slice::from_ref(&account_event))
+            .await?;
 
         #[cfg(feature = "audit")]
         {
@@ -1103,7 +1108,7 @@ pub trait ClientAccountStorage:
     ) -> Result<Vec<Event>> {
         let mut events = Vec::new();
 
-        let create_account = Event::CreateAccount(account.account_id.into());
+        let create_account = Event::CreateAccount(account.account_id);
 
         // Each folder import will create an audit event
         // but we want the create account to be in the audit
@@ -1197,7 +1202,9 @@ pub trait ClientAccountStorage:
             AccountEvent::CreateFolder(*summary.id(), buf.clone());
         let account_log = self.account_log().await?;
         let mut account_log = account_log.write().await;
-        account_log.apply(&[account_event.clone()]).await?;
+        account_log
+            .apply(std::slice::from_ref(&account_event))
+            .await?;
 
         // Must save the folder access key
         self.authenticated_user_mut()
@@ -1263,7 +1270,9 @@ pub trait ClientAccountStorage:
         if apply_event {
             let account_log = self.account_log().await?;
             let mut account_log = account_log.write().await;
-            account_log.apply(&[account_event.clone()]).await?;
+            account_log
+                .apply(std::slice::from_ref(&account_event))
+                .await?;
         }
 
         #[cfg(feature = "audit")]
@@ -1409,7 +1418,9 @@ pub trait ClientAccountStorage:
         if apply_event {
             let account_log = self.account_log().await?;
             let mut account_log = account_log.write().await;
-            account_log.apply(&[account_event.clone()]).await?;
+            account_log
+                .apply(std::slice::from_ref(&account_event))
+                .await?;
         }
 
         #[cfg(feature = "audit")]
@@ -1566,7 +1577,7 @@ pub trait ClientAccountStorage:
                     let access_point = folder.access_point();
                     let mut access_point = access_point.lock().await;
                     access_point.unlock(key).await?;
-                    writer.add_folder(&*access_point).await?;
+                    writer.add_folder(&access_point).await?;
                 }
             }
         }

@@ -7,11 +7,7 @@ use sos_core::{
     Paths,
 };
 use std::{path::PathBuf, sync::Arc, time::Duration};
-use tokio::{
-    select,
-    sync::Mutex,
-    time,
-};
+use tokio::{select, sync::Mutex, time};
 use tokio_util::{codec::LengthDelimitedCodec, sync::CancellationToken};
 
 /// Producer socket connection for change events.

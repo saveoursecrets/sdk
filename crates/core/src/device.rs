@@ -138,19 +138,16 @@ impl TrustedDevice {
     ) -> Self {
         let extra_info = if let Some(extra_info) = extra_info {
             extra_info
+        } else if let Some(device) = DEVICE.get() {
+            device.clone()
         } else {
-            if let Some(device) = DEVICE.get() {
-                device.clone()
-            } else {
-                Default::default()
-            }
+            Default::default()
         };
 
         Self {
             public_key,
             extra_info,
-            created_date: created_date
-                .unwrap_or_else(|| OffsetDateTime::now_utc()),
+            created_date: created_date.unwrap_or(OffsetDateTime::now_utc()),
         }
     }
 
@@ -190,9 +187,6 @@ impl From<DevicePublicKey> for TrustedDevice {
 impl TryFrom<&TrustedDevice> for (DevicePublicKey, String) {
     type Error = Error;
     fn try_from(value: &TrustedDevice) -> Result<Self> {
-        Ok((
-            value.public_key.clone(),
-            serde_json::to_string(&value.extra_info)?,
-        ))
+        Ok((value.public_key, serde_json::to_string(&value.extra_info)?))
     }
 }

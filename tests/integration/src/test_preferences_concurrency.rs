@@ -1,6 +1,6 @@
 use sos_backend::{BackendTarget, Preferences};
-use sos_preferences::PreferenceManager;
 use sos_core::Paths;
+use sos_preferences::PreferenceManager;
 use std::path::PathBuf;
 
 /// Helper executable used to test concurrent writes
@@ -8,7 +8,7 @@ use std::path::PathBuf;
 #[doc(hidden)]
 #[tokio::main]
 pub async fn main() -> anyhow::Result<()> {
-    let mut args = std::env::args().into_iter().collect::<Vec<_>>();
+    let mut args = std::env::args().collect::<Vec<_>>();
 
     // Callers must pass a data directory so that each
     // test is isolated

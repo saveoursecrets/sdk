@@ -209,7 +209,7 @@ async fn print_events<
         } else {
             events.push((
                 event.event_kind(),
-                record.commit().clone(),
+                *record.commit(),
                 record.time().clone(),
             ));
         }
@@ -224,7 +224,7 @@ async fn print_events<
         }
     }
 
-    if tree.len() > 0 {
+    if !tree.is_empty() {
         let root = tree.root().unwrap();
 
         if !json {

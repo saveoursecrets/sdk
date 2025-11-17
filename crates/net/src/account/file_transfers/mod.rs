@@ -474,7 +474,7 @@ where
         )
         .await?;
 
-        while let Some(_) = remaining {
+        while remaining.is_some() {
             remaining = Self::consume_queue(
                 paths.clone(),
                 semaphore.clone(),
@@ -568,11 +568,12 @@ where
                 }
                 // Other operations must complete on all clients
                 _ => {
-                    for client in clients.to_vec() {
+                    for client in clients {
                         let inflight = inflight.clone();
                         let settings = settings.clone();
                         let paths = paths.clone();
                         let permit = semaphore.clone();
+                        let client = client.clone();
                         let jh = tokio::task::spawn(async move {
                             let _permit = permit.acquire().await.unwrap();
                             let request_id = inflight.request_id();
@@ -580,7 +581,7 @@ where
                                 request_id,
                                 file,
                                 op,
-                                client.clone(),
+                                client,
                                 settings.clone(),
                                 paths.clone(),
                                 inflight.clone(),
@@ -645,7 +646,7 @@ where
 
                         if vfs::try_exists(path).await? {
                             let item = FileOperation(
-                                dest.clone(),
+                                *dest,
                                 TransferOperation::Upload,
                             );
                             let mut queue = request_queue.write().await;
@@ -812,8 +813,8 @@ where
                 transfer_id,
                 request_id,
                 origin: request.origin.clone(),
-                file: request.file.clone(),
-                operation: request.operation.clone(),
+                file: request.file,
+                operation: request.operation,
             };
 
             inflight_transfers
@@ -958,11 +959,12 @@ async fn normalize(
                     item.1,
                     TransferOperation::Upload | TransferOperation::Download
                 );
-                if &item.0 == file && is_transfer_op {
-                    false
-                } else {
-                    true
-                }
+                !(&item.0 == file && is_transfer_op)
+                // if &item.0 == file && is_transfer_op {
+                //     false
+                // } else {
+                //     true
+                // }
             });
 
             // Remove from the failures queue
@@ -972,11 +974,12 @@ async fn normalize(
                     failure.operation,
                     TransferOperation::Upload | TransferOperation::Download
                 );
-                if &failure.file == file && is_transfer_op {
-                    false
-                } else {
-                    true
-                }
+                !(&failure.file == file && is_transfer_op)
+                // if &failure.file == file && is_transfer_op {
+                //     false
+                // } else {
+                //     true
+                // }
             });
 
             // Notmalize inflight transfers which will cancel

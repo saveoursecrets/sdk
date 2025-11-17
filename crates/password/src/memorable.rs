@@ -32,12 +32,10 @@ pub fn memorable_password(num_words: usize) -> String {
             // or colliding with an uppercase character
             if index == 0 || digit_word == upper_word {
                 word.replace_range(5..6, &digit);
+            } else if rng.gen_bool(0.5) {
+                word.replace_range(0..1, &digit);
             } else {
-                if rng.gen_bool(0.5) {
-                    word.replace_range(0..1, &digit);
-                } else {
-                    word.replace_range(5..6, &digit);
-                }
+                word.replace_range(5..6, &digit);
             }
         }
 

@@ -2,6 +2,7 @@ use crate::Error;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
+use std::collections::hash_map::{IntoIter, Iter, IterMut};
 use std::{cmp::Ordering, collections::HashMap};
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -214,25 +215,52 @@ pub struct SystemMessageMap(
     pub  HashMap<Urn, SysMessage>,
 );
 
-impl From<HashMap<Urn, SysMessage>> for SystemMessageMap {
-    fn from(value: HashMap<Urn, SysMessage>) -> Self {
-        Self(value)
-    }
-}
-
 impl SystemMessageMap {
-    /// Borrowed iterator.
+    /// Iterator for the system messages.
     pub fn iter(
         &self,
     ) -> std::collections::hash_map::Iter<'_, Urn, SysMessage> {
         self.0.iter()
     }
 
-    /// Owned iterator.
-    pub fn into_iter(
-        self,
-    ) -> std::collections::hash_map::IntoIter<Urn, SysMessage> {
+    /// Mutable iterator for the system messages.
+    pub fn iter_mut(
+        &mut self,
+    ) -> std::collections::hash_map::IterMut<'_, Urn, SysMessage> {
+        self.0.iter_mut()
+    }
+}
+
+impl From<HashMap<Urn, SysMessage>> for SystemMessageMap {
+    fn from(value: HashMap<Urn, SysMessage>) -> Self {
+        Self(value)
+    }
+}
+
+impl IntoIterator for SystemMessageMap {
+    type Item = (Urn, SysMessage);
+    type IntoIter = IntoIter<Urn, SysMessage>;
+
+    fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a SystemMessageMap {
+    type Item = (&'a Urn, &'a SysMessage);
+    type IntoIter = Iter<'a, Urn, SysMessage>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut SystemMessageMap {
+    type Item = (&'a Urn, &'a mut SysMessage);
+    type IntoIter = IterMut<'a, Urn, SysMessage>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter_mut()
     }
 }
 
@@ -307,7 +335,10 @@ where
     }
 
     fn counts(&self) -> SysMessageCount {
-        let mut counts = SysMessageCount { total: self.messages.0.len(), ..Default::default() };
+        let mut counts = SysMessageCount {
+            total: self.messages.0.len(),
+            ..Default::default()
+        };
         for item in self.messages.0.values() {
             if !item.is_read {
                 counts.unread += 1;

@@ -94,12 +94,7 @@ fn comment_extract(d: &Document) -> Vec<&str> {
 
 // Website
 fn website_extract(d: &Document) -> Vec<&str> {
-    if let Some(websites) = d.extra().websites() {
-        websites
-        // vec![]
-    } else {
-        vec![]
-    }
+    d.extra().websites().unwrap_or_default()
 }
 
 /// Count of documents by vault identitier and secret kind.
@@ -320,7 +315,7 @@ impl ExtraFields {
     pub fn websites(&self) -> Option<Vec<&str>> {
         self.websites
             .as_ref()
-            .map(|u| u.into_iter().map(|u| &u[..]).collect())
+            .map(|u| u.iter().map(|u| &u[..]).collect())
     }
 }
 
@@ -558,7 +553,7 @@ impl SearchIndex {
     pub fn commit(&mut self, doc: Option<(DocumentKey, Document)>) {
         // Prevent duplicates
         if let Some((key, doc)) = doc {
-            let exists = self.documents.get(&key).is_some();
+            let exists = self.documents.contains_key(&key);
             let doc = self.documents.entry(key).or_insert(doc);
             if !exists {
                 self.index.add_document(
@@ -981,45 +976,43 @@ impl DocumentView {
                 if let Some(sites) = doc.extra().websites() {
                     if sites.is_empty() {
                         false
-                    } else {
-                        if let Some(targets) = matches {
-                            // Search index stores as string but
-                            // we need to compare as URLs
-                            let mut urls: Vec<Url> =
-                                Vec::with_capacity(sites.len());
-                            for site in sites {
-                                match site.parse() {
-                                    Ok(url) => urls.push(url),
-                                    Err(e) => {
-                                        tracing::warn!(
+                    } else if let Some(targets) = matches {
+                        // Search index stores as string but
+                        // we need to compare as URLs
+                        let mut urls: Vec<Url> =
+                            Vec::with_capacity(sites.len());
+                        for site in sites {
+                            match site.parse() {
+                                Ok(url) => urls.push(url),
+                                Err(e) => {
+                                    tracing::warn!(
                                             error = %e,
                                             "search::url_parse");
-                                    }
                                 }
                             }
+                        }
 
-                            if *exact {
-                                for url in targets {
-                                    if urls.contains(url) {
+                        if *exact {
+                            for url in targets {
+                                if urls.contains(url) {
+                                    return true;
+                                }
+                            }
+                            false
+                        } else {
+                            for url in targets {
+                                for site in &urls {
+                                    if url.origin() == site.origin() {
                                         return true;
                                     }
                                 }
-                                false
-                            } else {
-                                for url in targets {
-                                    for site in &urls {
-                                        if url.origin() == site.origin() {
-                                            return true;
-                                        }
-                                    }
-                                }
-                                false
                             }
-                        } else {
-                            // No target matches but has some
-                            // associated websites so include in the view
-                            true
+                            false
                         }
+                    } else {
+                        // No target matches but has some
+                        // associated websites so include in the view
+                        true
                     }
                 } else {
                     false

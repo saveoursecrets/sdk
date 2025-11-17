@@ -1,5 +1,8 @@
 use crate::{
-    helpers::{account::resolve_account_address, messages::{success, fail}},
+    helpers::{
+        account::resolve_account_address,
+        messages::{fail, success},
+    },
     Error, Result,
 };
 use clap::Subcommand;
@@ -100,17 +103,18 @@ pub async fn run(cmd: Command) -> Result<()> {
             let paths = Paths::new_client(Paths::data_dir()?)
                 .with_account_id(&account_id);
             let target = BackendTarget::from_paths(&paths).await?;
-            if let Some(vault) = target.read_device_vault(&account_id).await? {
-              if verbose {
-                  serde_json::to_writer_pretty(std::io::stdout(), &vault)?;
-              } else {
-                  serde_json::to_writer_pretty(
-                      std::io::stdout(),
-                      vault.header(),
-                  )?;
-              }
+            if let Some(vault) = target.read_device_vault(&account_id).await?
+            {
+                if verbose {
+                    serde_json::to_writer_pretty(std::io::stdout(), &vault)?;
+                } else {
+                    serde_json::to_writer_pretty(
+                        std::io::stdout(),
+                        vault.header(),
+                    )?;
+                }
             } else {
-              fail("No device vault");
+                fail("No device vault");
             }
         }
         Command::Vault {

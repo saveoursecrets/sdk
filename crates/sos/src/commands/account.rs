@@ -367,6 +367,7 @@ async fn account_delete(account: Option<AccountRef>) -> Result<bool> {
         let owner = USER.read().await;
         let owner =
             owner.selected_account().ok_or(Error::NoSelectedAccount)?;
+        #[allow(clippy::borrow_deref_ref)]
         (&*owner).into()
     };
 

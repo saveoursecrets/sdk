@@ -538,7 +538,7 @@ impl ClientEventLogStorage for ClientFileSystemStorage {
             tracing::debug!(
               public_key = %device.public_key(), "initialize_root_device");
             let event = DeviceEvent::Trust(device);
-            event_log.apply(&[event.clone()]).await?;
+            event_log.apply(std::slice::from_ref(&event)).await?;
         }
 
         let reducer = DeviceReducer::new(&event_log);
@@ -620,7 +620,7 @@ impl StorageEventLogs for ClientFileSystemStorage {
 
     async fn folder_details(&self) -> Result<IndexSet<Summary>> {
         let folders = self.list_folders();
-        Ok(folders.into_iter().cloned().collect())
+        Ok(folders.iter().cloned().collect())
     }
 
     async fn folder_log(

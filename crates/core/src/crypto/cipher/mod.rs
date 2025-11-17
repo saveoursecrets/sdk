@@ -19,11 +19,14 @@ pub const AES_GCM_256: u8 = 2;
 pub const X25519: u8 = 3;
 
 /// Supported cipher algorithms.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, Serialize, Deserialize)]
+#[derive(
+    Default, Copy, Clone, Eq, PartialEq, Debug, Hash, Serialize, Deserialize,
+)]
 pub enum Cipher {
     /// Cipher for XChaCha20Poly1305 encryption.
     XChaCha20Poly1305,
     /// Cipher for AES-GCM 256 bit encryption.
+    #[default]
     AesGcm256,
     /// X25519 asymmetric encryption using AGE.
     X25519,
@@ -108,12 +111,6 @@ impl Cipher {
             },
             _ => Err(Error::NotAsymmetric),
         }
-    }
-}
-
-impl Default for Cipher {
-    fn default() -> Self {
-        Self::AesGcm256
     }
 }
 

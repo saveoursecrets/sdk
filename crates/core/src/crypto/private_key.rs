@@ -35,7 +35,7 @@ impl From<AccessKey> for SecretString {
     fn from(value: AccessKey) -> Self {
         match value {
             AccessKey::Password(password) => password,
-            AccessKey::Identity(id) => id.to_string().into(),
+            AccessKey::Identity(id) => id.to_string(),
         }
     }
 }

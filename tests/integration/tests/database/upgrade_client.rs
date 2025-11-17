@@ -1,14 +1,14 @@
 use super::prepare_client_for_upgrade;
-use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_core::Paths;
 use sos_database_upgrader::{upgrade_accounts, UpgradeOptions};
+use sos_test_utils::{setup, teardown};
 
 /// Upgrade v1 accounts to the v2 backend for client-side storage.
 #[tokio::test]
 async fn database_upgrade_client() -> Result<()> {
     const TEST_ID: &str = "database_upgrade_client";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     let dirs = setup(TEST_ID, 0).await?;
     prepare_client_for_upgrade(&dirs)?;

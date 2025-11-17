@@ -1,16 +1,16 @@
-use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_backend::Preferences;
 use sos_core::AccountId;
 use sos_preferences::{Preference, PreferenceManager};
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{setup, teardown};
 
 /// Tests the cached preferences without any accounts or authentication.
 #[tokio::test]
 async fn preferences_no_account() -> Result<()> {
     const TEST_ID: &str = "preferences_no_account";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -49,7 +49,7 @@ async fn preferences_no_account() -> Result<()> {
     assert!(prefs.get_bool("int-1").is_err());
 
     prefs
-        .insert("double-1".to_owned(), Preference::Number(3.14))
+        .insert("double-1".to_owned(), Preference::Number(2.54))
         .await?;
     assert!(prefs.get_number("double-1")?.is_some());
     assert!(prefs.get_bool("double-1").is_err());

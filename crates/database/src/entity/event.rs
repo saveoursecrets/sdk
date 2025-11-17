@@ -20,6 +20,7 @@ fn event_select_columns(sql: sql::Select) -> sql::Select {
 
 /// Enumeration of tables for events.
 #[derive(Debug, Copy, Clone)]
+#[allow(clippy::enum_variant_names)]
 enum EventTable {
     /// Account events table.
     AccountEvents,
@@ -28,6 +29,7 @@ enum EventTable {
     /// Device events table.
     DeviceEvents,
     /// File events table.
+    #[cfg(feature = "files")]
     FileEvents,
 }
 
@@ -51,6 +53,7 @@ impl EventTable {
             EventTable::AccountEvents => "account_events",
             EventTable::FolderEvents => "folder_events",
             EventTable::DeviceEvents => "device_events",
+            #[cfg(feature = "files")]
             EventTable::FileEvents => "file_events",
         }
     }
@@ -326,7 +329,8 @@ where
             Ok(row.try_into()?)
         }
 
-        let rows = stmt.query_and_then([account_or_folder_id], convert_row)?;
+        let rows =
+            stmt.query_and_then([account_or_folder_id], convert_row)?;
 
         let mut commits = Vec::new();
         for row in rows {

@@ -9,8 +9,7 @@ use sos_vault::Vault;
 /// a collection of records.
 #[doc(hidden)]
 pub async fn extract_vault(records: &[EventRecord]) -> Result<Option<Vault>> {
-    let first_record = records.get(0);
-    Ok(if let Some(record) = first_record {
+    Ok(if let Some(record) = records.first() {
         let event: WriteEvent = record.decode_event().await?;
         let WriteEvent::CreateVault(buf) = event else {
             return Err(sos_core::Error::CreateEventMustBeFirst.into());

@@ -94,9 +94,7 @@ where
             Ok(row.try_into()?)
         }
 
-        let rows = stmt.query_and_then([account_id], |row| {
-            Ok::<_, crate::Error>(convert_row(row)?)
-        })?;
+        let rows = stmt.query_and_then([account_id], convert_row)?;
         let mut messages = Vec::new();
         for row in rows {
             messages.push(row?);

@@ -18,6 +18,7 @@ use xclipboard::Clipboard;
 /// from browser extensions using the native messaging API
 /// to an in-memory extension helper web service.
 pub async fn run() -> anyhow::Result<()> {
+    #[allow(clippy::useless_conversion)]
     let mut args = std::env::args().into_iter().collect::<Vec<_>>();
 
     // Firefox passes two arguments, the last is the

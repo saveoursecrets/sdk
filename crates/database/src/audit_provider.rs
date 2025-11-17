@@ -117,8 +117,7 @@ where
 
                     Ok::<_, Error>(())
                 })
-                .await
-                .map_err(Error::from)?;
+                .await?;
             Ok::<_, Self::Error>(())
         });
 

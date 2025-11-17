@@ -287,8 +287,7 @@ where
             .from("accounts")
             .where_clause("identifier = ?1");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        stmt
-            .query_row([account_id.to_string()], |row| row.try_into())
+        stmt.query_row([account_id.to_string()], |row| row.try_into())
     }
 
     /// Find an optional account in the database.
@@ -301,8 +300,7 @@ where
             .from("accounts")
             .where_clause("identifier = ?1");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        stmt
-            .query_row([account_id.to_string()], |row| row.try_into())
+        stmt.query_row([account_id.to_string()], |row| row.try_into())
             .optional()
     }
 

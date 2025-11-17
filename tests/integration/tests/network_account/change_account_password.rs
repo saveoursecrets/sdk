@@ -1,17 +1,17 @@
-use crate::test_utils::{
-    assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
-};
 use anyhow::Result;
 use sos_account::{Account, SecretChange};
 use sos_protocol::AccountSync;
 use sos_sdk::prelude::*;
+use sos_test_utils::{
+    assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
+};
 
 /// Tests changing the account password and force syncing
 /// the updated and diverged account data.
 #[tokio::test]
 async fn network_sync_change_account_password() -> Result<()> {
     const TEST_ID: &str = "sync_change_account_password";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

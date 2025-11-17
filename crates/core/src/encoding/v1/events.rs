@@ -7,7 +7,7 @@ use crate::{
 #[cfg(feature = "files")]
 use crate::{events::FileEvent, SecretPath};
 
-use std::io::{Error, ErrorKind, Result};
+use std::io::{Error, Result};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 use async_trait::async_trait;
@@ -35,7 +35,7 @@ impl Decodable for EventKind {
     ) -> Result<()> {
         let op = reader.read_u16().await?;
         *self = op.try_into().map_err(|_| {
-            Error::new(ErrorKind::Other, format!("unknown event kind {}", op))
+            Error::other(format!("unknown event kind {}", op))
         })?;
         Ok(())
     }
@@ -191,10 +191,7 @@ impl Decodable for WriteEvent {
                 let flags = reader.read_u64().await?;
                 let flags =
                     VaultFlags::from_bits(flags).ok_or_else(|| {
-                        Error::new(
-                            ErrorKind::Other,
-                            format!("invalid vault flags {}", flags),
-                        )
+                        Error::other(format!("invalid vault flags {}", flags))
                     })?;
                 *self = WriteEvent::SetVaultFlags(flags);
             }
@@ -220,10 +217,10 @@ impl Decodable for WriteEvent {
                 *self = WriteEvent::DeleteSecret(id);
             }
             _ => {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    format!("unknown event kind {}", op),
-                ));
+                return Err(Error::other(format!(
+                    "unknown event kind {}",
+                    op
+                )));
             }
         }
         Ok(())
@@ -381,10 +378,10 @@ impl Decodable for AccountEvent {
                 *self = AccountEvent::DeleteFolder(id);
             }
             _ => {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    format!("unknown account event kind {}", op),
-                ));
+                return Err(Error::other(format!(
+                    "unknown account event kind {}",
+                    op
+                )));
             }
         }
         Ok(())
@@ -441,10 +438,10 @@ impl Decodable for DeviceEvent {
                 *self = DeviceEvent::Revoke(public_key.into());
             }
             _ => {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    format!("unknown device event kind {}", op),
-                ));
+                return Err(Error::other(format!(
+                    "unknown device event kind {}",
+                    op
+                )));
             }
         }
         Ok(())
@@ -532,10 +529,10 @@ impl Decodable for FileEvent {
                 }
             }
             _ => {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    format!("unknown file event kind {}", op),
-                ));
+                return Err(Error::other(format!(
+                    "unknown file event kind {}",
+                    op
+                )));
             }
         }
         Ok(())

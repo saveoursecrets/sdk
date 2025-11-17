@@ -1,5 +1,4 @@
 use super::last_log_event;
-use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount};
 use sos_backend::AccountEventLog;
@@ -11,12 +10,13 @@ use sos_core::{
 };
 use sos_password::diceware::generate_passphrase;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{setup, teardown};
 
 /// Tests that basic account events are being logged.
 #[tokio::test]
 async fn event_log_account() -> Result<()> {
     const TEST_ID: &str = "event_log_account";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);

@@ -3,12 +3,12 @@ use sos_backend::BackendTarget;
 use sos_client_storage::NewFolderOptions;
 use sos_database::{migrations::migrate_client, open_file};
 
-use crate::test_utils::{mock, setup, teardown};
 use futures::{pin_mut, StreamExt};
 use sos_account::{Account, FolderCreate, LocalAccount, SecretChange};
 use sos_audit::AuditEvent;
 use sos_migrate::import::ImportTarget;
 use sos_sdk::prelude::*;
+use sos_test_utils::{mock, setup, teardown};
 use sos_vfs as vfs;
 use std::path::PathBuf;
 
@@ -24,8 +24,7 @@ async fn audit_trail_client_fs() -> Result<()> {
     let paths = Paths::new_client(&data_dir);
     Paths::scaffold(paths.documents_dir()).await?;
     paths.ensure().await?;
-    let provider =
-        sos_backend::audit::new_fs_provider(paths.audit_file().to_owned());
+    let provider = sos_backend::audit::new_fs_provider(paths.audit_file());
     sos_backend::audit::init_providers(vec![provider]);
 
     let target = BackendTarget::FileSystem(paths);
@@ -268,7 +267,7 @@ async fn simulate_session(
 }
 
 async fn read_audit_events() -> Result<Vec<AuditEvent>> {
-    let provider = sos_backend::audit::providers().unwrap().get(0).unwrap();
+    let provider = sos_backend::audit::providers().unwrap().first().unwrap();
 
     let stream = provider.audit_stream(false).await?;
     pin_mut!(stream);

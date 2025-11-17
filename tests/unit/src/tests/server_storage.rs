@@ -73,8 +73,8 @@ async fn assert_server_storage(
     let record = EventRecord::encode_event(&event).await?;
 
     let mock_key: [u8; 32] = OsRng.gen();
-    let public_key: DevicePublicKey = mock_key.try_into()?;
-    let device = TrustedDevice::new(public_key.clone(), None, None);
+    let public_key: DevicePublicKey = mock_key.into();
+    let device = TrustedDevice::new(public_key, None, None);
     let device_event = DeviceEvent::Trust(device.clone());
     let device_record = EventRecord::encode_event(&device_event).await?;
 
@@ -120,7 +120,7 @@ async fn assert_server_storage(
     let name = "Folder Name";
     storage.rename_folder(vault.id(), name).await?;
     let summaries = storage.load_folders().await?;
-    assert_eq!(name, summaries.get(0).unwrap().name());
+    assert_eq!(name, summaries.first().unwrap().name());
 
     storage.delete_folder(&folder_id).await?;
 

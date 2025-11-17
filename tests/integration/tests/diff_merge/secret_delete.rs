@@ -1,4 +1,3 @@
-use crate::test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount, SecretChange};
 use sos_core::{crypto::AccessKey, ErrorExt, Paths};
@@ -7,13 +6,14 @@ use sos_protocol::diff;
 use sos_sync::MergeOutcome;
 use sos_sync::{Merge, SyncStorage};
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{copy_account, mock, setup, teardown};
 
 /// Tests creating a diff and merging a delete secret
 /// event without any networking.
 #[tokio::test]
 async fn diff_merge_secret_delete() -> Result<()> {
     const TEST_ID: &str = "diff_merge_secret_delete";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 2).await?;
     let data_dir = dirs.clients.remove(0);
@@ -34,7 +34,7 @@ async fn diff_merge_secret_delete() -> Result<()> {
     let key: AccessKey = password.clone().into();
     local.sign_in(&key).await?;
     let default_folder = local.default_folder().await.unwrap();
-    let account_id = local.account_id().clone();
+    let account_id = *local.account_id();
 
     // Copy the initial account disc state
     copy_account(&data_dir, &data_dir_merge)?;
@@ -71,7 +71,7 @@ async fn diff_merge_secret_delete() -> Result<()> {
     // Collection of changes exists but the collection is
     // empty because the create event followed by a
     // delete event was normalized
-    assert!(outcome.tracked.folders.get(default_folder.id()).is_none());
+    assert!(!outcome.tracked.folders.contains_key(default_folder.id()));
 
     // Check we can't read the secret
     let err = remote.read_secret(&id, None).await.err().unwrap();

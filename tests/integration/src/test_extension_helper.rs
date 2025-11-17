@@ -24,7 +24,7 @@ macro_rules! println {
 #[doc(hidden)]
 #[tokio::main]
 pub async fn main() -> anyhow::Result<()> {
-    let mut args = std::env::args().into_iter().collect::<Vec<_>>();
+    let mut args = std::env::args().collect::<Vec<_>>();
 
     // Callers must pass a data directory so that each
     // test is isolated
@@ -51,11 +51,11 @@ pub async fn main() -> anyhow::Result<()> {
                     let paths = Paths::new_client(app_dir.as_ref().unwrap())
                         .with_account_id(identity.account_id());
                     let target = make_client_backend(&paths).await.unwrap();
-                    Ok(LocalAccount::new_unauthenticated(
+                    LocalAccount::new_unauthenticated(
                         *identity.account_id(),
                         target,
                     )
-                    .await?)
+                    .await
                 })
             },
             target,

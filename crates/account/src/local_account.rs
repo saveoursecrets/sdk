@@ -1,9 +1,8 @@
 //! Local account storage and search index.
 use crate::{
     convert::CipherComparison, Account, AccountBuilder, AccountChange,
-    AccountData, DetachedView, Error, FolderChange, FolderCreate,
-    FolderDelete, Result, SecretChange, SecretDelete, SecretInsert,
-    SecretMove,
+    AccountData, Error, FolderChange, FolderCreate, FolderDelete, Result,
+    SecretChange, SecretDelete, SecretInsert, SecretMove,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -50,7 +49,13 @@ use std::{
 use tokio::sync::RwLock;
 
 #[cfg(feature = "search")]
-use sos_search::{DocumentCount, SearchIndex};
+use {
+    crate::DetachedView,
+    sos_search::{
+        AccountStatistics, ArchiveFilter, Document, DocumentCount,
+        DocumentView, QueryFilter, SearchIndex,
+    },
+};
 
 #[cfg(feature = "audit")]
 use {
@@ -60,9 +65,6 @@ use {
 
 #[cfg(feature = "files")]
 use sos_external_files::FileMutationEvent;
-
-#[cfg(feature = "search")]
-use sos_search::*;
 
 #[cfg(feature = "contacts")]
 use crate::ContactImportProgress;
@@ -309,7 +311,7 @@ impl LocalAccount {
             self.storage
                 .find(|f| f.id() == folder_id)
                 .cloned()
-                .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?
+                .ok_or(StorageError::FolderNotFound(*folder_id))?
         } else {
             self.storage.current_folder().ok_or(Error::NoOpenFolder)?
         };
@@ -393,7 +395,7 @@ impl LocalAccount {
         audit: bool,
     ) -> Result<(Summary, SecretRow, ReadEvent)> {
         let (folder, meta, secret, read_event) =
-            self.storage.read_secret(secret_id, &options).await?;
+            self.storage.read_secret(secret_id, options).await?;
 
         #[cfg(feature = "audit")]
         if audit {
@@ -452,7 +454,7 @@ impl LocalAccount {
             let mut move_file_events = self
                 .storage
                 .external_file_manager_mut()
-                .ok_or_else(|| AuthenticationError::NotAuthenticated)?
+                .ok_or(AuthenticationError::NotAuthenticated)?
                 .move_files(
                     &move_secret_data,
                     from,
@@ -465,7 +467,7 @@ impl LocalAccount {
                 .await?;
             self.storage
                 .external_file_manager_mut()
-                .ok_or_else(|| AuthenticationError::NotAuthenticated)?
+                .ok_or(AuthenticationError::NotAuthenticated)?
                 .append_file_mutation_events(&move_file_events)
                 .await?;
             file_events.append(&mut move_file_events);
@@ -848,7 +850,7 @@ impl Account for LocalAccount {
         self.ensure_authenticated()?;
 
         let account_id = *self.account_id();
-        let conversion = self.compare_cipher(&cipher, kdf).await?;
+        let conversion = self.compare_cipher(cipher, kdf).await?;
 
         // Short circuit if there is nothing to do
         if conversion.is_empty() {
@@ -863,7 +865,7 @@ impl Account for LocalAccount {
                 .storage
                 .authenticated_user_mut()
                 .ok_or(AuthenticationError::NotAuthenticated)?;
-            authenticated_user.login(&account_id, &account_key).await?;
+            authenticated_user.login(&account_id, account_key).await?;
         }
 
         Ok(conversion)
@@ -898,7 +900,7 @@ impl Account for LocalAccount {
             .public_name(summary.name().to_owned())
             .description(meta.description().to_owned())
             .flags(summary.flags().clone())
-            .kdf(summary.kdf().clone())
+            .kdf(*summary.kdf())
             .cipher(*summary.cipher())
             .build(BuilderCredentials::Password(password.clone(), seed))
             .await?;
@@ -1041,7 +1043,7 @@ impl Account for LocalAccount {
             let event = AccountEvent::RenameAccount(account_name);
             let log = self.account_log().await?;
             let mut log = log.write().await;
-            log.apply(&[event.clone()]).await?;
+            log.apply(std::slice::from_ref(&event)).await?;
             event
         };
 
@@ -1168,7 +1170,7 @@ impl Account for LocalAccount {
         let vault = {
             let event_log = self.identity_log().await?;
             let mut log_file = event_log.write().await;
-            compact_folder(self.account_id(), identity.id(), &mut *log_file)
+            compact_folder(self.account_id(), identity.id(), &mut log_file)
                 .await?;
 
             let vault = FolderReducer::new()
@@ -1184,7 +1186,7 @@ impl Account for LocalAccount {
             let event = AccountEvent::UpdateIdentity(encode(&vault).await?);
             let log = self.account_log().await?;
             let mut log = log.write().await;
-            log.apply(&[event.clone()]).await?;
+            log.apply(std::slice::from_ref(&event)).await?;
             event
         };
 
@@ -1695,11 +1697,9 @@ impl Account for LocalAccount {
         let cipher = options
             .cipher
             .take()
-            .unwrap_or_else(|| identity_folder.cipher().clone());
-        let kdf = options
-            .kdf
-            .take()
-            .unwrap_or_else(|| identity_folder.kdf().clone());
+            .unwrap_or_else(|| *identity_folder.cipher());
+        let kdf =
+            options.kdf.take().unwrap_or_else(|| *identity_folder.kdf());
 
         options.key = Some(key.clone());
         options.cipher = Some(cipher);
@@ -1905,7 +1905,7 @@ impl Account for LocalAccount {
         let event = self.import_identity_vault(vault).await?;
         let event_log = self.account_log().await?;
         let mut event_log = event_log.write().await;
-        event_log.apply(&[event.clone()]).await?;
+        event_log.apply(std::slice::from_ref(&event)).await?;
         Ok(event)
     }
 
@@ -2085,7 +2085,7 @@ impl Account for LocalAccount {
             .ok_or(Error::NoFolderPassword(*contacts.id()))?;
         let vault = self.storage.read_vault(contacts.id()).await?;
         let mut keeper = AccessPoint::from_vault(vault);
-        let key: AccessKey = contacts_passphrase.into();
+        let key: AccessKey = contacts_passphrase;
         keeper.unlock(&key).await?;
 
         let mut vcf = String::new();
@@ -2139,7 +2139,7 @@ impl Account for LocalAccount {
         for (index, vcard) in cards.into_iter().enumerate() {
             let label = vcard
                 .formatted_name
-                .get(0)
+                .first()
                 .as_ref()
                 .map(|s| s.to_string())
                 .unwrap_or_default();
@@ -2378,7 +2378,7 @@ impl Account for LocalAccount {
                         Value::Object(map) => {
                             let mut s = String::new();
                             for (k, v) in map {
-                                s.push_str(&k);
+                                s.push_str(k);
                                 s.push('=');
                                 s.push_str(&value_to_string(v));
                             }
@@ -2387,7 +2387,7 @@ impl Account for LocalAccount {
                     }
                 }
 
-                let value: Value = serde_json::to_value(&secret)?;
+                let value: Value = serde_json::to_value(secret)?;
                 let mut s = String::new();
                 let mut nodes = Vec::new();
                 for path in paths {

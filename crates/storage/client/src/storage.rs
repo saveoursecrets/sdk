@@ -135,7 +135,7 @@ impl ClientStorage {
 
         let event_log = FolderEventLog::new_folder(
             storage.backend_target().clone(),
-            &account_id,
+            account_id,
             folder_id,
         )
         .await?;

@@ -1,5 +1,6 @@
 //! Password generation and helpers for the
 //! [Save Our Secrets](https://saveoursecrets.com) SDK.
+#![allow(clippy::len_without_is_empty)]
 
 pub mod diceware;
 mod error;

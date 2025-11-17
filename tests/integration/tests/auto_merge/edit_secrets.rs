@@ -1,10 +1,10 @@
-use crate::test_utils::{
-    assert_local_remote_events_eq, mock, simulate_device, spawn, sync_pause,
-    teardown,
-};
 use anyhow::Result;
 use sos_account::{Account, SecretChange};
 use sos_protocol::AccountSync;
+use sos_test_utils::{
+    assert_local_remote_events_eq, mock, simulate_device, spawn, sync_pause,
+    teardown,
+};
 
 /// Tests making conflicting edits to a folder whilst
 /// a server is offline and resolving the conflicts with
@@ -12,11 +12,11 @@ use sos_protocol::AccountSync;
 #[tokio::test]
 async fn auto_merge_edit_secrets() -> Result<()> {
     const TEST_ID: &str = "auto_merge_edit_secrets";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
-    let addr = server.addr.clone();
+    let addr = server.addr;
 
     // Prepare mock devices
     let mut device1 = simulate_device(TEST_ID, 2, Some(&server)).await?;

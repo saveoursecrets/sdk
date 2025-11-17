@@ -1,4 +1,3 @@
-use crate::test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{
     Account, FolderCreate, LocalAccount, SecretChange, SecretMove,
@@ -12,13 +11,14 @@ use sos_sync::{
     TrackedFolderChange,
 };
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{copy_account, mock, setup, teardown};
 
 /// Tests creating a diff and merging a move secret
 /// event without any networking.
 #[tokio::test]
 async fn diff_merge_secret_move() -> Result<()> {
     const TEST_ID: &str = "diff_merge_secret_move";
-    // crate::test_utils::init_tracing();
+    // sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 2).await?;
     let data_dir = dirs.clients.remove(0);
@@ -38,7 +38,7 @@ async fn diff_merge_secret_move() -> Result<()> {
 
     let key: AccessKey = password.clone().into();
     local.sign_in(&key).await?;
-    let account_id = local.account_id().clone();
+    let account_id = *local.account_id();
     let default_folder = local.default_folder().await.unwrap();
 
     // Copy the initial account disc state
@@ -101,7 +101,7 @@ async fn diff_merge_secret_move() -> Result<()> {
     ));
     // The default folder has the create and delete events
     // normalized away but the new folder contains a created event
-    assert!(outcome.tracked.folders.get(default_folder.id()).is_none());
+    assert!(!outcome.tracked.folders.contains_key(default_folder.id()));
     let folder_changes = outcome.tracked.folders.get(summary.id()).unwrap();
     assert!(folder_changes.contains(&TrackedFolderChange::Created(new_id)));
 

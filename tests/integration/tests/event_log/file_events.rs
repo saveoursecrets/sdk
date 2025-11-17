@@ -1,5 +1,4 @@
 use super::all_events;
-use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{
     Account, FolderCreate, LocalAccount, SecretChange, SecretMove,
@@ -11,6 +10,7 @@ use sos_core::{
 };
 use sos_password::diceware::generate_passphrase;
 use sos_test_utils::make_client_backend;
+use sos_test_utils::{mock, setup, teardown};
 use sos_vault::secret::SecretRow;
 
 /// Tests the various file events are being logged.
@@ -18,7 +18,7 @@ use sos_vault::secret::SecretRow;
 async fn event_log_file() -> Result<()> {
     const TEST_ID: &str = "event_log_file";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -103,7 +103,7 @@ async fn event_log_file() -> Result<()> {
     assert_eq!(5, events.len());
 
     // Initial file secret creation
-    assert!(matches!(events.get(0), Some(FileEvent::CreateFile(_, _))));
+    assert!(matches!(events.first(), Some(FileEvent::CreateFile(_, _))));
 
     // Moving event
     assert!(matches!(events.get(1), Some(FileEvent::MoveFile { .. })));
@@ -126,7 +126,7 @@ async fn event_log_file() -> Result<()> {
 async fn event_log_file_folder_delete() -> Result<()> {
     const TEST_ID: &str = "event_log_file_folder_delete";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -167,7 +167,7 @@ async fn event_log_file_folder_delete() -> Result<()> {
     println!("{events:?}");
 
     assert_eq!(4, events.len());
-    assert!(matches!(events.get(0), Some(FileEvent::CreateFile(_, _))));
+    assert!(matches!(events.first(), Some(FileEvent::CreateFile(_, _))));
     assert!(matches!(events.get(1), Some(FileEvent::CreateFile(_, _))));
     // Both files were deleted
     assert!(matches!(events.get(2), Some(FileEvent::DeleteFile(_, _))));

@@ -37,9 +37,12 @@ impl AsRef<[u8]> for Seed {
 }
 
 /// Supported key derivation functions.
-#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+#[derive(
+    Default, Debug, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize,
+)]
 pub enum KeyDerivation {
     /// Argon2 key derivation function.
+    #[default]
     Argon2Id,
     /// Balloon hash key derivation function.
     BalloonHash,
@@ -69,12 +72,6 @@ impl KeyDerivation {
     pub fn generate_seed() -> Seed {
         let bytes: [u8; Seed::SIZE] = csprng().gen();
         Seed(bytes)
-    }
-}
-
-impl Default for KeyDerivation {
-    fn default() -> Self {
-        Self::Argon2Id
     }
 }
 

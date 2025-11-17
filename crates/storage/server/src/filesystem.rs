@@ -82,8 +82,7 @@ impl ServerFileStorage {
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
                 paths.documents_dir().to_path_buf(),
-            )
-            .into());
+            ));
         }
 
         paths.ensure().await?;
@@ -268,7 +267,7 @@ impl ServerAccountStorage for ServerFileStorage {
             folder_id,
         )
         .await?;
-        event_log.replace_all_events(&diff).await?;
+        event_log.replace_all_events(diff).await?;
         let vault = FolderReducer::new()
             .reduce(&event_log)
             .await?
@@ -352,7 +351,7 @@ impl ServerAccountStorage for ServerFileStorage {
 
         for summary in &summaries {
             // Ensure we don't overwrite existing data
-            if self.folders.get(summary.id()).is_none() {
+            if !self.folders.contains_key(summary.id()) {
                 self.create_folder_entry(summary.id()).await?;
             }
         }
@@ -364,15 +363,13 @@ impl ServerAccountStorage for ServerFileStorage {
         id: &VaultId,
         buffer: &[u8],
     ) -> Result<()> {
-        let exists = self.folders.get(id).is_some();
+        let exists = self.folders.contains_key(id);
 
         let vault: Vault = decode(buffer).await?;
         let (vault, events) = FolderReducer::split::<Error>(vault).await?;
 
         if id != vault.id() {
-            return Err(
-                Error::VaultIdentifierMismatch(*id, *vault.id()).into()
-            );
+            return Err(Error::VaultIdentifierMismatch(*id, *vault.id()));
         }
 
         let vault_path = self.paths.vault_path(id);

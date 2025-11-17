@@ -51,9 +51,10 @@ pub struct ManifestVersion1 {
 impl ManifestVersion1 {
     /// Create a new manifest set to version 2.
     pub fn new_v2() -> Self {
-        let mut manifest = ManifestVersion1::default();
-        manifest.version = Some(ArchiveManifestVersion::V2);
-        manifest
+        ManifestVersion1 {
+            version: Some(ArchiveManifestVersion::V2),
+            ..Default::default()
+        }
     }
 }
 

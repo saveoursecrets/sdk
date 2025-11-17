@@ -7,7 +7,7 @@ use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
 use rs_merkle::{algorithms::Sha256, MerkleProof};
-use std::io::{Error, ErrorKind, Result};
+use std::io::{Error, Result};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 #[async_trait]
@@ -155,10 +155,10 @@ impl Decodable for Comparison {
                 *self = Self::Unknown;
             }
             _ => {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    format!("unknown comparison variant kind {}", kind),
-                ));
+                return Err(Error::other(format!(
+                    "unknown comparison variant kind {}",
+                    kind
+                )));
             }
         }
         Ok(())

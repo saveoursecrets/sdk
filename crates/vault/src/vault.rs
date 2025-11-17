@@ -300,9 +300,10 @@ impl From<Summary> for Header {
 
 impl From<Summary> for Vault {
     fn from(value: Summary) -> Self {
-        let mut vault: Vault = Default::default();
-        vault.header = value.into();
-        vault
+        Vault {
+            header: value.into(),
+            ..Default::default()
+        }
     }
 }
 
@@ -628,7 +629,7 @@ impl Vault {
                 let access = SharedAccess::WriteAccess(recipients);
                 let buffer = encode(&access).await?;
                 let private_key = PrivateKey::Asymmetric(owner.clone());
-                let cipher = self.header.summary.cipher.clone();
+                let cipher = self.header.summary.cipher;
                 let owner_recipients = vec![owner.to_public()];
                 let aead = cipher
                     .encrypt_asymmetric(

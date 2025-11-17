@@ -116,7 +116,7 @@ pub async fn upgrade(
             .entry(account_id)
             .or_insert(Default::default());
 
-        if account.connections.get(&connection_id).is_some() {
+        if account.connections.contains_key(&connection_id) {
             return Err(StatusCode::CONFLICT);
         }
 
@@ -246,22 +246,19 @@ async fn write(
                 break;
             }
             event = outgoing.recv() => {
-                match event {
-                    Ok(msg) => {
-                        if sink.send(Message::Binary(msg.into())).await.is_err() {
-                            tracing::trace!(
-                                account_id = %account_id,
-                                "ws_server::disconnect::send_error",
-                            );
-                            disconnect(
-                                state,
-                                &account_id,
-                                &connection_id,
-                            ).await;
-                            break;
-                        }
+                if let Ok(msg) = event {
+                    if sink.send(Message::Binary(msg.into())).await.is_err() {
+                        tracing::trace!(
+                            account_id = %account_id,
+                            "ws_server::disconnect::send_error",
+                        );
+                        disconnect(
+                            state,
+                            &account_id,
+                            &connection_id,
+                        ).await;
+                        break;
                     }
-                    _ => {}
                 }
             },
         }

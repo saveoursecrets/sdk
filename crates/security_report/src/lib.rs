@@ -1,5 +1,7 @@
+#![forbid(unsafe_code)]
+#![allow(clippy::type_complexity)]
+
 //! Helpers for security report generation.
-use hex;
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use sos_account::Account;
@@ -60,7 +62,7 @@ where
         if let Some(target) = &options.target {
             secret_security_report::<E>(
                 &target.1,
-                &*access_point,
+                &access_point,
                 &mut password_hashes,
                 target.2.as_ref(),
             )
@@ -69,7 +71,7 @@ where
             for secret_id in vault.keys() {
                 secret_security_report::<E>(
                     secret_id,
-                    &*access_point,
+                    &access_point,
                     &mut password_hashes,
                     None,
                 )
@@ -312,7 +314,7 @@ where
         }
         Secret::Password { password, name, .. } => {
             let inputs = if let Some(name) = name {
-                vec![&name.expose_secret()[..]]
+                vec![name.expose_secret()]
             } else {
                 vec![]
             };

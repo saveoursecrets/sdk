@@ -64,10 +64,10 @@ pub async fn read_public_identity(
     {
         if extension == VAULT_EXT {
             let summary = Header::read_summary_file(path.as_ref()).await?;
-            return Ok(Some(PublicIdentity::new(
+            Ok(Some(PublicIdentity::new(
                 file_stem.to_string_lossy().parse()?,
                 summary.name().to_owned(),
-            )));
+            )))
         } else {
             Ok(None)
         }

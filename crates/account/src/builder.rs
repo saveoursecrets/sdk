@@ -305,7 +305,7 @@ impl AccountBuilder {
             self.target.clone(),
             self.account_name.clone(),
             self.passphrase.clone(),
-            self.account_id.clone(),
+            self.account_id,
         )
         .await?;
 

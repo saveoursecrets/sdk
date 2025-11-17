@@ -56,7 +56,7 @@ pub async fn choose_account() -> Result<Option<PublicIdentity>> {
         let prompt = Some("Choose account: ");
         let result =
             choose(prompt, &options, true)?.expect("choice to be required");
-        return Ok(Some(result.clone()));
+        Ok(Some(result.clone()))
     }
 }
 
@@ -140,7 +140,7 @@ pub async fn resolve_account(
             let owner = USER.read().await;
             if let Some(owner) = owner.selected_account() {
                 if owner.is_authenticated().await {
-                    return Ok(Some((&*owner).into()));
+                    return Ok(Some((owner).into()));
                 }
             }
         }

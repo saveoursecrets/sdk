@@ -3,21 +3,21 @@
 use anyhow::Result;
 use sos_client_storage::NewFolderOptions;
 
-use crate::test_utils::{
-    assert_local_remote_file_eq, assert_local_remote_file_not_exist,
-    mock::files::{create_file_secret, update_file_secret},
-    simulate_device, spawn, teardown, wait_for_num_transfers,
-};
 use sos_account::{Account, FolderCreate, SecretMove};
 use sos_core::ExternalFile;
 use sos_protocol::AccountSync;
 use sos_sdk::prelude::*;
+use sos_test_utils::{
+    assert_local_remote_file_eq, assert_local_remote_file_not_exist,
+    mock::files::{create_file_secret, update_file_secret},
+    simulate_device, spawn, teardown, wait_for_num_transfers,
+};
 
 /// Tests uploading an external file to multiple servers.
 #[tokio::test]
 async fn file_transfers_multi_upload() -> Result<()> {
     const TEST_ID: &str = "file_transfers_multi_upload";
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn some backend servers
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;
@@ -43,11 +43,11 @@ async fn file_transfers_multi_upload() -> Result<()> {
     let server2_paths = server2.paths(device.owner.account_id());
 
     // Assert the files on server1 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server1_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server1_paths, &file)
         .await?;
 
     // Assert the files on server2 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server2_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server2_paths, &file)
         .await?;
 
     device.owner.sign_out().await?;
@@ -63,7 +63,7 @@ async fn file_transfers_multi_upload() -> Result<()> {
 async fn file_transfers_multi_update() -> Result<()> {
     const TEST_ID: &str = "file_transfers_multi_update";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn some backend servers
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;
@@ -102,11 +102,11 @@ async fn file_transfers_multi_update() -> Result<()> {
     let server2_paths = server2.paths(device.owner.account_id());
 
     // Assert the files on server1 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server1_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server1_paths, &file)
         .await?;
 
     // Assert the files on server2 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server2_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server2_paths, &file)
         .await?;
 
     device.owner.sign_out().await?;
@@ -122,7 +122,7 @@ async fn file_transfers_multi_update() -> Result<()> {
 async fn file_transfers_multi_move() -> Result<()> {
     const TEST_ID: &str = "file_transfers_multi_move";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn some backend servers
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;
@@ -168,11 +168,11 @@ async fn file_transfers_multi_move() -> Result<()> {
     let server2_paths = server2.paths(device.owner.account_id());
 
     // Assert the files on server1 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server1_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server1_paths, &file)
         .await?;
 
     // Assert the files on server2 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server2_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server2_paths, &file)
         .await?;
 
     device.owner.sign_out().await?;
@@ -187,7 +187,7 @@ async fn file_transfers_multi_move() -> Result<()> {
 async fn file_transfers_multi_delete() -> Result<()> {
     const TEST_ID: &str = "file_transfers_multi_delete";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn some backend servers
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;
@@ -212,7 +212,7 @@ async fn file_transfers_multi_delete() -> Result<()> {
     let server2_paths = server2.paths(device.owner.account_id());
 
     // Assert the files on disc are equal
-    assert_local_remote_file_eq(device.owner.paths(), &*server1_paths, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &server1_paths, &file)
         .await?;
 
     device
@@ -224,7 +224,7 @@ async fn file_transfers_multi_delete() -> Result<()> {
     // Assert the files on server1 do not exist
     assert_local_remote_file_not_exist(
         device.owner.paths(),
-        &*server1_paths,
+        &server1_paths,
         &file,
     )
     .await?;
@@ -232,7 +232,7 @@ async fn file_transfers_multi_delete() -> Result<()> {
     // Assert the files on server2 do not exist
     assert_local_remote_file_not_exist(
         device.owner.paths(),
-        &*server2_paths,
+        &server2_paths,
         &file,
     )
     .await?;
@@ -250,7 +250,7 @@ async fn file_transfers_multi_delete() -> Result<()> {
 async fn file_transfers_multi_download() -> Result<()> {
     const TEST_ID: &str = "file_transfers_multi_download";
 
-    //crate::test_utils::init_tracing();
+    //sos_test_utils::init_tracing();
 
     // Spawn some backend servers
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;
@@ -259,7 +259,7 @@ async fn file_transfers_multi_download() -> Result<()> {
 
     // Prepare mock device
     let mut uploader = simulate_device(TEST_ID, 2, Some(&server1)).await?;
-    let account_id = uploader.owner.account_id().clone();
+    let account_id = *uploader.owner.account_id();
     let default_folder = uploader.owner.default_folder().await.unwrap();
     uploader.owner.add_server(origin).await?;
     let mut downloader = uploader.connect(1, None).await?;
@@ -280,7 +280,7 @@ async fn file_transfers_multi_download() -> Result<()> {
         wait_for_num_transfers(&uploader.owner, 2).await?;
         assert_local_remote_file_eq(
             uploader.owner.paths(),
-            &*uploader_server_paths,
+            &uploader_server_paths,
             &file,
         )
         .await?;
@@ -299,14 +299,14 @@ async fn file_transfers_multi_download() -> Result<()> {
 
         assert_local_remote_file_eq(
             downloader.owner.paths(),
-            &*server1_paths,
+            &server1_paths,
             &file,
         )
         .await?;
 
         assert_local_remote_file_eq(
             downloader.owner.paths(),
-            &*server2_paths,
+            &server2_paths,
             &file,
         )
         .await?;
