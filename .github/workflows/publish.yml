@@ -68,7 +68,11 @@ jobs:
 
       - name: Install aarch64 compiler toolchain for sqlite3
         if: matrix.binary_target == 'aarch64-unknown-linux-gnu'
-        run: sudo apt-get install gcc-aarch64-linux-gnu
+        run: sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+      - name: Install aarch64 compiler toolchain for sqlite3
+        if: matrix.binary_target == 'aarch64-unknown-linux-gnu'
+        run: sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
       # Prepare
       - name: Set environment variables
@@ -105,6 +109,9 @@ jobs:
       # Build client
       - name: Build client binary
         uses: actions-rs/cargo@v1
+        env:
+          CC_aarch64_unknown_linux_gnu: ${{ matrix.binary_target == 'aarch64-unknown-linux-gnu' && 'aarch64-linux-gnu-gcc' || '' }}
+          CXX_aarch64_unknown_linux_gnu: ${{ matrix.binary_target == 'aarch64-unknown-linux-gnu' && 'aarch64-linux-gnu-g++' || '' }}
         with:
           command: build
           args: --bin sos --release --locked --target ${{ matrix.binary_target }}
@@ -112,6 +119,9 @@ jobs:
       # Build server
       - name: Build server binary
         uses: actions-rs/cargo@v1
+        env:
+          CC_aarch64_unknown_linux_gnu: ${{ matrix.binary_target == 'aarch64-unknown-linux-gnu' && 'aarch64-linux-gnu-gcc' || '' }}
+          CXX_aarch64_unknown_linux_gnu: ${{ matrix.binary_target == 'aarch64-unknown-linux-gnu' && 'aarch64-linux-gnu-g++' || '' }}
         with:
           command: build
           args: --bin sos-server --release --locked --target ${{ matrix.binary_target }}
