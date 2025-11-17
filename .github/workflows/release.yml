@@ -63,6 +63,7 @@ jobs:
             --bucket $BUCKET \
             --directory target/artifacts \
             $CHANNEL/cli/$SEMVER/linux/x86_64/saveoursecrets.zip \
+            $CHANNEL/cli/$SEMVER/linux/aarch64/saveoursecrets.zip \
             $CHANNEL/cli/$SEMVER/linux/x86_64/musl/saveoursecrets.zip \
             $CHANNEL/cli/$SEMVER/windows/x86_64/saveoursecrets.zip \
             $CHANNEL/cli/$SEMVER/macos/x86_64/saveoursecrets.zip \
