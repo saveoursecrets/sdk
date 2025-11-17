@@ -65,6 +65,11 @@ jobs:
       - name: Install dbus
         if: matrix.distro == 'linux'
         run: sudo apt-get install libdbus-1-dev
+
+      - name: Install aarch64 compiler toolchain for sqlite3
+        if: matrix.binary_target == 'aarch64-unknown-linux-gnu'
+        run: sudo apt-get install gcc-aarch64-linux-gnu
+
       # Prepare
       - name: Set environment variables
         shell: bash
