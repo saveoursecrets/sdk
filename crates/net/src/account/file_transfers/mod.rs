@@ -959,12 +959,12 @@ async fn normalize(
                     item.1,
                     TransferOperation::Upload | TransferOperation::Download
                 );
-                // !(&item.0 == file && is_transfer_op)
-                if &item.0 == file && is_transfer_op {
-                    false
-                } else {
-                    true
-                }
+                !(&item.0 == file && is_transfer_op)
+                // if &item.0 == file && is_transfer_op {
+                //     false
+                // } else {
+                //     true
+                // }
             });
 
             // Remove from the failures queue
@@ -974,12 +974,12 @@ async fn normalize(
                     failure.operation,
                     TransferOperation::Upload | TransferOperation::Download
                 );
-                // !(&failure.file == file && is_transfer_op)
-                if &failure.file == file && is_transfer_op {
-                    false
-                } else {
-                    true
-                }
+                !(&failure.file == file && is_transfer_op)
+                // if &failure.file == file && is_transfer_op {
+                //     false
+                // } else {
+                //     true
+                // }
             });
 
             // Notmalize inflight transfers which will cancel
