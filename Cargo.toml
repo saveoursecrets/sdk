@@ -161,7 +161,7 @@ toml = "0.8"
 bitflags = { version = "2", features = ["serde"] }
 enum-iterator = "2"
 tempfile = "3.5"
-prost = "0.13"
+prost = "0.14"
 clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
 colored = "2"
 arboard = { version = "3", default-features = false }
