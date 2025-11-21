@@ -16,12 +16,12 @@ use std::{
 use tokio::sync::watch;
 
 mod http;
-mod network_config;
 #[cfg(feature = "listen")]
 mod websocket;
 
-pub use self::http::{set_user_agent, HttpClient};
-pub use network_config::NetworkConfig;
+pub use self::http::{
+    set_user_agent, HttpClient, HttpClientOptions, NetworkConfig,
+};
 
 #[cfg(feature = "listen")]
 pub use websocket::{changes, connect, ListenOptions, WebSocketHandle};

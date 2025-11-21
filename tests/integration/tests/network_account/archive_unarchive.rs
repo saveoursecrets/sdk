@@ -16,11 +16,14 @@ async fn network_sync_archive_unarchive() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare a mock device
-    let mut device1 =
-        simulate_device_with_builder(TEST_ID, 2, Some(&server), |builder| {
-            builder.create_archive(true).create_file_password(true)
-        })
-        .await?;
+    let mut device1 = simulate_device_with_builder(
+        TEST_ID,
+        2,
+        Some(&server),
+        |builder| builder.create_archive(true).create_file_password(true),
+        Default::default(),
+    )
+    .await?;
     let default_folder = device1.default_folder.clone();
     let origin = device1.origin.clone();
     let folders = device1.folders.clone();

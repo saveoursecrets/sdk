@@ -11,7 +11,7 @@ mod integrity;
 mod ipc;
 mod local_account;
 mod network_account;
+mod network_config;
 mod pairing;
 mod preferences;
-mod self_signed;
 mod sign_in;

@@ -6,7 +6,6 @@ use crate::{
         },
         MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
     },
-    network_client::network_config::NetworkConfig,
     DiffRequest, DiffResponse, Error, NetworkError, PatchRequest,
     PatchResponse, Result, ScanRequest, ScanResponse, SyncClient,
     WireEncodeDecode,
@@ -15,13 +14,17 @@ use async_trait::async_trait;
 use http::StatusCode;
 use reqwest::{
     header::{AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
-    RequestBuilder,
+    Certificate, RequestBuilder,
 };
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sos_core::{AccountId, Origin};
 use sos_signer::ed25519::BoxedEd25519Signer;
 use sos_sync::{CreateSet, SyncPacket, SyncStatus, UpdateSet};
-use std::{fmt, sync::OnceLock, time::Duration};
+use std::{
+    collections::HashMap, fmt, net::SocketAddr, sync::OnceLock,
+    time::Duration,
+};
 use tracing::instrument;
 use url::Url;
 
@@ -53,6 +56,16 @@ pub fn set_user_agent(user_agent: String) {
     REQUEST_USER_AGENT.get_or_init(|| user_agent);
 }
 
+/// Manages client network configuration such as TLS root certificates and
+/// explicit DNS to socket address mappings.
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
+pub struct NetworkConfig {
+    /// DNS resolve addresses.
+    pub resolve_addrs: HashMap<String, SocketAddr>,
+    /// Root TLS certificates.
+    pub certificates: HashMap<String, String>,
+}
+
 /// Options for the HTTP client.
 #[derive(Clone)]
 pub struct HttpClientOptions {
@@ -64,6 +77,8 @@ pub struct HttpClientOptions {
     pub device_signer: BoxedEd25519Signer,
     /// Connection identifier used to filter websocket notifications.
     pub connection_id: String,
+    /// Network configuration.
+    pub network_config: NetworkConfig,
 }
 
 /// Client that can synchronize with a server over HTTP(S).
@@ -93,30 +108,19 @@ impl fmt::Debug for HttpClient {
 
 impl HttpClient {
     /// Create a new client.
-    pub fn new(
-        account_id: AccountId,
-        origin: Origin,
-        device_signer: BoxedEd25519Signer,
-        connection_id: String,
-    ) -> Result<Self> {
-        Self::with_options(HttpClientOptions {
-            account_id,
-            origin,
-            device_signer,
-            connection_id,
-        })
-    }
-
-    /// Create a new client with options.
-    pub fn with_options(options: HttpClientOptions) -> Result<Self> {
+    pub fn new(options: HttpClientOptions) -> Result<Self> {
         #[cfg(not(target_arch = "wasm32"))]
         let client = {
             let mut builder = reqwest::ClientBuilder::new()
                 .read_timeout(Duration::from_millis(15000))
                 .connect_timeout(Duration::from_millis(5000));
 
-            for cert in NetworkConfig::get_root_certificates() {
-                builder = builder.add_root_certificate(cert);
+            for cert in options.network_config.certificates.values() {
+                if let Ok(cert) = Certificate::from_pem(cert.as_bytes()) {
+                    builder = builder.add_root_certificate(cert);
+                } else {
+                    tracing::warn!("invalid certificate");
+                }
             }
 
             builder.build()?

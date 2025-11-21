@@ -2,10 +2,10 @@
 use crate::{
     constants::{
         ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, BLOBS_DIR,
-        CERTIFICATES_DIR, DATABASE_FILE, DEVICE_EVENTS, DEVICE_FILE,
-        EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS, IDENTITY_DIR, JSON_EXT,
-        LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, REMOTES_FILE, REMOTE_DIR,
-        SYSTEM_MESSAGES_FILE, VAULTS_DIR, VAULT_EXT,
+        DATABASE_FILE, DEVICE_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR,
+        FILE_EVENTS, IDENTITY_DIR, JSON_EXT, LOCAL_DIR, LOGS_DIR,
+        PREFERENCES_FILE, REMOTES_FILE, REMOTE_DIR, SYSTEM_MESSAGES_FILE,
+        VAULTS_DIR, VAULT_EXT,
     },
     AccountId, ExternalFile, ExternalFileName, Result, SecretId, VaultId,
 };
@@ -44,8 +44,6 @@ pub struct Paths {
     documents_dir: PathBuf,
     /// Directory for application logs.
     logs_dir: PathBuf,
-    /// Directory for HTTP client root certificates.
-    certificates_dir: PathBuf,
 
     /*
      * v1 paths (filesystem)
@@ -94,7 +92,6 @@ impl Paths {
         let documents_dir = documents_dir.as_ref().to_path_buf();
         let local_dir = documents_dir.join(prefix);
         let logs_dir = documents_dir.join(LOGS_DIR);
-        let certificates_dir = documents_dir.join(CERTIFICATES_DIR);
         let identity_dir = documents_dir.join(IDENTITY_DIR);
         let audit_file = local_dir.join(AUDIT_FILE_NAME);
         let user_dir = local_dir
@@ -116,7 +113,6 @@ impl Paths {
             database_file,
             blobs_dir,
             logs_dir,
-            certificates_dir,
 
             identity_dir,
             local_dir,
@@ -323,11 +319,6 @@ impl Paths {
     /// Path to the logs directory.
     pub fn logs_dir(&self) -> &PathBuf {
         &self.logs_dir
-    }
-
-    /// Path to the certificates directory.
-    pub fn certificates_dir(&self) -> &PathBuf {
-        &self.certificates_dir
     }
 
     /// Path to the audit file.
