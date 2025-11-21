@@ -163,7 +163,7 @@ enum-iterator = "2"
 tempfile = "3.5"
 prost = "0.14"
 clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
-colored = "2"
+colored = "3"
 arboard = { version = "3", default-features = false }
 zeroize = "1"
 bytes = "1.8"
