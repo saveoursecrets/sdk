@@ -2,7 +2,7 @@ use anyhow::Result;
 use sos_account::Account;
 use sos_core::Paths;
 use sos_protocol::{
-    network_client::{HttpClient, RootCertificate},
+    network_client::{HttpClient, NetworkConfig},
     reqwest::Url,
     SyncClient,
 };
@@ -44,9 +44,9 @@ async fn self_signed_server() -> Result<()> {
 
     // Load root certificates into memory, usually the app would do this
     // when it boots
-    RootCertificate::load_root_certificates(certs)?;
+    NetworkConfig::load_root_certificates(certs)?;
 
-    let certificates = RootCertificate::get_root_certificates();
+    let certificates = NetworkConfig::get_root_certificates();
     assert!(!certificates.is_empty());
 
     // Most tests use HTTP but we need to use HTTPS fpr this so

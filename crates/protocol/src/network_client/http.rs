@@ -6,6 +6,7 @@ use crate::{
         },
         MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
     },
+    network_client::network_config::NetworkConfig,
     DiffRequest, DiffResponse, Error, NetworkError, PatchRequest,
     PatchResponse, Result, ScanRequest, ScanResponse, SyncClient,
     WireEncodeDecode,
@@ -110,13 +111,11 @@ impl HttpClient {
     pub fn with_options(options: HttpClientOptions) -> Result<Self> {
         #[cfg(not(target_arch = "wasm32"))]
         let client = {
-            use crate::network_client::certificates::RootCertificate;
-
             let mut builder = reqwest::ClientBuilder::new()
                 .read_timeout(Duration::from_millis(15000))
                 .connect_timeout(Duration::from_millis(5000));
 
-            for cert in RootCertificate::get_root_certificates() {
+            for cert in NetworkConfig::get_root_certificates() {
                 builder = builder.add_root_certificate(cert);
             }
 

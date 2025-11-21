@@ -1,16 +1,23 @@
 use crate::Result;
 use parking_lot::Mutex;
 use reqwest::Certificate;
+use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
 use std::sync::OnceLock;
 use std::{collections::HashMap, path::Path};
 
-static CERTIFICATES: OnceLock<Mutex<HashMap<String, Certificate>>> =
-    OnceLock::new();
+/// Manages client network configuration such as TLS root certificates and
+/// explicit DNS to socket address mappings.
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct NetworkConfig {
+    resolve_addrs: HashMap<String, SocketAddr>,
+    #[serde(skip)]
+    certificates: HashMap<String, Certificate>,
+}
 
-/// Manage root TLS certificates.
-pub struct RootCertificate;
+static NETWORK_CONFIG: OnceLock<Mutex<NetworkConfig>> = OnceLock::new();
 
-impl RootCertificate {
+impl NetworkConfig {
     /// Load root certificates from a directory into memory.
     ///
     /// Intended to be called as early as possible when the application
@@ -18,6 +25,9 @@ impl RootCertificate {
     pub fn load_root_certificates<P: AsRef<Path>>(
         certificates_path: P,
     ) -> Result<()> {
+        let config =
+            NETWORK_CONFIG.get_or_init(|| Mutex::new(Default::default()));
+
         let mut certs = HashMap::new();
         if certificates_path.as_ref().exists() {
             for entry in std::fs::read_dir(certificates_path)? {
@@ -35,15 +45,19 @@ impl RootCertificate {
                 }
             }
         }
-        CERTIFICATES.get_or_init(|| Mutex::new(certs));
+
+        let mut config = config.lock();
+        config.certificates = certs;
+
         Ok(())
     }
 
     /// Get root certificates from memory.
     pub fn get_root_certificates() -> Vec<Certificate> {
-        let certs = CERTIFICATES.get_or_init(|| Mutex::new(HashMap::new()));
-        let certs = certs.lock();
-        certs.values().cloned().collect()
+        let config =
+            NETWORK_CONFIG.get_or_init(|| Mutex::new(Default::default()));
+        let config = config.lock();
+        config.certificates.values().cloned().collect()
     }
 
     /// Import a PEM-encoded root certificate to the certificates directory and into memory.
@@ -73,9 +87,10 @@ impl RootCertificate {
             .to_string_lossy()
             .into_owned();
 
-        let certs = CERTIFICATES.get_or_init(|| Mutex::new(HashMap::new()));
-        let mut certs = certs.lock();
-        certs.insert(cert_id, cert);
+        let config =
+            NETWORK_CONFIG.get_or_init(|| Mutex::new(Default::default()));
+        let mut config = config.lock();
+        config.certificates.insert(cert_id, cert);
         Ok(())
     }
 
@@ -89,9 +104,10 @@ impl RootCertificate {
             std::fs::remove_file(dest)?;
         }
 
-        let certs = CERTIFICATES.get_or_init(|| Mutex::new(HashMap::new()));
-        let mut certs = certs.lock();
-        certs.remove(cert_id);
+        let config =
+            NETWORK_CONFIG.get_or_init(|| Mutex::new(Default::default()));
+        let mut config = config.lock();
+        config.certificates.remove(cert_id);
         Ok(())
     }
 }
