@@ -13,4 +13,5 @@ mod local_account;
 mod network_account;
 mod pairing;
 mod preferences;
+mod self_signed;
 mod sign_in;
