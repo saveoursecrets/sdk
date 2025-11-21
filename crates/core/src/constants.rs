@@ -110,6 +110,9 @@ mod files {
     /// Directory to store log files.
     pub const LOGS_DIR: &str = "logs";
 
+    /// Directory to store HTTP client root certificates.
+    pub const CERTIFICATES_DIR: &str = "certificates";
+
     /// Name of the file for account events.
     pub const ACCOUNT_EVENTS: &str = "account";
 
