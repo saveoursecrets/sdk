@@ -5752,6 +5752,7 @@ dependencies = [
  "hex",
  "http",
  "indexmap 2.12.0",
+ "parking_lot",
  "prost",
  "prost-build",
  "protoc-bin-vendored",

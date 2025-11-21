@@ -15,11 +15,13 @@ use std::{
 };
 use tokio::sync::watch;
 
+mod certificates;
 mod http;
 #[cfg(feature = "listen")]
 mod websocket;
 
 pub use self::http::{set_user_agent, HttpClient};
+pub use certificates::RootCertificate;
 
 #[cfg(feature = "listen")]
 pub use websocket::{changes, connect, ListenOptions, WebSocketHandle};

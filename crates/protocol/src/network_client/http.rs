@@ -14,7 +14,7 @@ use async_trait::async_trait;
 use http::StatusCode;
 use reqwest::{
     header::{AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
-    Certificate, RequestBuilder,
+    RequestBuilder,
 };
 use serde_json::Value;
 use sos_core::{AccountId, Origin};
@@ -61,10 +61,8 @@ pub struct HttpClientOptions {
     pub origin: Origin,
     /// Signing key for this device.
     pub device_signer: BoxedEd25519Signer,
-    /// Connection identifier used for websocket notifications.
+    /// Connection identifier used to filter websocket notifications.
     pub connection_id: String,
-    /// TLS vertificates to add as root certificates to the underlying client.
-    pub certificates: Option<Vec<Certificate>>,
 }
 
 /// Client that can synchronize with a server over HTTP(S).
@@ -105,22 +103,21 @@ impl HttpClient {
             origin,
             device_signer,
             connection_id,
-            certificates: None,
         })
     }
 
     /// Create a new client with options.
-    pub fn with_options(mut options: HttpClientOptions) -> Result<Self> {
+    pub fn with_options(options: HttpClientOptions) -> Result<Self> {
         #[cfg(not(target_arch = "wasm32"))]
         let client = {
+            use crate::network_client::certificates::RootCertificate;
+
             let mut builder = reqwest::ClientBuilder::new()
                 .read_timeout(Duration::from_millis(15000))
                 .connect_timeout(Duration::from_millis(5000));
 
-            if let Some(certs) = options.certificates.take() {
-                for cert in certs {
-                    builder = builder.add_root_certificate(cert);
-                }
+            for cert in RootCertificate::get_root_certificates() {
+                builder = builder.add_root_certificate(cert);
             }
 
             builder.build()?
