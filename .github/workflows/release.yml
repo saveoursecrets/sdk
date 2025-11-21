@@ -33,7 +33,7 @@ jobs:
       - publish
       - homebrew
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set environment variables
         run: |
           VERSION=$(./scripts/version.sh)
