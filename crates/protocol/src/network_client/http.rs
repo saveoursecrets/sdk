@@ -123,6 +123,15 @@ impl HttpClient {
                 }
             }
 
+            for (domain, addr) in options.network_config.resolve_addrs.iter()
+            {
+                let mut addr = *addr;
+                // Use the 80 or 443 ports by default
+                // unless explicitly set in domain
+                addr.set_port(0);
+                builder = builder.resolve(domain, addr);
+            }
+
             builder.build()?
         };
 
