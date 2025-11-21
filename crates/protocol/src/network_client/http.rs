@@ -14,7 +14,7 @@ use async_trait::async_trait;
 use http::StatusCode;
 use reqwest::{
     header::{AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
-    RequestBuilder,
+    Certificate, RequestBuilder,
 };
 use serde_json::Value;
 use sos_core::{AccountId, Origin};
@@ -52,20 +52,32 @@ pub fn set_user_agent(user_agent: String) {
     REQUEST_USER_AGENT.get_or_init(|| user_agent);
 }
 
+/// Options for the HTTP client.
+#[derive(Clone)]
+pub struct HttpClientOptions {
+    /// Account identifier.
+    pub account_id: AccountId,
+    /// Server origin to connect to.
+    pub origin: Origin,
+    /// Signing key for this device.
+    pub device_signer: BoxedEd25519Signer,
+    /// Connection identifier used for websocket notifications.
+    pub connection_id: String,
+    /// TLS vertificates to add as root certificates to the underlying client.
+    pub certificates: Option<Vec<Certificate>>,
+}
+
 /// Client that can synchronize with a server over HTTP(S).
 #[derive(Clone)]
 pub struct HttpClient {
-    account_id: AccountId,
-    origin: Origin,
-    device_signer: BoxedEd25519Signer,
+    options: HttpClientOptions,
     client: reqwest::Client,
-    connection_id: String,
 }
 
 impl PartialEq for HttpClient {
     fn eq(&self, other: &Self) -> bool {
-        self.origin == other.origin
-            && self.connection_id == other.connection_id
+        self.options.origin == other.options.origin
+            && self.options.connection_id == other.options.connection_id
     }
 }
 
@@ -74,8 +86,8 @@ impl Eq for HttpClient {}
 impl fmt::Debug for HttpClient {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("HttpClient")
-            .field("url", self.origin.url())
-            .field("connection_id", &self.connection_id)
+            .field("url", self.options.origin.url())
+            .field("connection_id", &self.options.connection_id)
             .finish()
     }
 }
@@ -88,27 +100,41 @@ impl HttpClient {
         device_signer: BoxedEd25519Signer,
         connection_id: String,
     ) -> Result<Self> {
+        Self::with_options(HttpClientOptions {
+            account_id,
+            origin,
+            device_signer,
+            connection_id,
+            certificates: None,
+        })
+    }
+
+    /// Create a new client with options.
+    pub fn with_options(mut options: HttpClientOptions) -> Result<Self> {
         #[cfg(not(target_arch = "wasm32"))]
-        let client = reqwest::ClientBuilder::new()
-            .read_timeout(Duration::from_millis(15000))
-            .connect_timeout(Duration::from_millis(5000))
-            .build()?;
+        let client = {
+            let mut builder = reqwest::ClientBuilder::new()
+                .read_timeout(Duration::from_millis(15000))
+                .connect_timeout(Duration::from_millis(5000));
+
+            if let Some(certs) = options.certificates.take() {
+                for cert in certs {
+                    builder = builder.add_root_certificate(cert);
+                }
+            }
+
+            builder.build()?
+        };
 
         #[cfg(target_arch = "wasm32")]
         let client = reqwest::ClientBuilder::new().build()?;
 
-        Ok(Self {
-            account_id,
-            origin,
-            device_signer,
-            client,
-            connection_id,
-        })
+        Ok(Self { options, client })
     }
 
     /// Device signing key.
     pub fn device_signer(&self) -> &BoxedEd25519Signer {
-        &self.device_signer
+        &self.options.device_signer
     }
 
     /// Spawn a thread that listens for changes
@@ -124,9 +150,9 @@ impl HttpClient {
         F: Future<Output = ()> + Send + 'static,
     {
         let listener = WebSocketChangeListener::new(
-            self.account_id,
-            self.origin.clone(),
-            self.device_signer.clone(),
+            self.options.account_id,
+            self.options.origin.clone(),
+            self.options.device_signer.clone(),
             options,
         );
         listener.spawn(handler)
@@ -144,9 +170,9 @@ impl HttpClient {
     /// Build a URL including the connection identifier
     /// in the query string.
     fn build_url(&self, route: &str) -> Result<Url> {
-        let mut url = self.origin.url().join(route)?;
+        let mut url = self.options.origin.url().join(route)?;
         url.query_pairs_mut()
-            .append_pair("connection_id", &self.connection_id);
+            .append_pair("connection_id", &self.options.connection_id);
         Ok(url)
     }
 
@@ -212,13 +238,13 @@ impl HttpClient {
         sign_bytes: &[u8],
     ) -> Result<RequestBuilder> {
         let device_signature = encode_device_signature(
-            self.device_signer.sign(sign_bytes).await?,
+            self.options.device_signer.sign(sign_bytes).await?,
         )
         .await?;
         let auth = bearer_prefix(&device_signature);
 
         request = request
-            .header(X_SOS_ACCOUNT_ID, self.account_id.to_string())
+            .header(X_SOS_ACCOUNT_ID, self.options.account_id.to_string())
             .header(AUTHORIZATION, auth);
 
         if let Some(user_agent) = REQUEST_USER_AGENT.get() {
@@ -235,7 +261,7 @@ impl SyncClient for HttpClient {
     type Error = crate::Error;
 
     fn origin(&self) -> &Origin {
-        &self.origin
+        &self.options.origin
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
