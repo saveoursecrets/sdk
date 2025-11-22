@@ -5660,7 +5660,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.17.5"
+version = "0.17.6"
 dependencies = [
  "async-recursion",
  "async-trait",
