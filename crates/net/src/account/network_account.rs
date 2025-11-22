@@ -27,8 +27,10 @@ use sos_login::{
     DelegatedAccess,
 };
 use sos_protocol::{
-    is_offline, AccountSync, DiffRequest, RemoteResult, RemoteSync,
-    SyncClient, SyncOptions, SyncResult,
+    is_offline,
+    network_client::{HttpClientOptions, NetworkConfig},
+    AccountSync, DiffRequest, RemoteResult, RemoteSync, SyncClient,
+    SyncOptions, SyncResult,
 };
 use sos_remote_sync::RemoteSyncHandler;
 use sos_sync::{CreateSet, StorageEventLogs, UpdateSet};
@@ -95,6 +97,8 @@ use {
 /// Options for network account creation.
 #[derive(Debug, Default)]
 pub struct NetworkAccountOptions {
+    /// client network configuration.
+    pub network_config: NetworkConfig,
     /// Disable network traffic.
     pub offline: bool,
     /// File transfer settings.
@@ -395,14 +399,19 @@ impl NetworkAccount {
         } else {
             self.client_connection_id().await?
         };
-        let provider = RemoteBridge::new(
-            *self.account_id(),
-            Arc::clone(&self.account),
-            origin.clone(),
-            device.into(),
-            conn_id,
-        )?;
-        Ok(provider)
+        let options = HttpClientOptions {
+            account_id: *self.account_id(),
+            origin: origin.clone(),
+            device_signer: device.into(),
+            connection_id: conn_id,
+            network_config: self.options.network_config.clone(),
+        };
+        RemoteBridge::new(self.account.clone(), options)
+    }
+
+    /// Network configuration.
+    pub fn network_config_mut(&mut self) -> &mut NetworkConfig {
+        &mut self.options.network_config
     }
 
     /// List the origin servers.

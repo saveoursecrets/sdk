@@ -161,9 +161,9 @@ toml = "0.8"
 bitflags = { version = "2", features = ["serde"] }
 enum-iterator = "2"
 tempfile = "3.5"
-prost = "0.13"
+prost = "0.14"
 clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
-colored = "2"
+colored = "3"
 arboard = { version = "3", default-features = false }
 zeroize = "1"
 bytes = "1.8"
@@ -177,7 +177,7 @@ futures-util = "0.3"
 sanitize-filename = "0.6"
 vcard4 = { version = "0.7.1", features = ["serde"] }
 mime_guess = "2"
-etcetera = "0.8"
+etcetera = "0.11"
 
 axum-server = { version = "0.7", features = ["tls-rustls-no-provider"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"] }
@@ -209,7 +209,7 @@ getrandom = "0.2"
 
 # build
 rustc_version = "0.4.1"
-prost-build = "0.13"
+prost-build = "0.14"
 protoc-bin-vendored = "3"
 
 [workspace.dependencies.binary-stream]

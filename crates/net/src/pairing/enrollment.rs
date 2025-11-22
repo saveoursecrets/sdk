@@ -12,7 +12,10 @@ use sos_core::{
     crypto::AccessKey, AccountId, Origin, PublicIdentity, RemoteOrigins,
 };
 use sos_login::device::DeviceSigner;
-use sos_protocol::{network_client::HttpClient, SyncClient};
+use sos_protocol::{
+    network_client::{HttpClient, HttpClientOptions, NetworkConfig},
+    SyncClient,
+};
 use sos_signer::ed25519::BoxedEd25519Signer;
 use std::collections::HashSet;
 
@@ -51,6 +54,7 @@ impl DeviceEnrollment {
         device_signer: DeviceSigner,
         device_vault: Vec<u8>,
         servers: HashSet<Origin>,
+        network_config: NetworkConfig,
     ) -> Result<Self> {
         let target = target.with_account_id(&account_id);
         match &target {
@@ -74,9 +78,14 @@ impl DeviceEnrollment {
         )
         .await?;
         let device_signing_key = device_signer.clone();
-        let device: BoxedEd25519Signer = device_signing_key.into();
-        let client =
-            HttpClient::new(account_id, origin, device, String::new())?;
+        let device_signer: BoxedEd25519Signer = device_signing_key.into();
+        let client = HttpClient::new(HttpClientOptions {
+            account_id,
+            origin,
+            device_signer,
+            connection_id: String::new(),
+            network_config,
+        })?;
         Ok(Self {
             account_id,
             storage,
