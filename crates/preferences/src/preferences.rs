@@ -320,6 +320,11 @@ where
         self.values.0.is_empty()
     }
 
+    /// Map of preferences.
+    pub fn values(&self) -> &PreferenceMap {
+        &self.values
+    }
+
     /// Iterator of the preferences.
     pub fn iter(&self) -> impl Iterator<Item = (&String, &Preference)> {
         self.values.0.iter()
