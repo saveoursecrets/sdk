@@ -154,9 +154,7 @@ where
             preferences.push(row?);
         }
 
-        tracing::info!(load_preferences_num_rows = %preferences.len());
-
-        tracing::info!("load_preferences: {}", query.as_string());
+        tracing::info!(load_preferences_num_rows = %preferences.len(), rows = ?preferences);
 
         Ok(preferences)
     }
