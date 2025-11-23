@@ -396,6 +396,24 @@ where
         }
     }
 
+    /// Get a JSON value preference.
+    pub fn get_json_value(
+        &self,
+        key: impl AsRef<str>,
+    ) -> Result<Option<&Preference>, E> {
+        let result = self.values.0.get(key.as_ref());
+        if let Some(res) = result.as_ref() {
+            if matches!(res, Preference::Json(_)) {
+                Ok(result)
+            } else {
+                Err(Error::PreferenceTypeJsonValue(key.as_ref().to_owned())
+                    .into())
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Get a preference without checking the type.
     pub fn get_unchecked(&self, key: impl AsRef<str>) -> Option<&Preference> {
         self.values.0.get(key.as_ref())
