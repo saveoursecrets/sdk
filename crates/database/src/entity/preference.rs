@@ -142,6 +142,8 @@ where
             Ok(row.try_into()?)
         }
 
+        tracing::info!(load_preferences_query = %query.as_string());
+
         let rows = if let Some(account_id) = account_id {
             stmt.query_and_then([account_id], convert_row)?
         } else {
@@ -151,6 +153,11 @@ where
         for row in rows {
             preferences.push(row?);
         }
+
+        tracing::info!(load_preferences_num_rows = %preferences.len());
+
+        tracing::info!("load_preferences: {}", query.as_string());
+
         Ok(preferences)
     }
 
