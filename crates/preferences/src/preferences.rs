@@ -9,7 +9,12 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sos_core::{AccountId, PublicIdentity};
-use std::{collections::HashMap, fmt, sync::Arc};
+use std::{
+    collections::HashMap,
+    fmt,
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 use tokio::sync::Mutex;
 
 /// Boxed storage provider.
@@ -254,22 +259,17 @@ impl From<Value> for Preference {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct PreferenceMap(HashMap<String, Preference>);
 
-impl PreferenceMap {
-    /// Inner hash map.
-    pub fn inner(&self) -> &HashMap<String, Preference> {
+impl Deref for PreferenceMap {
+    type Target = HashMap<String, Preference>;
+
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
 
-    /// Mutable inner hash map.
-    pub fn inner_mut(&mut self) -> &mut HashMap<String, Preference> {
+impl DerefMut for PreferenceMap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
-    }
-
-    /// Borrowed iterator.
-    pub fn iter(
-        &self,
-    ) -> std::collections::hash_map::Iter<'_, String, Preference> {
-        self.0.iter()
     }
 }
 

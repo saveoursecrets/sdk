@@ -81,7 +81,7 @@ where
         let mut map: PreferenceMap = Default::default();
         for row in rows {
             let (key, pref) = row.try_into()?;
-            map.inner_mut().insert(key, pref);
+            map.insert(key, pref);
         }
         Ok(map)
     }
