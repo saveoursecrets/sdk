@@ -81,7 +81,6 @@ where
         let mut map: PreferenceMap = Default::default();
         for row in rows {
             let (key, pref) = row.try_into()?;
-            tracing::info!(load_preferences_key = %key);
             map.inner_mut().insert(key, pref);
         }
         Ok(map)

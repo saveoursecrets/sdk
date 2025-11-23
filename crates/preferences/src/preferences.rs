@@ -114,8 +114,9 @@ where
 
     /// Load global preferences.
     async fn load_global_preferences(&mut self) -> Result<(), E> {
-        let globals = self.globals.lock().await;
-        globals.provider.load_preferences(None).await?;
+        let mut globals = self.globals.lock().await;
+        let map = globals.provider.load_preferences(None).await?;
+        globals.values = map;
         Ok(())
     }
 
