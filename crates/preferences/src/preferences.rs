@@ -7,6 +7,7 @@
 use crate::Error;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sos_core::{AccountId, PublicIdentity};
 use std::{collections::HashMap, fmt, sync::Arc};
 use tokio::sync::Mutex;
@@ -187,6 +188,8 @@ pub enum Preference {
     String(String),
     /// List of strings.
     StringList(Vec<String>),
+    /// Complex types.
+    Json(Value),
 }
 
 impl fmt::Display for Preference {
@@ -205,6 +208,7 @@ impl fmt::Display for Preference {
                 }
                 write!(f, "]")
             }
+            Self::Json(val) => write!(f, "{:?}", serde_json::to_string(val)),
         }
     }
 }
@@ -236,6 +240,12 @@ impl From<String> for Preference {
 impl From<Vec<String>> for Preference {
     fn from(value: Vec<String>) -> Self {
         Self::StringList(value)
+    }
+}
+
+impl From<Value> for Preference {
+    fn from(value: Value) -> Self {
+        Self::Json(value)
     }
 }
 
