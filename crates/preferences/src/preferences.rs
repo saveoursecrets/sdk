@@ -402,6 +402,9 @@ where
         key: impl AsRef<str>,
     ) -> Result<Option<&Preference>, E> {
         let result = self.values.0.get(key.as_ref());
+
+        println!("JSON VALUE ::: {:#?}", result);
+
         if let Some(res) = result.as_ref() {
             if matches!(res, Preference::Json(_)) {
                 Ok(result)
