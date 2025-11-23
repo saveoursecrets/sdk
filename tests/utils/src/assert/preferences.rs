@@ -29,6 +29,9 @@ where
         .insert("mock.string-list".to_owned(), list.into())
         .await?;
 
+    // Update a preferenece
+    prefs.insert("mock.bool".to_owned(), false.into()).await?;
+
     // Retrieve preferences
     let missing = prefs.get_unchecked("mock.non-existent");
     assert!(missing.is_none());
@@ -50,7 +53,7 @@ where
 
     // Remove preferences
     let removed = prefs.remove("mock.bool").await?;
-    assert!(matches!(removed, Some(Preference::Bool(true))));
+    assert!(matches!(removed, Some(Preference::Bool(false))));
 
     // Clear preferences
     prefs.clear().await?;
