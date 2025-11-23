@@ -82,7 +82,7 @@ sos-security-report = { version = "0.17", path = "crates/security_report" }
 sos-system-messages = { version = "0.17", path = "crates/system_messages" }
 sos-client-storage = { version = "0.17", path = "crates/storage/client" }
 sos-server-storage = { version = "0.17", path = "crates/storage/server" }
-sos-preferences = { version = "0.17", path = "crates/preferences" }
+sos-preferences = { version = "0.17.3", path = "crates/preferences" }
 sos-signer = { version = "0.17", path = "crates/signer" }
 sos-sync = { version = "0.17", path = "crates/sync" }
 sos-sdk = { version = "0.17", path = "crates/sdk" }
