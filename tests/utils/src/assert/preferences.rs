@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::SocketAddr};
+use std::{collections::HashMap, net::IpAddr};
 
 use sos_preferences::{Preference, Preferences};
 use sos_protocol::network_client::NetworkConfig;
@@ -43,7 +43,7 @@ where
     let mut net_config = NetworkConfig::default();
     net_config
         .resolve_addrs
-        .insert("foo.local".to_owned(), "192.168.1.33:8080".parse()?);
+        .insert("foo.local".to_owned(), "192.168.1.33".parse()?);
     let net_config = serde_json::to_value(&net_config)?;
     prefs
         .insert("mock.network.config".to_owned(), net_config.into())
@@ -76,7 +76,7 @@ where
     if let Some(Preference::Json(val)) = net_config {
         let net_config: NetworkConfig = serde_json::from_value(val.clone())?;
         assert_eq!(
-            "192.168.1.33:8080".parse::<SocketAddr>().ok().as_ref(),
+            "192.168.1.33".parse::<IpAddr>().ok().as_ref(),
             net_config.resolve_addrs.get("foo.local")
         );
     } else {

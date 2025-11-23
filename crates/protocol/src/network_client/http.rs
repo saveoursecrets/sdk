@@ -22,8 +22,7 @@ use sos_core::{AccountId, Origin};
 use sos_signer::ed25519::BoxedEd25519Signer;
 use sos_sync::{CreateSet, SyncPacket, SyncStatus, UpdateSet};
 use std::{
-    collections::HashMap, fmt, net::SocketAddr, sync::OnceLock,
-    time::Duration,
+    collections::HashMap, fmt, net::IpAddr, sync::OnceLock, time::Duration,
 };
 use tracing::instrument;
 use url::Url;
@@ -61,7 +60,7 @@ pub fn set_user_agent(user_agent: String) {
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct NetworkConfig {
     /// DNS resolve addresses.
-    pub resolve_addrs: HashMap<String, SocketAddr>,
+    pub resolve_addrs: HashMap<String, IpAddr>,
     /// Root TLS certificates.
     pub certificates: HashMap<String, String>,
 }
@@ -125,10 +124,10 @@ impl HttpClient {
 
             for (domain, addr) in options.network_config.resolve_addrs.iter()
             {
-                let mut addr = *addr;
                 // Use the 80 or 443 ports by default
-                // unless explicitly set in domain
-                addr.set_port(0);
+                // unless explicitly set in domain by using port zero
+                // see the reqwest documentation for more info
+                let addr = (*addr, 0).into();
                 builder = builder.resolve(domain, addr);
             }
 
