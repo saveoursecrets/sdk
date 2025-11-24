@@ -169,7 +169,7 @@ zeroize = "1"
 bytes = "1.8"
 serde_json_path = "0.7"
 base64 = "0.22"
-notify = { version = "7", features = ["serde"]}
+notify = { version = "8", features = ["serde"]}
 walkdir = "2"
 async_zip = { version = "0.0.17", default-features = false, features = ["deflate", "tokio"] }
 csv-async = { version = "1", features = ["tokio", "with_serde"] }
