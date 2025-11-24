@@ -69,7 +69,7 @@ sos-ipc = { version = "0.17", path = "crates/ipc" }
 sos-login = { version = "0.17", path = "crates/login" }
 sos-logs = { version = "0.17", path = "crates/logs" }
 sos-migrate = { version = "0.17", path = "crates/migrate" }
-sos-net = { version = "0.17", path = "crates/net" }
+sos-net = { version = "0.17.7", path = "crates/net" }
 sos-password = { version = "0.17", path = "crates/password" }
 sos-platform-authenticator = { version = "0.17", path = "crates/platform_authenticator" }
 sos-protocol = { version = "0.17", path = "crates/protocol" }
