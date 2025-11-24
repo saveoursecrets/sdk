@@ -46,6 +46,7 @@ pub struct DeviceEnrollment {
 
 impl DeviceEnrollment {
     /// Create a new device enrollment.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn new(
         target: BackendTarget,
         account_id: AccountId,

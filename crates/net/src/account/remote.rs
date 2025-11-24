@@ -198,6 +198,7 @@ impl RemoteSync for RemoteBridge {
 #[cfg(feature = "listen")]
 mod listen {
     use crate::RemoteBridge;
+    #[cfg(not(target_arch = "wasm32"))]
     use sos_protocol::{
         network_client::{ListenOptions, WebSocketHandle},
         NetworkChangeEvent,

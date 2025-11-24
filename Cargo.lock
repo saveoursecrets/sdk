@@ -5767,6 +5767,9 @@ dependencies = [
  "reqwest",
  "rs_merkle",
  "rustc_version",
+ "rustls",
+ "rustls-pemfile",
+ "rustls-webpki",
  "serde",
  "serde_json",
  "sha2",
@@ -5786,6 +5789,7 @@ dependencies = [
  "typeshare",
  "url",
  "uuid",
+ "webpki-roots 1.0.4",
 ]
 
 [[package]]

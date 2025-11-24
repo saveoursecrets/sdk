@@ -121,7 +121,15 @@ impl SimulatedDevice {
     pub async fn listen(&self) -> Result<()> {
         Ok(self
             .owner
-            .listen(&self.origin, ListenOptions::new(self.id.clone())?, None)
+            .listen(
+                &self.origin,
+                ListenOptions::new(
+                    self.id.clone(),
+                    NetworkConfig::default(),
+                    None,
+                )?,
+                None,
+            )
             .await?)
     }
 }
