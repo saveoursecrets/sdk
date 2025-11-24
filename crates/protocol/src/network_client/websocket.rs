@@ -16,9 +16,10 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::{net::TcpStream, sync::watch, time::Duration};
 use tokio_tungstenite::{
-    connect_async, connect_async_tls_with_config,
+    client_async_tls_with_config, connect_async,
     tungstenite::{
         self,
+        client::IntoClientRequest,
         protocol::{
             frame::{coding::CloseCode, Utf8Bytes},
             CloseFrame, Message,
@@ -117,6 +118,7 @@ pub async fn connect(
                 root_store
                     .extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
 
+                // Add user-defined root certificates
                 for (_, pem) in network_config.certificates.into_iter() {
                     let mut reader = std::io::Cursor::new(pem);
                     if let Some(cert) =
@@ -131,11 +133,32 @@ pub async fn connect(
                     .with_root_certificates(root_store)
                     .with_no_client_auth();
 
+                let req = request.clone().into_client_request()?;
+                let domain = domain(&req)?;
+                let port = req
+                    .uri()
+                    .port_u16()
+                    .or_else(|| match req.uri().scheme_str() {
+                        Some("wss") => Some(443),
+                        Some("ws") => Some(80),
+                        _ => None,
+                    })
+                    .ok_or(Error::UnsupportedUrlScheme)?;
+
+                let addr = if let Some(ip) =
+                    network_config.resolve_addrs.get(&domain)
+                {
+                    format!("{ip}:{port}")
+                } else {
+                    format!("{domain}:{port}")
+                };
+
+                let stream = TcpStream::connect(addr).await?;
                 let connector = Connector::Rustls(Arc::new(config));
-                connect_async_tls_with_config(
+                client_async_tls_with_config(
                     request,
+                    stream,
                     None,
-                    false,
                     Some(connector),
                 )
                 .await?
@@ -144,6 +167,20 @@ pub async fn connect(
         _ => connect_async(request).await?,
     };
     Ok(ws_stream)
+}
+
+// Borrowed from tokio-tungstenite so we can handle domains correctly.
+fn domain(
+    request: &tokio_tungstenite::tungstenite::handshake::client::Request,
+) -> Result<String> {
+    match request.uri().host() {
+        // rustls expects IPv6 addresses without the surrounding [] brackets
+        Some(d) if d.starts_with('[') && d.ends_with(']') => {
+            Ok(d[1..d.len() - 1].to_string())
+        }
+        Some(d) => Ok(d.to_string()),
+        None => Err(tungstenite::error::UrlError::NoHostName.into()),
+    }
 }
 
 /// Read change messages from a websocket stream,

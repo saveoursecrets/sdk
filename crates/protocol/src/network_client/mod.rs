@@ -156,6 +156,7 @@ mod websocket_request {
     use url::Url;
 
     /// Build a websocket connection request.
+    #[derive(Clone)]
     pub struct WebSocketRequest {
         /// Account identifier.
         pub account_id: AccountId,
