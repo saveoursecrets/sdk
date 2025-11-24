@@ -132,6 +132,21 @@ impl SimulatedDevice {
             )
             .await?)
     }
+
+    /// Start listening for changes.
+    pub async fn listen_with_config(
+        &self,
+        network_config: NetworkConfig,
+    ) -> Result<()> {
+        Ok(self
+            .owner
+            .listen(
+                &self.origin,
+                ListenOptions::new(self.id.clone(), network_config, None)?,
+                None,
+            )
+            .await?)
+    }
 }
 
 /// Simulate a device using the given account builder.

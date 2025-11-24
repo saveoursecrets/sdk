@@ -46,13 +46,18 @@ async fn self_signed_server() -> Result<()> {
 
     // We sync by passing the server so this inherently
     // checks the TLS connecion is working.
-    simulate_device_with_network_config(
+    let device = simulate_device_with_network_config(
         TEST_ID,
         1,
         Some(&server),
-        network_config,
+        network_config.clone(),
     )
     .await?;
+
+    // Establish a websocket connection
+    device.listen_with_config(network_config).await?;
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     Ok(())
 }
