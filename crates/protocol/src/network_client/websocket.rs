@@ -77,7 +77,6 @@ async fn request_bearer(
         encode_device_signature(device.sign(sign_url.as_bytes()).await?)
             .await?;
     let auth = bearer_prefix(&device_signature);
-
     request
         .uri
         .query_pairs_mut()
@@ -110,7 +109,7 @@ pub async fn connect(
     tracing::debug!(uri = %request.uri, "ws_client::connect");
 
     let (ws_stream, _) = match request.uri.scheme() {
-        "https" => {
+        "wss" => {
             if network_config.certificates.is_empty() {
                 connect_async(request).await?
             } else {
