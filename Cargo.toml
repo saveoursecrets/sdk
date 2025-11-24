@@ -153,7 +153,7 @@ url = { version = "2", features = ["serde"] }
 time = { version = "0.3.19", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
 time-tz = { version = "2", features = ["system"] }
 futures = "0.3"
-bs58 = "0.4"
+bs58 = "0.5"
 urlencoding = "2"
 parking_lot = "0.12"
 indexmap = { version = "2.2", features = ["serde"] }
