@@ -146,7 +146,7 @@ rm -rf target/integration-test
 [tasks.test]
 script_runner = "@shell"
 script = '''
-cargo nextest run -p sos-integration-tests -p sos-unit-tests
+SOS_TEST_CLIENT_DB=1 cargo nextest run -p sos-integration-tests -p sos-unit-tests
 '''
 dependencies = ["clean-tests", "build-test"]
 
