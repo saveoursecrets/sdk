@@ -5660,7 +5660,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.17.6"
+version = "0.17.7"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -5750,7 +5750,7 @@ dependencies = [
 
 [[package]]
 name = "sos-protocol"
-version = "0.17.3"
+version = "0.17.4"
 dependencies = [
  "async-trait",
  "binary-stream",
