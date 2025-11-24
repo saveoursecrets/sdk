@@ -5750,7 +5750,7 @@ dependencies = [
 
 [[package]]
 name = "sos-protocol"
-version = "0.17.4"
+version = "0.17.5"
 dependencies = [
  "async-trait",
  "binary-stream",
