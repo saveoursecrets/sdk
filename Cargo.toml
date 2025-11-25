@@ -112,7 +112,7 @@ aes-gcm = { version = "0.10.1", features = ["std"] }
 chacha20poly1305 = { version = "0.10.1", features = ["std"] }
 balloon-hash = { version = "0.4", features = ["std"]}
 pem = { version = "3", features = ["serde"] }
-snow = "0.9"
+snow = "0.10"
 
 urn = { version = "0.7", features = ["serde"] }
 async-fd-lock = "0.2"
