@@ -7,8 +7,14 @@
 use crate::Error;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sos_core::{AccountId, PublicIdentity};
-use std::{collections::HashMap, fmt, sync::Arc};
+use std::{
+    collections::HashMap,
+    fmt,
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 use tokio::sync::Mutex;
 
 /// Boxed storage provider.
@@ -113,8 +119,9 @@ where
 
     /// Load global preferences.
     async fn load_global_preferences(&mut self) -> Result<(), E> {
-        let globals = self.globals.lock().await;
-        globals.provider.load_preferences(None).await?;
+        let mut globals = self.globals.lock().await;
+        let map = globals.provider.load_preferences(None).await?;
+        globals.values = map;
         Ok(())
     }
 
@@ -187,6 +194,8 @@ pub enum Preference {
     String(String),
     /// List of strings.
     StringList(Vec<String>),
+    /// Complex types.
+    Json(Value),
 }
 
 impl fmt::Display for Preference {
@@ -205,6 +214,7 @@ impl fmt::Display for Preference {
                 }
                 write!(f, "]")
             }
+            Self::Json(val) => write!(f, "{:?}", serde_json::to_string(val)),
         }
     }
 }
@@ -239,26 +249,27 @@ impl From<Vec<String>> for Preference {
     }
 }
 
+impl From<Value> for Preference {
+    fn from(value: Value) -> Self {
+        Self::Json(value)
+    }
+}
+
 /// Collection of preferences.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct PreferenceMap(HashMap<String, Preference>);
 
-impl PreferenceMap {
-    /// Inner hash map.
-    pub fn inner(&self) -> &HashMap<String, Preference> {
+impl Deref for PreferenceMap {
+    type Target = HashMap<String, Preference>;
+
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
 
-    /// Mutable inner hash map.
-    pub fn inner_mut(&mut self) -> &mut HashMap<String, Preference> {
+impl DerefMut for PreferenceMap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
-    }
-
-    /// Borrowed iterator.
-    pub fn iter(
-        &self,
-    ) -> std::collections::hash_map::Iter<'_, String, Preference> {
-        self.0.iter()
     }
 }
 
@@ -308,6 +319,11 @@ where
     /// Whether the preferences collection is empty.
     pub fn is_empty(&self) -> bool {
         self.values.0.is_empty()
+    }
+
+    /// Map of preferences.
+    pub fn values(&self) -> &PreferenceMap {
+        &self.values
     }
 
     /// Iterator of the preferences.
@@ -379,6 +395,24 @@ where
                 Ok(result)
             } else {
                 Err(Error::PreferenceTypeStringList(key.as_ref().to_owned())
+                    .into())
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Get a JSON value preference.
+    pub fn get_json_value(
+        &self,
+        key: impl AsRef<str>,
+    ) -> Result<Option<&Preference>, E> {
+        let result = self.values.0.get(key.as_ref());
+        if let Some(res) = result.as_ref() {
+            if matches!(res, Preference::Json(_)) {
+                Ok(result)
+            } else {
+                Err(Error::PreferenceTypeJsonValue(key.as_ref().to_owned())
                     .into())
             }
         } else {

@@ -69,7 +69,7 @@ sos-ipc = { version = "0.17", path = "crates/ipc" }
 sos-login = { version = "0.17", path = "crates/login" }
 sos-logs = { version = "0.17", path = "crates/logs" }
 sos-migrate = { version = "0.17", path = "crates/migrate" }
-sos-net = { version = "0.17", path = "crates/net" }
+sos-net = { version = "0.17.7", path = "crates/net" }
 sos-password = { version = "0.17", path = "crates/password" }
 sos-platform-authenticator = { version = "0.17", path = "crates/platform_authenticator" }
 sos-protocol = { version = "0.17", path = "crates/protocol" }
@@ -82,7 +82,7 @@ sos-security-report = { version = "0.17", path = "crates/security_report" }
 sos-system-messages = { version = "0.17", path = "crates/system_messages" }
 sos-client-storage = { version = "0.17", path = "crates/storage/client" }
 sos-server-storage = { version = "0.17", path = "crates/storage/server" }
-sos-preferences = { version = "0.17", path = "crates/preferences" }
+sos-preferences = { version = "0.17.3", path = "crates/preferences" }
 sos-signer = { version = "0.17", path = "crates/signer" }
 sos-sync = { version = "0.17", path = "crates/sync" }
 sos-sdk = { version = "0.17", path = "crates/sdk" }
@@ -103,7 +103,10 @@ zxcvbn = { version = "3.0.1", features = ["ser"] }
 chbs = "0.1.1"
 
 reqwest = { version = "0.12.5", default-features = false }
-tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"]}
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"]}
+webpki-roots = "1"
+rustls-pemfile = "2"
+rustls-webpki = "0.103"
 
 age = { version = "0.11", features = ["async"] }
 argon2 = { version = "0.5", features = ["std"]}
@@ -161,9 +164,9 @@ toml = "0.8"
 bitflags = { version = "2", features = ["serde"] }
 enum-iterator = "2"
 tempfile = "3.5"
-prost = "0.13"
+prost = "0.14"
 clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
-colored = "2"
+colored = "3"
 arboard = { version = "3", default-features = false }
 zeroize = "1"
 bytes = "1.8"
@@ -177,7 +180,7 @@ futures-util = "0.3"
 sanitize-filename = "0.6"
 vcard4 = { version = "0.7.1", features = ["serde"] }
 mime_guess = "2"
-etcetera = "0.8"
+etcetera = "0.11"
 
 axum-server = { version = "0.7", features = ["tls-rustls-no-provider"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"] }
@@ -209,7 +212,7 @@ getrandom = "0.2"
 
 # build
 rustc_version = "0.4.1"
-prost-build = "0.13"
+prost-build = "0.14"
 protoc-bin-vendored = "3"
 
 [workspace.dependencies.binary-stream]

@@ -4,11 +4,10 @@ use async_trait::async_trait;
 use sos_account::LocalAccount;
 use sos_core::{AccountId, Origin};
 use sos_protocol::{
-    network_client::HttpClient, RemoteResult, RemoteSync, SyncClient,
-    SyncOptions,
+    network_client::{HttpClient, HttpClientOptions},
+    RemoteResult, RemoteSync, SyncClient, SyncOptions,
 };
 use sos_remote_sync::{AutoMerge, RemoteSyncHandler};
-use sos_signer::ed25519::BoxedEd25519Signer;
 use sos_sync::{SyncDirection, UpdateSet};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
@@ -41,14 +40,11 @@ impl RemoteBridge {
     /// Create a new remote bridge that updates the given
     /// local account.
     pub fn new(
-        account_id: AccountId,
         account: Arc<Mutex<LocalAccount>>,
-        origin: Origin,
-        device: BoxedEd25519Signer,
-        connection_id: String,
+        options: HttpClientOptions,
     ) -> Result<Self> {
-        let client =
-            HttpClient::new(account_id, origin, device, connection_id)?;
+        let account_id = options.account_id;
+        let client = HttpClient::new(options)?;
 
         #[cfg(feature = "files")]
         let (file_transfer_queue, _) =
@@ -202,6 +198,7 @@ impl RemoteSync for RemoteBridge {
 #[cfg(feature = "listen")]
 mod listen {
     use crate::RemoteBridge;
+    #[cfg(not(target_arch = "wasm32"))]
     use sos_protocol::{
         network_client::{ListenOptions, WebSocketHandle},
         NetworkChangeEvent,

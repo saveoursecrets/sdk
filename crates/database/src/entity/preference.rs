@@ -80,7 +80,11 @@ where
         Self { conn }
     }
 
-    fn find_preference_select(&self, select_one: bool) -> sql::Select {
+    fn find_preference_select(
+        &self,
+        account_id: Option<i64>,
+        select_one: bool,
+    ) -> sql::Select {
         let mut query = sql::Select::new()
             .select(
                 r#"
@@ -91,10 +95,18 @@ where
                     json_data
                 "#,
             )
-            .from("preferences")
-            .where_clause("account_id=?1");
-        if select_one {
-            query = query.where_and("key=?2");
+            .from("preferences");
+
+        if account_id.is_some() {
+            query = query.where_clause("account_id=?1");
+            if select_one {
+                query = query.where_and("key=?2");
+            }
+        } else {
+            query = query.where_clause("account_id IS NULL");
+            if select_one {
+                query = query.where_and("key=?1");
+            }
         }
         query
     }
@@ -105,10 +117,14 @@ where
         account_id: Option<i64>,
         key: &str,
     ) -> std::result::Result<Option<PreferenceRow>, SqlError> {
-        let query = self.find_preference_select(true);
+        let query = self.find_preference_select(account_id, true);
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        stmt.query_row((account_id, key), |row| row.try_into())
-            .optional()
+        if let Some(account_id) = account_id {
+            stmt.query_row((account_id, key), |row| row.try_into())
+                .optional()
+        } else {
+            stmt.query_row((key,), |row| row.try_into()).optional()
+        }
     }
 
     /// Load preferences from the database.
@@ -119,18 +135,23 @@ where
         &self,
         account_id: Option<i64>,
     ) -> Result<Vec<PreferenceRow>> {
-        let query = self.find_preference_select(false);
+        let query = self.find_preference_select(account_id, false);
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
 
         fn convert_row(row: &Row<'_>) -> Result<PreferenceRow> {
             Ok(row.try_into()?)
         }
 
-        let rows = stmt.query_and_then([account_id], convert_row)?;
+        let rows = if let Some(account_id) = account_id {
+            stmt.query_and_then([account_id], convert_row)?
+        } else {
+            stmt.query_and_then([], convert_row)?
+        };
         let mut preferences = Vec::new();
         for row in rows {
             preferences.push(row?);
         }
+
         Ok(preferences)
     }
 
@@ -192,18 +213,28 @@ where
         account_id: Option<i64>,
         row: &PreferenceRow,
     ) -> std::result::Result<(), SqlError> {
-        let query = sql::Update::new()
+        let mut query = sql::Update::new()
             .update("preferences")
-            .set("json_data = ?1, modified_at = ?2")
-            .where_clause("account_id = ?3")
-            .where_and("key = ?4");
+            .set("json_data = ?1, modified_at = ?2");
+        if account_id.is_some() {
+            query =
+                query.where_clause("account_id = ?3").where_and("key = ?4");
+        } else {
+            query = query
+                .where_clause("account_id IS NULL")
+                .where_and("key = ?3");
+        }
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        stmt.execute((
-            &row.json_data,
-            &row.modified_at,
-            account_id,
-            &row.key,
-        ))?;
+        if let Some(account_id) = account_id {
+            stmt.execute((
+                &row.json_data,
+                &row.modified_at,
+                account_id,
+                &row.key,
+            ))?;
+        } else {
+            stmt.execute((&row.json_data, &row.modified_at, &row.key))?;
+        }
         Ok(())
     }
 
@@ -232,12 +263,21 @@ where
         account_id: Option<i64>,
         key: &str,
     ) -> std::result::Result<(), SqlError> {
-        let query = sql::Delete::new()
-            .delete_from("preferences")
-            .where_clause("account_id = ?1")
-            .where_and("key = ?2");
+        let mut query = sql::Delete::new().delete_from("preferences");
+        if account_id.is_some() {
+            query =
+                query.where_clause("account_id = ?1").where_and("key = ?2");
+        } else {
+            query = query
+                .where_clause("account_id IS NULL")
+                .where_and("key = ?1");
+        }
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        stmt.execute((account_id, key))?;
+        if let Some(account_id) = account_id {
+            stmt.execute((account_id, key))?;
+        } else {
+            stmt.execute((key,))?;
+        }
         Ok(())
     }
 
@@ -246,11 +286,20 @@ where
         &self,
         account_id: Option<i64>,
     ) -> std::result::Result<(), SqlError> {
-        let query = sql::Delete::new()
-            .delete_from("preferences")
-            .where_clause("account_id = ?1");
+        let mut query = sql::Delete::new().delete_from("preferences");
+
+        if account_id.is_some() {
+            query = query.where_clause("account_id = ?1");
+        } else {
+            query = query.where_clause("account_id IS NULL");
+        }
+
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        stmt.execute([account_id])?;
+        if let Some(account_id) = account_id {
+            stmt.execute([account_id])?;
+        } else {
+            stmt.execute([])?;
+        }
         Ok(())
     }
 }

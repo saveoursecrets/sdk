@@ -10,11 +10,12 @@ use sos_core::{
     crypto::AccessKey, events::EventLog, ExternalFile, Origin, Paths, VaultId,
 };
 use sos_net::{
-    InflightNotification, InflightTransfers, NetworkAccount, RemoteBridge,
+    InflightNotification, InflightTransfers, NetworkAccount,
+    NetworkAccountOptions, RemoteBridge,
 };
 use sos_password::diceware::generate_passphrase;
 use sos_protocol::{
-    network_client::{HttpClient, ListenOptions},
+    network_client::{HttpClient, ListenOptions, NetworkConfig},
     AccountSync, SyncClient,
 };
 use sos_remote_sync::RemoteSyncHandler;
@@ -120,7 +121,30 @@ impl SimulatedDevice {
     pub async fn listen(&self) -> Result<()> {
         Ok(self
             .owner
-            .listen(&self.origin, ListenOptions::new(self.id.clone())?, None)
+            .listen(
+                &self.origin,
+                ListenOptions::new(
+                    self.id.clone(),
+                    NetworkConfig::default(),
+                    None,
+                )?,
+                None,
+            )
+            .await?)
+    }
+
+    /// Start listening for changes.
+    pub async fn listen_with_config(
+        &self,
+        network_config: NetworkConfig,
+    ) -> Result<()> {
+        Ok(self
+            .owner
+            .listen(
+                &self.origin,
+                ListenOptions::new(self.id.clone(), network_config, None)?,
+                None,
+            )
             .await?)
     }
 }
@@ -131,6 +155,7 @@ pub async fn simulate_device_with_builder(
     num_clients: usize,
     server: Option<&TestServer>,
     builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
+    network_config: NetworkConfig,
 ) -> Result<SimulatedDevice> {
     let dirs = setup(test_id, num_clients).await?;
     let data_dir = dirs.clients.first().unwrap().clone();
@@ -142,7 +167,10 @@ pub async fn simulate_device_with_builder(
         test_id.to_owned(),
         password.clone(),
         target,
-        Default::default(),
+        NetworkAccountOptions {
+            network_config,
+            ..Default::default()
+        },
         builder,
     )
     .await?;
@@ -171,7 +199,7 @@ pub async fn simulate_device_with_builder(
 
         // Sync the local account to create the account on remote
         let sync_result = owner.sync().await;
-        // println!("{:#?}", sync_result.first_error_ref());
+        println!("{:#?}", sync_result.first_error_ref());
         assert!(sync_result.first_error().is_none());
 
         (origin, server.account_path(owner.account_id()))
@@ -202,9 +230,30 @@ pub async fn simulate_device(
     num_clients: usize,
     server: Option<&TestServer>,
 ) -> Result<SimulatedDevice> {
-    simulate_device_with_builder(test_id, num_clients, server, |builder| {
-        builder.create_file_password(true)
-    })
+    simulate_device_with_builder(
+        test_id,
+        num_clients,
+        server,
+        |builder| builder.create_file_password(true),
+        NetworkConfig::default(),
+    )
+    .await
+}
+
+/// Simulate a primary device with a network config.
+pub async fn simulate_device_with_network_config(
+    test_id: &str,
+    num_clients: usize,
+    server: Option<&TestServer>,
+    network_config: NetworkConfig,
+) -> Result<SimulatedDevice> {
+    simulate_device_with_builder(
+        test_id,
+        num_clients,
+        server,
+        |builder| builder.create_file_password(true),
+        network_config,
+    )
     .await
 }
 

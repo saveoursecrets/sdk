@@ -14,7 +14,7 @@ use sos_core::{
     AccountId, Origin,
 };
 use sos_protocol::{
-    network_client::WebSocketRequest,
+    network_client::{NetworkConfig, WebSocketRequest},
     pairing_message,
     tokio_tungstenite::{
         connect_async,
@@ -532,6 +532,8 @@ pub struct AcceptPairing<'a> {
     enrollment: Option<DeviceEnrollment>,
     /// Whether the pairing is inverted.
     is_inverted: bool,
+    /// Network configuration.
+    network_config: NetworkConfig,
 }
 
 impl<'a> AcceptPairing<'a> {
@@ -540,10 +542,19 @@ impl<'a> AcceptPairing<'a> {
         share_url: ServerPairUrl,
         device: &'a DeviceMetaData,
         target: BackendTarget,
+        network_config: NetworkConfig,
     ) -> Result<(AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
-        Self::new_connection(share_url, device, target, keypair, false).await
+        Self::new_connection(
+            share_url,
+            device,
+            target,
+            keypair,
+            false,
+            network_config,
+        )
+        .await
     }
 
     /// Create a new inverted pairing connection.
@@ -552,6 +563,7 @@ impl<'a> AcceptPairing<'a> {
         server: Url,
         device: &'a DeviceMetaData,
         target: BackendTarget,
+        network_config: NetworkConfig,
     ) -> Result<(ServerPairUrl, AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
@@ -563,6 +575,7 @@ impl<'a> AcceptPairing<'a> {
             target,
             keypair,
             true,
+            network_config,
         )
         .await?;
         Ok((share_url, pairing, stream))
@@ -574,6 +587,7 @@ impl<'a> AcceptPairing<'a> {
         target: BackendTarget,
         keypair: Keypair,
         is_inverted: bool,
+        network_config: NetworkConfig,
     ) -> Result<(AcceptPairing<'a>, WsStream)> {
         let psk = share_url.pre_shared_key().to_vec();
         let tunnel = if is_inverted {
@@ -611,6 +625,7 @@ impl<'a> AcceptPairing<'a> {
                 state: PairProtocolState::Pending,
                 enrollment: None,
                 is_inverted,
+                network_config,
             },
             rx,
         ))
@@ -809,7 +824,11 @@ impl<'a> AcceptPairing<'a> {
                 } else if let pairing_message::Inner::Confirm(confirmation) =
                     msg
                 {
-                    self.create_enrollment(confirmation).await?;
+                    self.create_enrollment(
+                        confirmation,
+                        self.network_config.clone(),
+                    )
+                    .await?;
                     self.state = PairProtocolState::Done;
                 } else {
                     return Err(Error::BadState);
@@ -829,6 +848,7 @@ impl<'a> AcceptPairing<'a> {
     async fn create_enrollment(
         &mut self,
         confirmation: PairingConfirm,
+        network_config: NetworkConfig,
     ) -> Result<()> {
         // let signing_key: [u8; 32] =
         //     confirmation.account_signing_key.as_slice().try_into()?;
@@ -856,6 +876,7 @@ impl<'a> AcceptPairing<'a> {
             device_signing_key.try_into()?,
             device_vault,
             servers,
+            network_config,
         )
         .await?;
         self.enrollment = Some(enrollment);

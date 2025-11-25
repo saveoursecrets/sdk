@@ -1,6 +1,6 @@
 [package]
 name = "sos-protocol"
-version = "0.17.1"
+version = "0.17.5"
 edition = "2021"
 description = "Networking and sync protocol types for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -22,7 +22,7 @@ full = [
   "migrate",
   "search",
 ]
-listen = ["tokio-tungstenite"]
+listen = ["tokio-tungstenite", "rustls", "webpki-roots", "rustls-pemfile", "rustls-webpki"]
 hashcheck = ["reqwest"]
 network-client = ["reqwest", "bs58", "tokio-util", "tokio-stream"]
 pairing = []
@@ -42,6 +42,7 @@ sos-external-files = { workspace = true, optional = true }
 
 thiserror.workspace = true
 tracing.workspace = true
+parking_lot.workspace = true
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -65,6 +66,10 @@ tokio-tungstenite = { workspace = true, optional = true }
 bs58 = { workspace = true, optional = true }
 tokio-stream = { workspace = true, optional = true }
 tokio-util = { workspace = true, optional = true }
+rustls = { workspace = true, optional = true }
+webpki-roots = { workspace = true, optional = true }
+rustls-pemfile = { workspace = true, optional = true }
+rustls-webpki = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.reqwest]
 workspace = true

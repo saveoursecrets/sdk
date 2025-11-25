@@ -104,7 +104,7 @@ where
         pref: &Preference,
     ) -> Result<(), Self::Error> {
         let mut prefs = self.load_preferences(account_id).await?;
-        prefs.inner_mut().insert(key.to_owned(), pref.clone());
+        prefs.insert(key.to_owned(), pref.clone());
         Ok(self.save(account_id, &prefs).await?)
     }
 
@@ -114,7 +114,7 @@ where
         key: &str,
     ) -> Result<(), Self::Error> {
         let mut prefs = self.load_preferences(account_id).await?;
-        prefs.inner_mut().remove(key);
+        prefs.remove(key);
         Ok(self.save(account_id, &prefs).await?)
     }
 

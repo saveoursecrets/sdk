@@ -1,6 +1,8 @@
 use anyhow::Result;
 use sos_account::Account;
-use sos_protocol::network_client::{ListenOptions, NetworkRetry};
+use sos_protocol::network_client::{
+    ListenOptions, NetworkConfig, NetworkRetry,
+};
 use sos_test_utils::{
     simulate_device, spawn, teardown, wait_num_websocket_connections,
 };
@@ -34,9 +36,10 @@ async fn network_websocket_reconnect() -> Result<()> {
             .owner
             .listen(
                 &origin,
-                ListenOptions::new_retry(
+                ListenOptions::new(
                     "device_1".to_string(),
-                    NetworkRetry::new(4, 500),
+                    NetworkConfig::default(),
+                    Some(NetworkRetry::new(4, 500)),
                 )
                 .unwrap(),
                 None,

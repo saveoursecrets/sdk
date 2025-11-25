@@ -1,6 +1,6 @@
 //! Listen for change notifications on a websocket connection.
 use crate::{
-    network_client::{NetworkRetry, WebSocketRequest},
+    network_client::{NetworkConfig, NetworkRetry, WebSocketRequest},
     transfer::CancelReason,
     Error, NetworkChangeEvent, Result, WireEncodeDecode,
 };
@@ -9,20 +9,23 @@ use futures::{
     Future, FutureExt, StreamExt,
 };
 use prost::bytes::Bytes;
+use rustls::{ClientConfig, RootCertStore};
 use sos_core::{AccountId, Origin};
 use sos_signer::ed25519::BoxedEd25519Signer;
 use std::pin::Pin;
+use std::sync::Arc;
 use tokio::{net::TcpStream, sync::watch, time::Duration};
 use tokio_tungstenite::{
-    connect_async,
+    client_async_tls_with_config, connect_async,
     tungstenite::{
         self,
+        client::IntoClientRequest,
         protocol::{
             frame::{coding::CloseCode, Utf8Bytes},
             CloseFrame, Message,
         },
     },
-    MaybeTlsStream, WebSocketStream,
+    Connector, MaybeTlsStream, WebSocketStream,
 };
 
 use super::{bearer_prefix, encode_device_signature};
@@ -42,28 +45,22 @@ pub struct ListenOptions {
 
     /// Network retry state.
     pub(crate) retry: NetworkRetry,
+
+    network_config: NetworkConfig,
 }
 
 impl ListenOptions {
     /// Create new listen options using the default retry
     /// configuration.
-    pub fn new(connection_id: String) -> Result<Self> {
-        Ok(Self {
-            connection_id,
-            retry: NetworkRetry::new(16, 1000),
-        })
-    }
-
-    /// Create new listen options using a custom retry
-    /// configuration.
-    ///
-    pub fn new_retry(
+    pub fn new(
         connection_id: String,
-        retry: NetworkRetry,
+        network_config: NetworkConfig,
+        retry: Option<NetworkRetry>,
     ) -> Result<Self> {
         Ok(Self {
             connection_id,
-            retry,
+            network_config,
+            retry: retry.unwrap_or_else(|| NetworkRetry::new(16, 1000)),
         })
     }
 }
@@ -81,7 +78,6 @@ async fn request_bearer(
         encode_device_signature(device.sign(sign_url.as_bytes()).await?)
             .await?;
     let auth = bearer_prefix(&device_signature);
-
     request
         .uri
         .query_pairs_mut()
@@ -99,6 +95,7 @@ pub async fn connect(
     origin: Origin,
     device: BoxedEd25519Signer,
     connection_id: String,
+    network_config: NetworkConfig,
 ) -> Result<WsStream> {
     let mut request = WebSocketRequest::new(
         account_id,
@@ -112,8 +109,78 @@ pub async fn connect(
 
     tracing::debug!(uri = %request.uri, "ws_client::connect");
 
-    let (ws_stream, _) = connect_async(request).await?;
+    let (ws_stream, _) = match request.uri.scheme() {
+        "wss" => {
+            if network_config.certificates.is_empty() {
+                connect_async(request).await?
+            } else {
+                let mut root_store = RootCertStore::empty();
+                root_store
+                    .extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+
+                // Add user-defined root certificates
+                for (_, pem) in network_config.certificates.into_iter() {
+                    let mut reader = std::io::Cursor::new(pem);
+                    if let Some(cert) =
+                        rustls_pemfile::certs(&mut reader).next()
+                    {
+                        let cert = cert.map_err(|_| Error::RustlsPemfile)?;
+                        root_store.add(cert)?;
+                    };
+                }
+
+                let config = ClientConfig::builder()
+                    .with_root_certificates(root_store)
+                    .with_no_client_auth();
+
+                let req = request.clone().into_client_request()?;
+                let domain = domain(&req)?;
+                let port = req
+                    .uri()
+                    .port_u16()
+                    .or_else(|| match req.uri().scheme_str() {
+                        Some("wss") => Some(443),
+                        Some("ws") => Some(80),
+                        _ => None,
+                    })
+                    .ok_or(Error::UnsupportedUrlScheme)?;
+
+                let addr = if let Some(ip) =
+                    network_config.resolve_addrs.get(&domain)
+                {
+                    format!("{ip}:{port}")
+                } else {
+                    format!("{domain}:{port}")
+                };
+
+                let stream = TcpStream::connect(addr).await?;
+                let connector = Connector::Rustls(Arc::new(config));
+                client_async_tls_with_config(
+                    request,
+                    stream,
+                    None,
+                    Some(connector),
+                )
+                .await?
+            }
+        }
+        _ => connect_async(request).await?,
+    };
     Ok(ws_stream)
+}
+
+// Borrowed from tokio-tungstenite so we can handle domains correctly.
+fn domain(
+    request: &tokio_tungstenite::tungstenite::handshake::client::Request,
+) -> Result<String> {
+    match request.uri().host() {
+        // rustls expects IPv6 addresses without the surrounding [] brackets
+        Some(d) if d.starts_with('[') && d.ends_with(']') => {
+            Ok(d[1..d.len() - 1].to_string())
+        }
+        Some(d) => Ok(d.to_string()),
+        None => Err(tungstenite::error::UrlError::NoHostName.into()),
+    }
 }
 
 /// Read change messages from a websocket stream,
@@ -289,6 +356,7 @@ impl WebSocketChangeListener {
             self.origin.clone(),
             self.device.clone(),
             self.options.connection_id.clone(),
+            self.options.network_config.clone(),
         )
         .await
     }

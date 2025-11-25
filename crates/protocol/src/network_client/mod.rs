@@ -19,7 +19,9 @@ mod http;
 #[cfg(feature = "listen")]
 mod websocket;
 
-pub use self::http::{set_user_agent, HttpClient};
+pub use self::http::{
+    set_user_agent, HttpClient, HttpClientOptions, NetworkConfig,
+};
 
 #[cfg(feature = "listen")]
 pub use websocket::{changes, connect, ListenOptions, WebSocketHandle};
@@ -154,6 +156,7 @@ mod websocket_request {
     use url::Url;
 
     /// Build a websocket connection request.
+    #[derive(Clone)]
     pub struct WebSocketRequest {
         /// Account identifier.
         pub account_id: AccountId,
