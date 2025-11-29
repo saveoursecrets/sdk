@@ -125,6 +125,13 @@ impl Identity {
             .ok_or(AuthenticationError::NotAuthenticated)?)
     }
 
+    #[doc(hidden)]
+    pub fn shared_folder_private_access_key(&self) -> Result<AccessKey> {
+        Ok(AccessKey::Identity(
+            self.identity()?.private_identity.shared_private.clone(),
+        ))
+    }
+
     /// Verify the access key for this account.
     pub async fn verify(&self, key: &AccessKey) -> bool {
         if let Some(identity) = &self.identity {

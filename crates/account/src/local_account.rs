@@ -1726,6 +1726,21 @@ impl Account for LocalAccount {
         })
     }
 
+    async fn create_shared_folder(
+        &mut self,
+        mut options: NewFolderOptions,
+    ) -> Result<FolderCreate<Self::NetworkResult>> {
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
+        let shared_private_key =
+            authenticated_user.shared_folder_private_access_key()?;
+        options.key = Some(shared_private_key);
+        options.cipher = Some(Cipher::X25519);
+        self.create_folder(options).await
+    }
+
     async fn rename_folder(
         &mut self,
         folder_id: &VaultId,

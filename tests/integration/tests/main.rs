@@ -14,4 +14,5 @@ mod network_account;
 mod network_config;
 mod pairing;
 mod preferences;
+mod shared_folders;
 mod sign_in;
