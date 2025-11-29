@@ -9,6 +9,10 @@ pub async fn encrypt(
     plaintext: &[u8],
     recipients: Vec<Recipient>,
 ) -> Result<AeadPack> {
+    debug_assert!(
+        !recipients.is_empty(),
+        "asymmetric encryption recipients must not be empty"
+    );
     let recipients: Vec<_> = recipients
         .into_iter()
         .map(|r| {

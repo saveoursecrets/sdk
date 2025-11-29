@@ -17,8 +17,8 @@ use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
     encode,
     events::{
-        patch::FolderPatch, AccountEvent, DeviceEvent, Event, 
-        EventLog, EventRecord, ReadEvent, WriteEvent,
+        patch::FolderPatch, AccountEvent, DeviceEvent, Event, EventLog,
+        EventRecord, ReadEvent, WriteEvent,
     },
     AccountId, AuthenticationError, FolderRef, Paths, SecretId, StorageError,
     UtcDateTime, VaultCommit, VaultFlags, VaultId,
@@ -29,8 +29,8 @@ use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    BuilderCredentials, ChangePassword, SecretAccess, Summary, Vault,
-    VaultBuilder,
+    BuilderCredentials, ChangePassword, SecretAccess, SharedAccess, Summary,
+    Vault, VaultBuilder,
 };
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
@@ -1147,6 +1147,8 @@ pub trait ClientAccountStorage:
             AccessKey::Password(passphrase)
         };
 
+        println!("prepare_folder: {:#?}", options.shared_access);
+
         let builder = VaultBuilder::new()
             .flags(options.flags.unwrap_or_default())
             .cipher(options.cipher.unwrap_or_default())
@@ -1163,11 +1165,27 @@ pub trait ClientAccountStorage:
                     .await?
             }
             AccessKey::Identity(id) => {
+                let (recipients, read_only) = if let Some(shared_access) =
+                    options.shared_access
+                {
+                    let recipients = match &shared_access {
+                        SharedAccess::WriteAccess(list) => {
+                            SharedAccess::parse_recipients(list)?
+                        }
+                        SharedAccess::ReadOnly(_) => todo!(),
+                    };
+                    (
+                        recipients,
+                        matches!(shared_access, SharedAccess::ReadOnly(_)),
+                    )
+                } else {
+                    (vec![], true)
+                };
                 builder
                     .build(BuilderCredentials::Shared {
                         owner: id,
-                        recipients: vec![],
-                        read_only: true,
+                        recipients,
+                        read_only,
                     })
                     .await?
             }

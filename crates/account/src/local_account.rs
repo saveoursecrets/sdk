@@ -37,7 +37,8 @@ use sos_reducers::FolderReducer;
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
-    BuilderCredentials, Header, SecretAccess, Summary, Vault, VaultBuilder,
+    BuilderCredentials, Header, SecretAccess, SharedAccess, Summary, Vault,
+    VaultBuilder,
 };
 use sos_vfs as vfs;
 use std::{
@@ -1735,9 +1736,15 @@ impl Account for LocalAccount {
             .authenticated_user()
             .ok_or(AuthenticationError::NotAuthenticated)?;
         let shared_private_key =
-            authenticated_user.shared_folder_private_access_key()?;
+            authenticated_user.shared_private_access_key()?;
+        let shared_public_key =
+            authenticated_user.shared_public_access_key()?;
         options.key = Some(shared_private_key);
         options.cipher = Some(Cipher::X25519);
+        options.shared_access =
+            Some(options.shared_access.unwrap_or_else(|| {
+                SharedAccess::WriteAccess(vec![shared_public_key.to_string()])
+            }));
         self.create_folder(options).await
     }
 

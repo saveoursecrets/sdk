@@ -19,8 +19,18 @@ async fn shared_folder_create() -> Result<()> {
     // Prepare mock device
     let mut device1 = simulate_device(TEST_ID, 1, Some(&server)).await?;
 
-    let options = NewFolderOptions::new("shared_folder".to_string());
-    let sync_result = device1.owner.create_shared_folder(options).await?;
+    let folder_name = "shared_folder";
+    let options = NewFolderOptions::new(folder_name.to_string());
+    device1.owner.create_shared_folder(options).await?;
+    let folders = device1.owner.list_folders().await?;
+    let shared_folder =
+        folders.iter().find(|f| f.name() == folder_name).unwrap();
+
+    let (meta, secret) = mock::note(TEST_ID, TEST_ID);
+    device1
+        .owner
+        .create_secret(meta, secret, shared_folder.id().into())
+        .await?;
 
     /*
     let password = device1.password.clone();

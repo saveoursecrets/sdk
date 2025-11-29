@@ -7,7 +7,7 @@ use sos_core::{
     events::WriteEvent,
     AccountId, VaultFlags, VaultId,
 };
-use sos_vault::Vault;
+use sos_vault::{SharedAccess, Vault};
 
 mod database;
 mod error;
@@ -47,6 +47,8 @@ pub struct NewFolderOptions {
     pub cipher: Option<Cipher>,
     /// Key derivation function.
     pub kdf: Option<KeyDerivation>,
+    /// Access for shared folders.
+    pub shared_access: Option<SharedAccess>,
 }
 
 impl NewFolderOptions {
@@ -54,10 +56,7 @@ impl NewFolderOptions {
     pub fn new(name: String) -> Self {
         Self {
             name,
-            flags: None,
-            key: None,
-            cipher: None,
-            kdf: None,
+            ..Default::default()
         }
     }
 }

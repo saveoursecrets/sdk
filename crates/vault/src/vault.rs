@@ -519,7 +519,8 @@ impl SharedAccess {
         }
     }
 
-    fn parse_recipients(access: &Vec<String>) -> Result<Vec<Recipient>> {
+    /// Parse recipeients list.
+    pub fn parse_recipients(access: &Vec<String>) -> Result<Vec<Recipient>> {
         let mut recipients = Vec::new();
         for recipient in access {
             let recipient = recipient.parse().map_err(|s: &str| {

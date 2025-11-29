@@ -378,6 +378,8 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
     ) -> Result<(i64, HashMap<SecretId, i64>)> {
         let folder_id = *vault.id();
 
+        println!("upsert folder: {:#?}", vault.shared_access());
+
         let meta = if let Some(meta) = vault.header().meta() {
             Some(encode(meta).await?)
         } else {
