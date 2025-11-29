@@ -378,8 +378,6 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
     ) -> Result<(i64, HashMap<SecretId, i64>)> {
         let folder_id = *vault.id();
 
-        println!("folder is shared: {}", vault.flags().is_shared());
-
         let meta = if let Some(meta) = vault.header().meta() {
             Some(encode(meta).await?)
         } else {
