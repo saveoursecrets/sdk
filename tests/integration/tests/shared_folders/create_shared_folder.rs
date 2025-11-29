@@ -22,15 +22,23 @@ async fn shared_folder_create() -> Result<()> {
     let folder_name = "shared_folder";
     let options = NewFolderOptions::new(folder_name.to_string());
     device1.owner.create_shared_folder(options).await?;
+
     let folders = device1.owner.list_folders().await?;
     let shared_folder =
         folders.iter().find(|f| f.name() == folder_name).unwrap();
 
     let (meta, secret) = mock::note(TEST_ID, TEST_ID);
-    device1
+    let SecretChange { id: secret_id, .. } = device1
         .owner
         .create_secret(meta, secret, shared_folder.id().into())
         .await?;
+
+    let (row, _) = device1
+        .owner
+        .read_secret(&secret_id, Some(shared_folder.id()))
+        .await?;
+
+    assert!(matches!(row.secret(), Secret::Note { .. }));
 
     /*
     let password = device1.password.clone();

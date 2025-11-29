@@ -399,6 +399,11 @@ impl Header {
         self.auth.seed = seed;
     }
 
+    /// Set shared access permissions.
+    pub fn set_shared_access(&mut self, shared_access: SharedAccess) {
+        self.shared_access = shared_access;
+    }
+
     /// Read the content offset for a vault file verifying
     /// the identity bytes first.
     pub async fn read_content_offset<P: AsRef<Path>>(path: P) -> Result<u64> {

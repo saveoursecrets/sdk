@@ -1147,8 +1147,6 @@ pub trait ClientAccountStorage:
             AccessKey::Password(passphrase)
         };
 
-        println!("prepare_folder: {:#?}", options.shared_access);
-
         let builder = VaultBuilder::new()
             .flags(options.flags.unwrap_or_default())
             .cipher(options.cipher.unwrap_or_default())
@@ -1172,7 +1170,7 @@ pub trait ClientAccountStorage:
                         SharedAccess::WriteAccess(list) => {
                             SharedAccess::parse_recipients(list)?
                         }
-                        SharedAccess::ReadOnly(_) => todo!(),
+                        SharedAccess::ReadOnly(_) => vec![],
                     };
                     (
                         recipients,
@@ -1181,6 +1179,7 @@ pub trait ClientAccountStorage:
                 } else {
                     (vec![], true)
                 };
+
                 builder
                     .build(BuilderCredentials::Shared {
                         owner: id,

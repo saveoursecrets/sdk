@@ -9,7 +9,7 @@ use sos_core::{
     commit::CommitHash, crypto::AeadPack, decode, encode, SecretId,
     UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
-use sos_vault::{Summary, Vault};
+use sos_vault::{SharedAccess, Summary, Vault};
 use sql_query_builder as sql;
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -29,7 +29,8 @@ fn folder_select_columns(sql: sql::Select) -> sql::Select {
             folders.version,
             folders.cipher,
             folders.kdf,
-            folders.flags
+            folders.flags,
+            folders.shared_access
         "#,
     )
 }
@@ -64,6 +65,7 @@ pub struct FolderRow {
     cipher: String,
     kdf: String,
     flags: Vec<u8>,
+    shared_access: Option<Vec<u8>>,
 }
 
 impl FolderRow {
@@ -76,7 +78,7 @@ impl FolderRow {
         };
         let salt = vault.salt().cloned();
         let seed = vault.seed().map(|s| s.as_ref().to_vec());
-        Self::new_insert_parts(vault.summary(), salt, meta, seed)
+        Self::new_insert_parts(vault.summary(), salt, meta, seed, None)
     }
 
     /// Create a new folder row to be inserted from parts.
@@ -85,6 +87,7 @@ impl FolderRow {
         salt: Option<String>,
         meta: Option<Vec<u8>>,
         seed: Option<Vec<u8>>,
+        shared_access: Option<Vec<u8>>,
     ) -> Result<Self> {
         Ok(Self {
             created_at: UtcDateTime::default().to_rfc3339()?,
@@ -98,6 +101,7 @@ impl FolderRow {
             cipher: summary.cipher().to_string(),
             kdf: summary.kdf().to_string(),
             flags: summary.flags().bits().to_le_bytes().to_vec(),
+            shared_access,
             ..Default::default()
         })
     }
@@ -144,6 +148,7 @@ impl<'a> TryFrom<&Row<'a>> for FolderRow {
             cipher: row.get(9)?,
             kdf: row.get(10)?,
             flags: row.get(11)?,
+            shared_access: row.get(12)?,
         })
     }
 }
@@ -165,6 +170,8 @@ pub struct FolderRecord {
     pub seed: Option<Seed>,
     /// Folder summary.
     pub summary: Summary,
+    /// Shared access permissions.
+    pub shared_access: Option<SharedAccess>,
 }
 
 impl FolderRecord {
@@ -199,6 +206,13 @@ impl FolderRecord {
         let summary =
             Summary::new(version, folder_id, value.name, cipher, kdf, flags);
 
+        let shared_access = if let Some(shared_access) = &value.shared_access
+        {
+            Some(decode(shared_access).await?)
+        } else {
+            None
+        };
+
         Ok(FolderRecord {
             row_id: value.row_id,
             created_at,
@@ -207,6 +221,7 @@ impl FolderRecord {
             meta,
             seed,
             summary,
+            shared_access,
         })
     }
 
@@ -216,6 +231,9 @@ impl FolderRecord {
         vault.header_mut().set_meta(self.meta.clone());
         vault.header_mut().set_salt(self.salt.clone());
         vault.header_mut().set_seed(self.seed);
+        if let Some(shared_access) = &self.shared_access {
+            vault.header_mut().set_shared_access(shared_access.clone());
+        }
         Ok(vault)
     }
 }
@@ -378,8 +396,6 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
     ) -> Result<(i64, HashMap<SecretId, i64>)> {
         let folder_id = *vault.id();
 
-        println!("upsert folder: {:#?}", vault.shared_access());
-
         let meta = if let Some(meta) = vault.header().meta() {
             Some(encode(meta).await?)
         } else {
@@ -388,8 +404,19 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
         let salt = vault.salt().cloned();
         let seed = vault.seed().map(|s| s.as_ref().to_vec());
 
-        let folder_row =
-            FolderRow::new_insert_parts(vault.summary(), salt, meta, seed)?;
+        let shared_access = if !vault.shared_access().is_empty() {
+            Some(encode(vault.shared_access()).await?)
+        } else {
+            None
+        };
+
+        let folder_row = FolderRow::new_insert_parts(
+            vault.summary(),
+            salt,
+            meta,
+            seed,
+            shared_access,
+        )?;
 
         let mut secret_rows = Vec::new();
         for (secret_id, commit) in vault.iter() {
@@ -657,11 +684,14 @@ where
                     version,
                     cipher,
                     kdf,
-                    flags
+                    flags,
+                    shared_access
                 )
             "#,
             )
-            .values("(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)");
+            .values(
+                "(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            );
 
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
@@ -677,6 +707,7 @@ where
             &folder_row.cipher,
             &folder_row.kdf,
             &folder_row.flags,
+            &folder_row.shared_access,
         ))?;
 
         Ok(self.conn.last_insert_rowid())
@@ -701,10 +732,11 @@ where
                     version = ?7,
                     cipher = ?8,
                     kdf = ?9,
-                    flags = ?10
+                    flags = ?10,
+                    shared_access = ?11
                  "#,
             )
-            .where_clause("identifier=?11");
+            .where_clause("identifier=?12");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
             &folder_row.modified_at,
@@ -717,6 +749,7 @@ where
             &folder_row.cipher,
             &folder_row.kdf,
             &folder_row.flags,
+            &folder_row.shared_access,
             folder_id.to_string(),
         ))?;
 

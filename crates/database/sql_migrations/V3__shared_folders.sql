@@ -17,3 +17,6 @@ CREATE TABLE IF NOT EXISTS account_shared_folder
     FOREIGN KEY (folder_id)
       REFERENCES folders (folder_id) ON DELETE CASCADE
 );
+
+-- Store folder shared access.
+ALTER TABLE folders ADD COLUMN shared_access BLOB;
