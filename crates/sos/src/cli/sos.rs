@@ -145,8 +145,12 @@ pub async fn run() -> Result<()> {
     let options = if std::env::var("SOS_TEST").ok().is_some() {
         InferOptions {
             // When testing don't automatically use database
-            // backend so we can respect SOS_TEST_CLIENT_DB
-            use_database_when_accounts_empty: false,
+            // backend so we can respect SOS_TEST_CLIENT_FS
+            use_database_when_accounts_empty: std::env::var(
+                "SOS_TEST_CLIENT_FS",
+            )
+            .ok()
+            .is_none(),
             ..Default::default()
         }
     } else {

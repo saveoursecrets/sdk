@@ -30,10 +30,10 @@ To run just the command line tests which would be included in test coverage:
 cargo make test-command-line
 ```
 
-Or to test with the database backend:
+Or to test with the file system backend:
 
 ```
-SOS_TEST_CLIENT_DB=1 cargo make test-command-line
+SOS_TEST_CLIENT_FS=1 cargo make test-command-line
 ```
 
 Run with `ANTICIPATE_ECHO` to debug:
@@ -50,14 +50,14 @@ To run all the CLI test specs (including for the `shell` command) using the vers
 
 ```
 cargo make test-cli
-SOS_TEST_CLIENT_DB=1 cargo make test-cli
+SOS_TEST_CLIENT_FS=1 cargo make test-cli
 ```
 
 Or to just test the shell command:
 
 ```
 cargo make test-shell
-SOS_TEST_CLIENT_DB=1 cargo make test-shell
+SOS_TEST_CLIENT_FS=1 cargo make test-shell
 ```
 
 The shell tests complete much faster as they don't need to launch an executable for each command.
