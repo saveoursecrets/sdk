@@ -1,1 +1,1 @@
-mod create_shared_folder;
+mod shared_folder_secret_lifecycle;
