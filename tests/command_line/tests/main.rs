@@ -63,7 +63,7 @@ async fn prepare_env() -> Result<()> {
 
     println!("prepare_env: {:#?}", data_dir);
 
-    if var("SOS_TEST_CLIENT_DB").ok().is_some() {
+    if var("SOS_TEST_CLIENT_FS").ok().is_none() {
         let paths = Paths::new_client(&data_dir);
         let db = paths.database_file().to_owned();
         let mut client = open_file(&db).await?;

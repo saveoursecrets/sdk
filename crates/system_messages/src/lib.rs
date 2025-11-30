@@ -1,6 +1,3 @@
-#![deny(missing_docs)]
-#![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! System messages are persistent user notifications.
 //!
 //! They can be used to surface information such as
@@ -16,6 +13,10 @@
 //! changes to the underlying collection. This allows
 //! an interface to show the number of unread system
 //! messages.
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod error;
 mod system_messages;
 

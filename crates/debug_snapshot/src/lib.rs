@@ -1,3 +1,7 @@
+//! Create a debug snapshot of events.
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 use sos_archive::ZipWriter;
 use sos_client_storage::{
     ClientBaseStorage, ClientFolderStorage, ClientStorage,

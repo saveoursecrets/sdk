@@ -518,7 +518,15 @@ fn create_folder(
     let folder_entity = FolderEntity::new(tx);
     let folder_id = folder_entity.insert_folder(
         account_id,
-        &FolderRow::new_insert_parts(vault.summary(), salt, meta, seed)?,
+        &FolderRow::new_insert_parts(
+            vault.summary(),
+            salt,
+            meta,
+            seed,
+            // File system accounts never used
+            // shared access so we don't need to handle it here
+            None,
+        )?,
     )?;
     let secret_ids =
         folder_entity.insert_folder_secrets(folder_id, rows.as_slice())?;

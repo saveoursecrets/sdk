@@ -1,7 +1,8 @@
+//! Search provides an in-memory index for secret meta data.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Search provides an in-memory index for secret meta data.
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod error;
 mod search;
 

@@ -1,7 +1,7 @@
+//! Web accounts for the [Save Our Secrets SDK](https://saveoursecrets.com/) intended to be used in webassembly bindings.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Web accounts for the [Save Our Secrets SDK](https://saveoursecrets.com/) intended to be used in webassembly bindings.
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use sos_account::{Account, AccountSwitcher};
 

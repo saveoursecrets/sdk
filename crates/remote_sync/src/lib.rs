@@ -1,7 +1,8 @@
+//! Sync protocol implementation types and traits.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Sync protocol implementation types and traits.
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod auto_merge;
 mod error;
 mod remote;

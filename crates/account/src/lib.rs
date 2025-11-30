@@ -1,5 +1,6 @@
 //! Create and manage local accounts for the
 //! [Save Our Secrets](https://saveoursecrets.com) SDK.
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::len_without_is_empty)]
 #![allow(clippy::new_without_default)]
 #![allow(clippy::result_large_err)]
@@ -27,9 +28,11 @@ pub use types::{
 };
 
 #[cfg(feature = "contacts")]
+#[cfg_attr(docsrs, doc(cfg(feature = "contacts")))]
 pub use types::ContactImportProgress;
 
 #[cfg(feature = "clipboard")]
+#[cfg_attr(docsrs, doc(cfg(feature = "clipboard")))]
 pub use {
     types::{ClipboardCopyRequest, ClipboardTextFormat},
     xclipboard,

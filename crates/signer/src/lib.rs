@@ -1,8 +1,7 @@
+//! Traits and types for signing messages.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Traits and types for signing messages.
-use async_trait::async_trait;
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod encoding;
 mod error;
@@ -21,7 +20,7 @@ type BoxedSigner<O, V> =
 /// This trait is declared with an async signature so that
 /// in the future we can support threshold signatures
 /// which are inherently asynchronous.
-#[async_trait]
+#[async_trait::async_trait]
 pub trait Signer {
     /// Signature output.
     type Output;

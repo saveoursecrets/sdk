@@ -4,33 +4,33 @@ use crate::{
     StorageChangeEvent,
 };
 use async_trait::async_trait;
-use futures::{pin_mut, StreamExt};
+use futures::{StreamExt, pin_mut};
 use indexmap::IndexSet;
 use sos_backend::{
-    compact::compact_folder, extract_vault, BackendTarget, DeviceEventLog,
-    Folder, FolderEventLog,
+    BackendTarget, DeviceEventLog, Folder, FolderEventLog,
+    compact::compact_folder, extract_vault,
 };
 use sos_core::{
+    AccountId, AuthenticationError, FolderRef, Paths, SecretId, StorageError,
+    UtcDateTime, VaultCommit, VaultFlags, VaultId,
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     decode,
     device::{DevicePublicKey, TrustedDevice},
     encode,
     events::{
-        patch::FolderPatch, AccountEvent, DeviceEvent, Event, 
-        EventLog, EventRecord, ReadEvent, WriteEvent,
+        AccountEvent, DeviceEvent, Event, EventLog, EventRecord, ReadEvent,
+        WriteEvent, patch::FolderPatch,
     },
-    AccountId, AuthenticationError, FolderRef, Paths, SecretId, StorageError,
-    UtcDateTime, VaultCommit, VaultFlags, VaultId,
 };
 use sos_login::{DelegatedAccess, FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{
+    BuilderCredentials, ChangePassword, SecretAccess, SharedAccess, Summary,
+    Vault, VaultBuilder,
     secret::{Secret, SecretMeta, SecretRow},
-    BuilderCredentials, ChangePassword, SecretAccess, Summary, Vault,
-    VaultBuilder,
 };
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
@@ -1163,11 +1163,28 @@ pub trait ClientAccountStorage:
                     .await?
             }
             AccessKey::Identity(id) => {
+                let (recipients, read_only) = if let Some(shared_access) =
+                    options.shared_access
+                {
+                    let recipients = match &shared_access {
+                        SharedAccess::WriteAccess(list) => {
+                            SharedAccess::parse_recipients(list)?
+                        }
+                        SharedAccess::ReadOnly(_) => vec![],
+                    };
+                    (
+                        recipients,
+                        matches!(shared_access, SharedAccess::ReadOnly(_)),
+                    )
+                } else {
+                    (vec![], true)
+                };
+
                 builder
                     .build(BuilderCredentials::Shared {
                         owner: id,
-                        recipients: vec![],
-                        read_only: true,
+                        recipients,
+                        read_only,
                     })
                     .await?
             }
@@ -1229,6 +1246,12 @@ pub trait ClientAccountStorage:
         apply_event: bool,
     ) -> Result<Vec<Event>> {
         self.guard_authenticated(Internal)?;
+
+        if let Some(summary) = self.find_folder(&FolderRef::Id(*folder_id))
+            && summary.flags().is_shared()
+        {
+            panic!("cannot call delete_folder on a shared folder");
+        }
 
         // Remove the files
         self.remove_vault(folder_id, Internal).await?;

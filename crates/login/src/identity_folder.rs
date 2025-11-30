@@ -40,7 +40,7 @@ pub struct IdentityFolder {
     /// Backend target.
     target: BackendTarget,
     /// Private identity.
-    private_identity: PrivateIdentity,
+    pub(super) private_identity: PrivateIdentity,
     /// Device manager.
     pub(super) devices: Option<crate::device::DeviceManager>,
 }

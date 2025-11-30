@@ -1,7 +1,7 @@
 use crate::{
     crypto::{
-        AeadPack, Cipher, KeyDerivation, Nonce, AES_GCM_256, ARGON_2_ID,
-        BALLOON_HASH, X25519, X_CHACHA20_POLY1305,
+        AES_GCM_256, ARGON_2_ID, AeadPack, BALLOON_HASH, Cipher,
+        KeyDerivation, Nonce, X_CHACHA20_POLY1305, X25519,
     },
     encoding::encoding_error,
 };
@@ -20,11 +20,11 @@ impl Encodable for AeadPack {
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
         match &self.nonce {
-            Nonce::Nonce12(ref bytes) => {
+            Nonce::Nonce12(bytes) => {
                 writer.write_u8(12).await?;
                 writer.write_bytes(bytes).await?;
             }
-            Nonce::Nonce24(ref bytes) => {
+            Nonce::Nonce24(bytes) => {
                 writer.write_u8(24).await?;
                 writer.write_bytes(bytes).await?;
             }

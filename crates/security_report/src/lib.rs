@@ -1,7 +1,8 @@
+//! Helpers for security report generation.
 #![forbid(unsafe_code)]
 #![allow(clippy::type_complexity)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
-//! Helpers for security report generation.
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use sos_account::Account;

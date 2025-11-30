@@ -1,7 +1,8 @@
+//! Vault encrypted storage and access.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Vault encrypted storage and access.
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod access_point;
 mod builder;
 mod change_password;

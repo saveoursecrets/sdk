@@ -1,10 +1,10 @@
+//! Database upgrader for the [Save Our Secrets](https://saveoursecrets.com) SDK.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::large_enum_variant)]
 #![allow(clippy::result_large_err)]
 
-//! Database upgrader for the [Save Our Secrets](https://saveoursecrets.com) SDK.
 #[cfg(feature = "archive")]
 pub mod archive;
 mod upgrader;

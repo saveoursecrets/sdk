@@ -146,7 +146,7 @@ rm -rf target/integration-test
 [tasks.test]
 script_runner = "@shell"
 script = '''
-SOS_TEST_CLIENT_DB=1 cargo nextest run -p sos-integration-tests -p sos-unit-tests
+cargo nextest run -p sos-integration-tests -p sos-unit-tests
 '''
 dependencies = ["clean-tests", "build-test"]
 
@@ -155,11 +155,11 @@ script_runner = "@shell"
 script = '''
 cargo nextest run \
   -p sos-integration-tests -p sos-unit-tests
-SOS_TEST_CLIENT_DB=1 cargo nextest run \
+SOS_TEST_CLIENT_FS=1 cargo nextest run \
   -p sos-integration-tests -p sos-unit-tests
-SOS_TEST_SERVER_DB=1 cargo nextest run \
+SOS_TEST_SERVER_FS=1 cargo nextest run \
   -p sos-integration-tests -p sos-unit-tests
-SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo nextest run \
+SOS_TEST_CLIENT_FS=1 SOS_TEST_SERVER_FS=1 cargo nextest run \
   -p sos-integration-tests -p sos-unit-tests
 '''
 dependencies = ["clean-tests", "build-test"]
@@ -169,11 +169,11 @@ script_runner = "@shell"
 script = '''
 cargo nextest run --profile ci \
   -p sos-integration-tests -p sos-unit-tests
-SOS_TEST_CLIENT_DB=1 cargo nextest run --profile ci \
+SOS_TEST_CLIENT_FS=1 cargo nextest run --profile ci \
   -p sos-integration-tests -p sos-unit-tests
-SOS_TEST_SERVER_DB=1 cargo nextest run --profile ci \
+SOS_TEST_SERVER_FS=1 cargo nextest run --profile ci \
   -p sos-integration-tests -p sos-unit-tests
-SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo nextest run --profile ci \
+SOS_TEST_CLIENT_FS=1 SOS_TEST_SERVER_FS=1 cargo nextest run --profile ci \
   -p sos-integration-tests -p sos-unit-tests
 '''
 dependencies = ["clean-tests", "build-test"]
@@ -184,11 +184,11 @@ script = '''
 cargo llvm-cov clean --workspace
 cargo llvm-cov nextest \
   --no-report -p sos-integration-tests -p sos-unit-tests
-SOS_TEST_CLIENT_DB=1 cargo llvm-cov nextest \
+SOS_TEST_CLIENT_FS=1 cargo llvm-cov nextest \
   --no-report -p sos-integration-tests -p sos-unit-tests
-SOS_TEST_SERVER_DB=1 cargo llvm-cov nextest \
+SOS_TEST_SERVER_FS=1 cargo llvm-cov nextest \
   --no-report -p sos-integration-tests -p sos-unit-tests
-SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo llvm-cov nextest \
+SOS_TEST_CLIENT_FS=1 SOS_TEST_SERVER_FS=1 cargo llvm-cov nextest \
   --no-report -p sos-integration-tests -p sos-unit-tests
 cargo llvm-cov report --html
 '''

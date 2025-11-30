@@ -1,7 +1,7 @@
 [package]
 name = "sos-sync"
 version = "0.17.3"
-edition = "2021"
+edition = "2024"
 description = "Sync types and traits for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
@@ -31,6 +31,3 @@ indexmap.workspace = true
 tokio.workspace = true
 serde.workspace = true
 tracing.workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true

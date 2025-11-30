@@ -47,7 +47,10 @@ pub fn init_tracing() {
 pub async fn make_client_backend(
     paths: &Arc<Paths>,
 ) -> Result<BackendTarget> {
-    Ok(if std::env::var("SOS_TEST_CLIENT_DB").ok().is_some() {
+    Ok(if std::env::var("SOS_TEST_CLIENT_FS").ok().is_some() {
+        Paths::scaffold(paths.documents_dir()).await?;
+        BackendTarget::FileSystem(paths.clone())
+    } else {
         let db_file = paths.database_file();
 
         /*
@@ -60,9 +63,6 @@ pub async fn make_client_backend(
         let mut client = open_file(&db_file).await?;
         sos_database::migrations::migrate_client(&mut client).await?;
         BackendTarget::Database(paths.clone(), client)
-    } else {
-        Paths::scaffold(paths.documents_dir()).await?;
-        BackendTarget::FileSystem(paths.clone())
     })
 }
 
@@ -116,7 +116,7 @@ impl MockServer {
         // using the test identifier
         config.storage.path = self.path.clone();
 
-        if std::env::var("SOS_TEST_SERVER_DB").ok().is_some() {
+        if std::env::var("SOS_TEST_SERVER_FS").ok().is_none() {
             let db_file = self.path.join(DATABASE_FILE);
 
             // Make sure each server test run is pristine
@@ -288,7 +288,7 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
 
     let mut clients = Vec::new();
     for index in 0..num_clients {
-        let client = test_dir.join(format!("client{}", index + 1));
+        let client = test_dir.join(&format!("client{}", index + 1));
         let _ = vfs::remove_dir_all(&client).await;
         vfs::create_dir_all(&client).await?;
 
