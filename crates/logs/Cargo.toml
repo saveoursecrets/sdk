@@ -19,6 +19,3 @@ tracing-appender.workspace = true
 tracing-subscriber.workspace = true
 rev_buf_reader.workspace = true
 time.workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true

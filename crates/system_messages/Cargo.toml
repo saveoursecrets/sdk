@@ -16,6 +16,3 @@ tokio.workspace = true
 urn.workspace = true
 serde_with.workspace = true
 tracing.workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true

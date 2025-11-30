@@ -23,6 +23,3 @@ sos-password.workspace = true
 sos-signer.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true

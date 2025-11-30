@@ -211,7 +211,6 @@ vsss-rs = "3"
 getrandom = "0.2"
 
 # build
-rustc_version = "0.4.1"
 prost-build = "0.14"
 protoc-bin-vendored = "3"
 

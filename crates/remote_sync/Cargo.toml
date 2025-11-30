@@ -27,12 +27,8 @@ sos-core.workspace = true
 sos-protocol.workspace = true
 sos-sync.workspace = true
 sos-vfs.workspace = true
-
 async-trait.workspace = true
 thiserror.workspace = true
 indexmap.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true

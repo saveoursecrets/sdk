@@ -82,6 +82,5 @@ features = ["json", "stream"]
 optional = true
 
 [build-dependencies]
-rustc_version.workspace = true
 prost-build.workspace = true
 protoc-bin-vendored.workspace = true

@@ -49,6 +49,3 @@ balloon-hash.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 etcetera.workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true

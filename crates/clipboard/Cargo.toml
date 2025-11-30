@@ -19,6 +19,3 @@ zeroize = { workspace = true }
 
 [target.'cfg(all(not(target_os = "android"), not(target_os = "ios")))'.dependencies.arboard]
 workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true

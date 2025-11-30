@@ -69,6 +69,3 @@ utoipa = { version = "5", features = ["uuid"] }
 utoipa-rapidoc = { version = "6", features = ["axum"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros"] }
 tokio-rustls-acme = { version = "0.6", features = ["axum"], optional = true }
-
-[build-dependencies]
-rustc_version = "0.4.1"

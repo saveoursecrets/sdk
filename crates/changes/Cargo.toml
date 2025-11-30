@@ -24,6 +24,3 @@ tokio.workspace = true
 serde_json.workspace = true
 interprocess = { workspace = true, optional = true, features = ["tokio"] }
 tokio-util = { workspace = true, optional = true, features = ["codec"] }
-
-[build-dependencies]
-rustc_version.workspace = true

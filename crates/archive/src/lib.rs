@@ -1,6 +1,7 @@
+//! ZIP archive reader and writer for account backup archives.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-//! ZIP archive reader and writer for account backup archives.
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod error;
 mod reader;

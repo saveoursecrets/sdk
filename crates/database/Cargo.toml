@@ -59,6 +59,3 @@ sql_query_builder = { workspace = true }
 
 # system-messages
 urn = { workspace = true, optional = true }
-
-[build-dependencies]
-rustc_version.workspace = true

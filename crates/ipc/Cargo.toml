@@ -105,6 +105,3 @@ matchit = { version = "0.7", optional = true }
 # native bridge
 open = { version = "5", optional = true }
 
-[build-dependencies]
-rustc_version.workspace = true
-

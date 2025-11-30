@@ -14,7 +14,6 @@ sos-client-storage.workspace = true
 sos-core.workspace = true
 sos-password.workspace = true
 sos-vault.workspace = true
-
 sha1.workspace = true
 serde.workspace = true
 hex.workspace = true

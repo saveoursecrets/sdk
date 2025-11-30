@@ -18,6 +18,3 @@ rand.workspace = true
 chbs.workspace = true
 zxcvbn.workspace = true
 secrecy.workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true

@@ -35,6 +35,3 @@ tokio.workspace = true
 typeshare.workspace = true
 ed25519-dalek.workspace = true
 tracing.workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true

@@ -1,7 +1,8 @@
+//! Client storage for a backend target.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Client storage for a backend target.
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     events::WriteEvent,

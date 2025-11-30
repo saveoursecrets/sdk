@@ -1,7 +1,8 @@
+//! Integrity checks for vaults, event logs and external files.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Integrity checks for vaults, event logs and external files.
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod account_integrity;
 mod error;
 mod event_integrity;

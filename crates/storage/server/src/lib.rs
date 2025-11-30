@@ -1,9 +1,9 @@
+//! Server storage for a backend target.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::large_enum_variant)]
 
-//! Server storage for a backend target.
 mod error;
 
 mod database;

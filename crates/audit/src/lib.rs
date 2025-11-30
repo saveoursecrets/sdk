@@ -1,6 +1,8 @@
+//! Core types and traits for audit trail logging.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-//! Core types and traits for audit trail logging.
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod encoding;
 mod event;
 

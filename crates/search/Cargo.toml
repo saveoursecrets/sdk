@@ -14,7 +14,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 sos-core.workspace = true
 sos-backend.workspace = true
 sos-vault.workspace = true
-
 thiserror.workspace = true
 serde.workspace = true
 unicode-segmentation.workspace = true
@@ -24,6 +23,3 @@ vcard4.workspace = true
 tokio.workspace = true
 typeshare.workspace = true
 tracing.workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true

@@ -34,7 +34,7 @@ sos-archive = { workspace = true, optional = true }
 sos-audit = { workspace = true, optional = true }
 sos-system-messages = { workspace = true, optional = true }
 sos-preferences = { workspace = true, optional = true }
-sos-external-files = { workspace = true, optional = true, features = ["full"] }
+sos-external-files = { workspace = true, optional = true }
 
 thiserror.workspace = true
 async-trait.workspace = true
@@ -59,6 +59,3 @@ uuid = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
-
-[build-dependencies]
-rustc_version.workspace = true
