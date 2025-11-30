@@ -9,6 +9,7 @@ mod folder;
 #[cfg(feature = "preferences")]
 mod preference;
 mod server;
+mod shared_folder;
 #[cfg(feature = "system-messages")]
 mod system_message;
 
