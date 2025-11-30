@@ -53,8 +53,6 @@ CREATE TABLE IF NOT EXISTS recipients
       REFERENCES accounts (account_id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS recipients_name_idx ON recipients(recipient_name);
-CREATE INDEX IF NOT EXISTS recipients_email_idx ON recipients(recipient_email);
 CREATE INDEX IF NOT EXISTS recipients_public_key_idx ON recipients(recipient_public_key);
 
 CREATE VIRTUAL TABLE recipients_fts USING fts5(
