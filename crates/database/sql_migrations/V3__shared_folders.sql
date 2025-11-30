@@ -7,6 +7,9 @@
 -- Each folder should be using asymmetric encryption 
 -- to provide access control; the use of an asymmetric cipher 
 -- should be enforced at the API level.
+--
+-- The owner account_id can be determined by looking at the 
+-- account_id in the folders table.
 CREATE TABLE IF NOT EXISTS account_shared_folder
 (
     account_id          INTEGER             NOT NULL,
@@ -22,9 +25,8 @@ CREATE TABLE IF NOT EXISTS account_shared_folder
 ALTER TABLE folders ADD COLUMN shared_access BLOB;
 
 -- Recipients are publicly accessible user-chosen 
--- names mapped to public keys.
---
--- This allows discovery of other accounts.
+-- names mapped to public keys allowing discovery of 
+-- people's public keys for shared folder asymmetric encryption.
 CREATE TABLE IF NOT EXISTS recipients
 (
     -- Account id.

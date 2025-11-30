@@ -22,6 +22,7 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
     device.owner.create_shared_folder(options).await?;
 
     let folders = device.owner.list_folders().await?;
+    println!("FOLDER LEN: {}", folders.len());
     let shared_folder =
         folders.iter().find(|f| f.name() == folder_name).unwrap();
 
@@ -32,6 +33,9 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
         TEST_ID,
     )
     .await?;
+
+    let folders = device.owner.list_folders().await?;
+    println!("FOLDER LEN: {}", folders.len());
 
     device.owner.sign_out().await?;
 
