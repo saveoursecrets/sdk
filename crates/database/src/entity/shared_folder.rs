@@ -36,6 +36,15 @@ impl SharedFolderEntity {
         recipient_name: String,
         recipient_email: Option<String>,
         recipient_public_key: String,
+    ) -> Result<i64> {
+        todo!();
+    }
+
+    /// Invite a recipient to a folder.
+    pub async fn invite_recipient(
+        from_recipient: i64,
+        to_recipient: i64,
+        folder_id: i64,
     ) -> Result<()> {
         todo!();
     }

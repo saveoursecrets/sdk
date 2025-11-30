@@ -100,5 +100,7 @@ CREATE TABLE IF NOT EXISTS folder_invites
     FOREIGN KEY (to_recipient_id)
       REFERENCES recipients (recipient_id) ON DELETE CASCADE,
     FOREIGN KEY (folder_id)
-      REFERENCES folders (folder_id) ON DELETE CASCADE
+      REFERENCES folders (folder_id) ON DELETE CASCADE,
+
+    UNIQUE (from_recipient_id, to_recipient_id, folder_id)
 );
