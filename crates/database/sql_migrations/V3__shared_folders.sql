@@ -57,18 +57,43 @@ CREATE INDEX IF NOT EXISTS recipients_name_idx ON recipients(recipient_name);
 CREATE INDEX IF NOT EXISTS recipients_email_idx ON recipients(recipient_email);
 CREATE INDEX IF NOT EXISTS recipients_public_key_idx ON recipients(recipient_public_key);
 
+CREATE VIRTUAL TABLE recipients_fts USING fts5(
+  recipient_name, 
+  recipient_email, 
+  content='recipients', 
+  content_rowid='recipient_id',
+  tokenize='trigram'
+);
+
+CREATE TRIGGER recipients_ai AFTER INSERT ON recipients BEGIN
+  INSERT INTO recipients_fts(rowid, recipient_name, recipient_email)
+  VALUES (new.recipient_id, new.recipient_name, new.recipient_email);
+END;
+
+CREATE TRIGGER recipients_ad AFTER DELETE ON recipients BEGIN
+  INSERT INTO recipients_fts(recipients_fts, rowid, recipient_name, recipient_email)
+  VALUES('delete', old.recipient_id, old.recipient_name, old.recipient_email);
+END;
+
+CREATE TRIGGER recipients_au AFTER UPDATE ON recipients BEGIN
+  INSERT INTO recipients_fts(recipients_fts, rowid, recipient_name, recipient_email)
+  VALUES('delete', old.recipient_id, old.recipient_name, old.recipient_email);
+
+  INSERT INTO recipients_fts(rowid, recipient_name, recipient_email)
+  VALUES (new.recipient_id, new.recipient_name, new.recipient_email);
+END;
+
 -- Invite a recipient to join a shared folder.
 CREATE TABLE IF NOT EXISTS folder_invites
 (
     -- Folder invite id.
     folder_invite_id            INTEGER             PRIMARY KEY NOT NULL,
-
+    -- Created date and time.
+    created_at                DATETIME            NOT NULL,
     -- Recipient sending the invite.
     from_recipient_id           INTEGER             NOT NULL,
-
     -- Recipient receiving the invite.
     to_recipient_id             INTEGER             NOT NULL,
-
     -- Folder being shared.
     folder_id                   INTEGER             NOT NULL,
     
