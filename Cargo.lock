@@ -6107,7 +6107,7 @@ dependencies = [
 
 [[package]]
 name = "sos-vault"
-version = "0.17.4"
+version = "0.17.5"
 dependencies = [
  "age",
  "async-trait",
@@ -6118,7 +6118,6 @@ dependencies = [
  "hex",
  "indexmap 2.12.0",
  "pem",
- "rustc_version",
  "secrecy",
  "serde",
  "serde_json",

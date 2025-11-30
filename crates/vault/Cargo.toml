@@ -1,6 +1,6 @@
 [package]
 name = "sos-vault"
-version = "0.17.4"
+version = "0.17.5"
 edition = "2021"
 description = "Vault encrypted storage for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
@@ -34,6 +34,3 @@ ed25519-dalek.workspace = true
 tracing.workspace = true
 serde_json.workspace = true
 hex.workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true
