@@ -814,8 +814,8 @@ mod handlers {
         };
 
         #[cfg(feature = "listen")]
-        if outcome.changes > 0 {
-            if let Some(conn_id) = caller.connection_id() {
+        if outcome.changes > 0
+            && let Some(conn_id) = caller.connection_id() {
                 let reader = account.read().await;
                 let local_status = reader.sync_status().await?;
                 let notification = NetworkChangeEvent::new(
@@ -827,7 +827,6 @@ mod handlers {
                 let reader = state.read().await;
                 send_notification(&reader, &caller, notification).await;
             }
-        }
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -866,8 +865,8 @@ mod handlers {
         };
 
         #[cfg(feature = "listen")]
-        if outcome.changes > 0 {
-            if let Some(conn_id) = caller.connection_id() {
+        if outcome.changes > 0
+            && let Some(conn_id) = caller.connection_id() {
                 let notification = NetworkChangeEvent::new(
                     caller.account_id(),
                     conn_id.to_string(),
@@ -877,7 +876,6 @@ mod handlers {
                 let reader = state.read().await;
                 send_notification(&reader, &caller, notification).await;
             }
-        }
 
         let mut headers = HeaderMap::new();
         headers.insert(

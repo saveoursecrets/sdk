@@ -246,8 +246,8 @@ async fn write(
                 break;
             }
             event = outgoing.recv() => {
-                if let Ok(msg) = event {
-                    if sink.send(Message::Binary(msg.into())).await.is_err() {
+                if let Ok(msg) = event
+                    && sink.send(Message::Binary(msg.into())).await.is_err() {
                         tracing::trace!(
                             account_id = %account_id,
                             "ws_server::disconnect::send_error",
@@ -259,7 +259,6 @@ async fn write(
                         ).await;
                         break;
                     }
-                }
             },
         }
     }

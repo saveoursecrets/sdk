@@ -80,9 +80,9 @@ impl Backend {
         let mut dir = vfs::read_dir(self.paths.local_dir()).await?;
         while let Some(entry) = dir.next_entry().await? {
             let path = entry.path();
-            if vfs::metadata(&path).await?.is_dir() {
-                if let Some(name) = path.file_stem() {
-                    if let Ok(account_id) =
+            if vfs::metadata(&path).await?.is_dir()
+                && let Some(name) = path.file_stem()
+                    && let Ok(account_id) =
                         name.to_string_lossy().parse::<AccountId>()
                     {
                         tracing::debug!(
@@ -102,8 +102,6 @@ impl Backend {
                             Arc::new(RwLock::new(account)),
                         );
                     }
-                }
-            }
         }
 
         Ok(())

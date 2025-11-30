@@ -104,11 +104,10 @@ async fn authenticate_endpoint(
     // Deny unauthorized account ids
     {
         let reader = state.read().await;
-        if let Some(access) = &reader.config.access {
-            if !access.is_allowed_access(&token.account_id) {
+        if let Some(access) = &reader.config.access
+            && !access.is_allowed_access(&token.account_id) {
                 return Err(Error::Forbidden);
             }
-        }
     }
 
     let reader = backend.read().await;
@@ -138,11 +137,10 @@ pub(crate) async fn send_notification(
     // Send notification on the websockets channel
     match notification.encode().await {
         Ok(buffer) => {
-            if let Some(account) = reader.sockets.get(caller.account_id()) {
-                if let Err(error) = account.broadcast(caller, buffer).await {
+            if let Some(account) = reader.sockets.get(caller.account_id())
+                && let Err(error) = account.broadcast(caller, buffer).await {
                     tracing::warn!(error = ?error);
                 }
-            }
         }
         Err(e) => {
             tracing::error!(error = %e, "send_notification");
