@@ -29,8 +29,14 @@ ALTER TABLE folders ADD COLUMN shared_access BLOB;
 -- people's public keys for shared folder asymmetric encryption.
 CREATE TABLE IF NOT EXISTS recipients
 (
+    -- Recipient id.
+    recipient_id              INTEGER             PRIMARY KEY NOT NULL,
     -- Account id.
     account_id                INTEGER             NOT NULL,
+    -- Created date and time.
+    created_at                DATETIME            NOT NULL,
+    -- Last modiifed date and time.
+    modified_at               DATETIME            NOT NULL,
     -- Recipient name.
     --
     -- Should be a username or handle that would allow other 
@@ -40,6 +46,8 @@ CREATE TABLE IF NOT EXISTS recipients
     recipient_email           TEXT,
     -- Public key for the recipient.
     recipient_public_key      TEXT                NOT NULL,
+    -- Indicate the key has been revoked.
+    revoked                   INTEGER             NOT NULL DEFAULT 0,
     
     FOREIGN KEY (account_id)
       REFERENCES accounts (account_id) ON DELETE CASCADE
@@ -48,3 +56,26 @@ CREATE TABLE IF NOT EXISTS recipients
 CREATE INDEX IF NOT EXISTS recipients_name_idx ON recipients(recipient_name);
 CREATE INDEX IF NOT EXISTS recipients_email_idx ON recipients(recipient_email);
 CREATE INDEX IF NOT EXISTS recipients_public_key_idx ON recipients(recipient_public_key);
+
+-- Invite a recipient to join a shared folder.
+CREATE TABLE IF NOT EXISTS folder_invites
+(
+    -- Folder invite id.
+    folder_invite_id            INTEGER             PRIMARY KEY NOT NULL,
+
+    -- Recipient sending the invite.
+    from_recipient_id           INTEGER             NOT NULL,
+
+    -- Recipient receiving the invite.
+    to_recipient_id             INTEGER             NOT NULL,
+
+    -- Folder being shared.
+    folder_id                   INTEGER             NOT NULL,
+    
+    FOREIGN KEY (from_recipient_id)
+      REFERENCES recipients (recipient_id) ON DELETE CASCADE,
+    FOREIGN KEY (to_recipient_id)
+      REFERENCES recipients (recipient_id) ON DELETE CASCADE,
+    FOREIGN KEY (folder_id)
+      REFERENCES folders (folder_id) ON DELETE CASCADE
+);
