@@ -280,11 +280,10 @@ impl LocalAccount {
     ) -> Result<()> {
         // Bail early if the folder is already open
         {
-            if let Some(current) = self.storage.current_folder() {
-                if current.id() == folder_id {
+            if let Some(current) = self.storage.current_folder()
+                && current.id() == folder_id {
                     return Ok(());
                 }
-            }
         }
 
         let event = self.storage.open_folder(folder_id)?;
@@ -357,11 +356,10 @@ impl LocalAccount {
 
         self.open_folder(folder.id()).await?;
 
-        if let Secret::Pem { certificates, .. } = &secret {
-            if certificates.is_empty() {
+        if let Secret::Pem { certificates, .. } = &secret
+            && certificates.is_empty() {
                 return Err(Error::PemEncoding);
             }
-        }
 
         let id = SecretId::new_v4();
         let secret_data = SecretRow::new(id, meta, secret);
@@ -1174,13 +1172,13 @@ impl Account for LocalAccount {
             compact_folder(self.account_id(), identity.id(), &mut log_file)
                 .await?;
 
-            let vault = FolderReducer::new()
+            
+
+            FolderReducer::new()
                 .reduce(&*log_file)
                 .await?
                 .build(true)
-                .await?;
-
-            vault
+                .await?
         };
 
         let event = {
@@ -1488,11 +1486,10 @@ impl Account for LocalAccount {
 
         self.open_folder(folder.id()).await?;
 
-        if let Some(Secret::Pem { certificates, .. }) = &secret {
-            if certificates.is_empty() {
+        if let Some(Secret::Pem { certificates, .. }) = &secret
+            && certificates.is_empty() {
                 return Err(Error::PemEncoding);
             }
-        }
 
         let result = self
             .storage
