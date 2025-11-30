@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS folder_invites
     -- Folder invite id.
     folder_invite_id            INTEGER             PRIMARY KEY NOT NULL,
     -- Created date and time.
-    created_at                DATETIME            NOT NULL,
+    created_at                  DATETIME            NOT NULL,
     -- Recipient sending the invite.
     from_recipient_id           INTEGER             NOT NULL,
     -- Recipient receiving the invite.
