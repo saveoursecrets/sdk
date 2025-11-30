@@ -457,11 +457,10 @@ where
         // let file = self.file();
         let mut it = self.iter(true).await?;
         while let Some(record) = it.next().await? {
-            if let Some(commit) = commit {
-                if &record.commit() == commit.as_ref() {
+            if let Some(commit) = commit
+                && &record.commit() == commit.as_ref() {
                     return Ok(events);
                 }
-            }
             let buffer = read_event_buffer(&self.data, &record).await?;
             // Iterating in reverse order as we would typically
             // be looking for commits near the end of the event log

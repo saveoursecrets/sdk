@@ -29,7 +29,7 @@ files = [
   "sos-sync/files",
 ]
 migrate = ["sos-account/migrate"]
-search = ["sos-search", "sos-protocol/search"]
+search = ["sos-search", "sos-protocol/search", "sos-account/search"]
 extension-helper-server = [
   "memory-http-server",
   "open",

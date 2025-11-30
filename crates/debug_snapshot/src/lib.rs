@@ -74,8 +74,8 @@ pub async fn export_debug_snapshot(
         let mut dir = vfs::read_dir(logs).await?;
         while let Some(entry) = dir.next_entry().await? {
             let path = entry.path();
-            if let Some(name) = path.file_name() {
-                if name.to_string_lossy().starts_with(LOG_FILE_NAME) {
+            if let Some(name) = path.file_name()
+                && name.to_string_lossy().starts_with(LOG_FILE_NAME) {
                     let buffer = vfs::read(&path).await?;
                     zip_writer
                         .add_file(
@@ -84,13 +84,12 @@ pub async fn export_debug_snapshot(
                         )
                         .await?;
                 }
-            }
         }
     }
 
     #[cfg(feature = "audit")]
-    if options.include_audit_trail {
-        if let Some(providers) = sos_backend::audit::providers() {
+    if options.include_audit_trail
+        && let Some(providers) = sos_backend::audit::providers() {
             for (index, provider) in providers.iter().enumerate() {
                 let stream = provider.audit_stream(false).await?;
                 pin_mut!(stream);
@@ -113,7 +112,6 @@ pub async fn export_debug_snapshot(
                     .await?;
             }
         }
-    }
 
     zip_writer.finish().await?;
 

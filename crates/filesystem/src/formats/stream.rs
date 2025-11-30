@@ -204,20 +204,18 @@ where
     async fn next_forward(&mut self) -> Result<Option<T>> {
         let offset = self.header_offset;
 
-        if let (Some(lpos), Some(rpos)) = (self.forward, self.backward) {
-            if lpos == rpos {
+        if let (Some(lpos), Some(rpos)) = (self.forward, self.backward)
+            && lpos == rpos {
                 return Ok(None);
             }
-        }
 
         let len = stream_length(&mut self.read_stream).await?;
         if len > offset {
             // Got to EOF
-            if let Some(lpos) = self.forward {
-                if lpos == len {
+            if let Some(lpos) = self.forward
+                && lpos == len {
                     return Ok(None);
                 }
-            }
 
             if self.forward.is_none() {
                 self.forward = Some(offset);
@@ -232,20 +230,18 @@ where
     async fn next_back(&mut self) -> Result<Option<T>> {
         let offset: u64 = self.header_offset;
 
-        if let (Some(lpos), Some(rpos)) = (self.forward, self.backward) {
-            if lpos == rpos {
+        if let (Some(lpos), Some(rpos)) = (self.forward, self.backward)
+            && lpos == rpos {
                 return Ok(None);
             }
-        }
 
         let len = stream_length(&mut self.read_stream).await?;
         if len > offset {
             // Got to EOF
-            if let Some(rpos) = self.backward {
-                if rpos == offset {
+            if let Some(rpos) = self.backward
+                && rpos == offset {
                     return Ok(None);
                 }
-            }
 
             if self.backward.is_none() {
                 self.backward = Some(len);

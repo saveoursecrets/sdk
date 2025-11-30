@@ -11,6 +11,9 @@ repository = "https://github.com/saveoursecrets/sdk"
 audit = [
   "sos-backend/audit",
 ]
+files = [
+  "sos-backend/files",
+]
 
 [dependencies]
 thiserror.workspace = true

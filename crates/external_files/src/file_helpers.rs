@@ -53,9 +53,9 @@ where
     let mut dir = vfs::read_dir(path.as_ref()).await?;
     while let Some(entry) = dir.next_entry().await? {
         let path = entry.path();
-        if path.is_dir() {
-            if let Some(file_name) = path.file_name() {
-                if let Ok(folder_id) =
+        if path.is_dir()
+            && let Some(file_name) = path.file_name()
+                && let Ok(folder_id) =
                     file_name.to_string_lossy().as_ref().parse::<VaultId>()
                 {
                     let mut folder_files =
@@ -72,8 +72,6 @@ where
                         }
                     }
                 }
-            }
-        }
     }
     Ok(files)
 }
@@ -86,8 +84,8 @@ async fn list_folder(
         let mut folder_dir = vfs::read_dir(path.as_ref()).await?;
         while let Some(entry) = folder_dir.next_entry().await? {
             let path = entry.path();
-            if path.is_dir() {
-                if let Some(file_name) = path.file_name() {
+            if path.is_dir()
+                && let Some(file_name) = path.file_name() {
                     tracing::debug!(file_name = ?file_name);
                     if let Ok(secret_id) = file_name
                         .to_string_lossy()
@@ -99,7 +97,6 @@ async fn list_folder(
                         files.push((secret_id, external_files));
                     }
                 }
-            }
         }
     }
 
@@ -113,8 +110,8 @@ async fn list_secret_files(
     let mut dir = vfs::read_dir(path.as_ref()).await?;
     while let Some(entry) = dir.next_entry().await? {
         let path = entry.path();
-        if path.is_file() {
-            if let Some(file_name) = path.file_name() {
+        if path.is_file()
+            && let Some(file_name) = path.file_name() {
                 if let Ok(name) = file_name
                     .to_string_lossy()
                     .as_ref()
@@ -128,7 +125,6 @@ async fn list_secret_files(
                     );
                 }
             }
-        }
     }
     Ok(files)
 }

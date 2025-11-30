@@ -247,9 +247,9 @@ async fn extract_files(
                 file_name.as_str().map_err(sos_archive::Error::from)?,
             );
             let mut it = path.iter();
-            if let (Some(first), Some(second)) = (it.next(), it.next()) {
-                if first == FILES_DIR {
-                    if let Ok(_vault_id) =
+            if let (Some(first), Some(second)) = (it.next(), it.next())
+                && first == FILES_DIR
+                    && let Ok(_vault_id) =
                         second.to_string_lossy().parse::<VaultId>()
                     {
                         // Only restore files for the selected vaults
@@ -262,11 +262,10 @@ async fn extract_files(
                             relative = relative.join(part);
                         }
                         let destination = paths.files_dir().join(relative);
-                        if let Some(parent) = destination.parent() {
-                            if !vfs::try_exists(&parent).await? {
+                        if let Some(parent) = destination.parent()
+                            && !vfs::try_exists(&parent).await? {
                                 vfs::create_dir_all(parent).await?;
                             }
-                        }
 
                         let mut reader = reader
                             .inner_mut()
@@ -280,8 +279,6 @@ async fn extract_files(
                         )
                         .await?;
                     }
-                }
-            }
         }
     }
 

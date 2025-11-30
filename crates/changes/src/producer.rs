@@ -126,8 +126,8 @@ async fn find_active_sockets(
         );
         for entry in read_dir(&socks)? {
             let entry = entry?;
-            if let Some(stem) = entry.path().file_stem() {
-                if let Ok(pid) =
+            if let Some(stem) = entry.path().file_stem()
+                && let Ok(pid) =
                     stem.to_string_lossy().as_ref().parse::<u32>()
                 {
                     tracing::debug!(
@@ -136,7 +136,6 @@ async fn find_active_sockets(
                     );
                     sockets.push((pid, entry.path().to_owned()));
                 }
-            }
         }
     }
     tracing::debug!(

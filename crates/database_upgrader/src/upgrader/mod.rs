@@ -414,11 +414,10 @@ async fn copy_file_blobs(
                   dest = ?dest,
                   "upgrade_accounts::copy_file");
 
-                if let Some(parent) = dest.parent() {
-                    if !vfs::try_exists(parent).await? {
+                if let Some(parent) = dest.parent()
+                    && !vfs::try_exists(parent).await? {
                         vfs::create_dir_all(parent).await?;
                     }
-                }
 
                 let mut input = File::open(&source).await?;
                 let mut output = File::create(&dest).await?;
