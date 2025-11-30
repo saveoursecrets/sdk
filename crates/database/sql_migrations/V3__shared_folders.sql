@@ -20,3 +20,29 @@ CREATE TABLE IF NOT EXISTS account_shared_folder
 
 -- Store folder shared access.
 ALTER TABLE folders ADD COLUMN shared_access BLOB;
+
+-- Recipients are publicly accessible user-chosen 
+-- names mapped to public keys.
+--
+-- This allows discovery of other accounts.
+CREATE TABLE IF NOT EXISTS recipients
+(
+    -- Account id.
+    account_id                INTEGER             NOT NULL,
+    -- Recipient name.
+    --
+    -- Should be a username or handle that would allow other 
+    -- people to identify the recipient.
+    recipient_name            TEXT                NOT NULL,
+    -- Optional email address.
+    recipient_email           TEXT,
+    -- Public key for the recipient.
+    recipient_public_key      TEXT                NOT NULL,
+    
+    FOREIGN KEY (account_id)
+      REFERENCES accounts (account_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS recipients_name_idx ON recipients(recipient_name);
+CREATE INDEX IF NOT EXISTS recipients_email_idx ON recipients(recipient_email);
+CREATE INDEX IF NOT EXISTS recipients_public_key_idx ON recipients(recipient_public_key);
