@@ -17,7 +17,7 @@ impl AccountId {
     /// Create a random account identifier.
     pub fn random() -> Self {
         let mut rng = crate::csprng();
-        Self(rng.gen())
+        Self(rng.r#gen())
     }
 }
 

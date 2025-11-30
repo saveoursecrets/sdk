@@ -1,7 +1,7 @@
 [package]
 name = "sos-vfs"
 version = "0.3.2"
-edition = "2021"
+edition = "2024"
 description = "Virtual file system same as tokio::fs."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"

@@ -5,7 +5,6 @@
 //!
 //! See the [CLI documentation](https://saveoursecrets.com/docs/cli/) for usage information or browse the [online help manual](https://saveoursecrets.com/docs/cli/help/); the libraries are available at [sos-sdk](https://docs.rs/sos-sdk/) and [sos-net](https://docs.rs/sos-net/).
 #![deny(missing_docs)]
-#![forbid(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::result_large_err)]
 

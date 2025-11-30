@@ -1,12 +1,12 @@
 use crate::{
-    commands::{
-        account, device, environment, folder, preferences, secret, server,
-        shell, sync, tools, AccountCommand, DeviceCommand,
-        EnvironmentCommand, FolderCommand, PreferenceCommand, SecretCommand,
-        ServerCommand, SyncCommand, ToolsCommand,
-    },
-    helpers::{account::SHELL, PROGRESS_MONITOR},
     CommandTree, Result,
+    commands::{
+        AccountCommand, DeviceCommand, EnvironmentCommand, FolderCommand,
+        PreferenceCommand, SecretCommand, ServerCommand, SyncCommand,
+        ToolsCommand, account, device, environment, folder, preferences,
+        secret, server, shell, sync, tools,
+    },
+    helpers::{PROGRESS_MONITOR, account::SHELL},
 };
 use clap::{CommandFactory, Parser, Subcommand};
 use sos_backend::{BackendTarget, InferOptions};
@@ -164,7 +164,9 @@ pub async fn run() -> Result<()> {
 
     #[cfg(any(test, debug_assertions))]
     if let Some(password) = args.password.take() {
-        std::env::set_var("SOS_PASSWORD", password);
+        unsafe {
+            std::env::set_var("SOS_PASSWORD", password);
+        }
     }
 
     match args.cmd {
