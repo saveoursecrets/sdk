@@ -84,7 +84,7 @@ async fn network_sync_listen_folder_import() -> Result<()> {
 
     // Pause a while to allow the first owner to sync
     // with the new change
-    sync_pause(Some(1000)).await;
+    sync_pause(Some(1500)).await;
 
     // Expected folders on the local account must be computed
     // again after creating the new folder for the assertions
