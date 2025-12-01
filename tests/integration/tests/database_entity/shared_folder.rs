@@ -12,8 +12,8 @@ use sos_test_utils::{setup, teardown};
 /// Test shared folder database entities outside of the
 /// context of any networking or public API.
 #[tokio::test]
-async fn database_entity_shared_folder() -> Result<()> {
-    const TEST_ID: &str = "database_entity_shared_folder";
+async fn database_entity_manage_recipient() -> Result<()> {
+    const TEST_ID: &str = "database_entity_manage_recipient";
     // sos_test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
@@ -63,6 +63,45 @@ async fn database_entity_shared_folder() -> Result<()> {
         recipient_record.recipient_email.as_deref()
     );
     assert_eq!(recipient_public_key, &recipient_record.recipient_public_key);
+
+    let new_recipient_name = "Example";
+    let new_recipient_email = "new-user@example.com";
+    let new_recipient_public_key = "<new mock public key>";
+
+    // Update recipient information for an account
+    let new_recipient_id = client
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            let recipient_id = entity.upsert_recipient(
+                account_id,
+                new_recipient_name.to_string(),
+                Some(new_recipient_email.to_string()),
+                new_recipient_public_key.to_string(),
+            )?;
+            Ok::<_, anyhow::Error>(recipient_id)
+        })
+        .await?;
+    assert_eq!(recipient_id, new_recipient_id);
+
+    // Get the recipient record
+    let recipient_record: RecipientRecord = client
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            entity.find_recipient(account_id)
+        })
+        .await?
+        .expect("to find recipient record");
+
+    assert_eq!(new_recipient_id, recipient_record.row_id);
+    assert_eq!(new_recipient_name, &recipient_record.recipient_name);
+    assert_eq!(
+        Some(new_recipient_email),
+        recipient_record.recipient_email.as_deref()
+    );
+    assert_eq!(
+        new_recipient_public_key,
+        &recipient_record.recipient_public_key
+    );
 
     teardown(TEST_ID).await;
 

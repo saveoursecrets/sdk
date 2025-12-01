@@ -1,13 +1,10 @@
 use crate::entity::AccountEntity;
 use crate::{Error, Result};
-use async_sqlite::Client;
 use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
-    Transaction,
 };
-use sos_core::{AccountId, UtcDateTime};
+use sos_core::{AccountId, UtcDateTime, VaultId};
 use sql_query_builder as sql;
-use std::ops::DerefMut;
 use std::{ops::Deref, result::Result as StdResult};
 
 fn recipient_select_columns(sql: sql::Select) -> sql::Select {
@@ -240,13 +237,14 @@ where
                     recipient_public_key = ?4
                  "#,
             )
-            .where_clause("identifier=?12");
+            .where_clause("recipient_id=?5");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
             &recipient_row.modified_at,
             &recipient_row.recipient_name,
             &recipient_row.recipient_email,
             &recipient_row.recipient_public_key,
+            recipient_row.recipient_id,
         ))?;
 
         Ok(())
@@ -323,10 +321,12 @@ impl<'conn> SharedFolderEntity<'conn> {
 
     /// Invite a recipient to a folder.
     pub fn invite_recipient(
-        from_recipient: i64,
-        to_recipient: i64,
-        folder_id: i64,
+        &mut self,
+        recipient_public_key: String,
+        folder_identifer: VaultId,
     ) -> Result<i64> {
-        todo!();
+        let tx = self.conn.transaction()?;
+        tx.commit()?;
+        Ok(0)
     }
 }
