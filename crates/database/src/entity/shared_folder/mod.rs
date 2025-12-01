@@ -149,52 +149,13 @@ impl<'conn> SharedFolderEntity<'conn> {
         Ok(row_id)
     }
 
-    /// Folder invites sent to this account.
+    /// Folder invites received by this account.
     pub fn received_folder_invites(
         &mut self,
         account_id: &AccountId,
         limit: Option<usize>,
     ) -> Result<Vec<FolderInviteRecord>> {
-        let limit =
-            limit.map(|l| l.to_string()).unwrap_or(String::from("10"));
-
-        let query = sql::Select::new()
-            .select(
-                r#"
-                  fi.folder_invite_id,
-                  fi.created_at,
-                  fi.modified_at,
-                  fi.from_recipient_id,
-                  fi.to_recipient_id,
-                  fi.folder_id,
-                  fi.invite_status
-              "#,
-            )
-            .from("folder_invites AS fi")
-            .inner_join(
-                "recipients AS r ON fi.to_recipient_id = r.recipient_id",
-            )
-            .inner_join("accounts AS a ON r.account_id = a.account_id")
-            .where_clause("a.identifier = ?1")
-            .limit(&limit)
-            .order_by("fi.modified_at DESC");
-
-        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-
-        fn convert_row(
-            row: &Row<'_>,
-        ) -> Result<folder_invites::FolderInviteRow> {
-            Ok(row.try_into()?)
-        }
-
-        let rows =
-            stmt.query_and_then([account_id.to_string()], convert_row)?;
-
-        let mut invites = Vec::new();
-        for row in rows {
-            invites.push(row?.try_into()?);
-        }
-        Ok(invites)
+        self.list_folder_invites(account_id, limit, false)
     }
 
     /// Folder invites sent from this account.
@@ -203,10 +164,20 @@ impl<'conn> SharedFolderEntity<'conn> {
         account_id: &AccountId,
         limit: Option<usize>,
     ) -> Result<Vec<FolderInviteRecord>> {
+        self.list_folder_invites(account_id, limit, true)
+    }
+
+    /// Folder invites sent from this account.
+    fn list_folder_invites(
+        &mut self,
+        account_id: &AccountId,
+        limit: Option<usize>,
+        from_recipient: bool,
+    ) -> Result<Vec<FolderInviteRecord>> {
         let limit =
             limit.map(|l| l.to_string()).unwrap_or(String::from("10"));
 
-        let query = sql::Select::new()
+        let mut query = sql::Select::new()
             .select(
                 r#"
                   fi.folder_invite_id,
@@ -218,11 +189,21 @@ impl<'conn> SharedFolderEntity<'conn> {
                   fi.invite_status
               "#,
             )
-            .from("folder_invites AS fi")
-            .inner_join(
+            .from("folder_invites AS fi");
+
+        if from_recipient {
+            query = query.inner_join(
                 "recipients AS r ON fi.from_recipient_id =
   r.recipient_id",
-            )
+            );
+        } else {
+            query = query.inner_join(
+                "recipients AS r ON fi.to_recipient_id =
+  r.recipient_id",
+            );
+        }
+
+        query = query
             .inner_join("accounts AS a ON r.account_id = a.account_id")
             .where_clause("a.identifier = ?1")
             .limit(&limit)
