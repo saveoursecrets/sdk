@@ -1,7 +1,10 @@
 use anyhow::Result;
+use sos_account::Account;
 use sos_backend::BackendTarget;
 use sos_database::{
-    entity::SharedFolderEntity, migrations::migrate_client, open_file,
+    entity::{RecipientRecord, SharedFolderEntity},
+    migrations::migrate_client,
+    open_file,
 };
 use sos_sdk::prelude::*;
 use sos_test_utils::{setup, teardown};
@@ -22,22 +25,44 @@ async fn database_entity_shared_folder() -> Result<()> {
     migrate_client(&mut client).await?;
     let target = BackendTarget::Database(paths, client.clone());
 
-    let (account_record, _account, _, _) =
+    let (_account_record, account, _, _) =
         super::prepare_local_db_account(&target, TEST_ID).await?;
 
-    let account_row_id = account_record.row_id;
+    let account_id = *account.account_id();
     let recipient_name = "Example";
     let recipient_email = "user@example.com";
-    let recipient_public_key = "<mock AGE key>";
+    let recipient_public_key = "<mock public key>";
 
-    SharedFolderEntity::upsert_recipient(
-        &client,
-        account_row_id,
-        recipient_name.to_string(),
-        Some(recipient_email.to_string()),
-        recipient_public_key.to_string(),
-    )
-    .await?;
+    // Initial insert on creating recipient information
+    let recipient_id = client
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            let recipient_id = entity.upsert_recipient(
+                account_id,
+                recipient_name.to_string(),
+                Some(recipient_email.to_string()),
+                recipient_public_key.to_string(),
+            )?;
+            Ok::<_, anyhow::Error>(recipient_id)
+        })
+        .await?;
+
+    // Get the recipient record
+    let recipient_record: RecipientRecord = client
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            entity.find_recipient(account_id)
+        })
+        .await?
+        .expect("to find recipient record");
+
+    assert_eq!(recipient_id, recipient_record.row_id);
+    assert_eq!(recipient_name, &recipient_record.recipient_name);
+    assert_eq!(
+        Some(recipient_email),
+        recipient_record.recipient_email.as_deref()
+    );
+    assert_eq!(recipient_public_key, &recipient_record.recipient_public_key);
 
     teardown(TEST_ID).await;
 

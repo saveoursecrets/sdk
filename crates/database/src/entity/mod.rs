@@ -25,6 +25,6 @@ pub use folder::{
 #[cfg(feature = "preferences")]
 pub use preference::{PreferenceEntity, PreferenceRow};
 pub use server::{ServerEntity, ServerRow};
-pub use shared_folder::SharedFolderEntity;
+pub use shared_folder::{RecipientRecord, SharedFolderEntity};
 #[cfg(feature = "system-messages")]
 pub use system_message::{SystemMessageEntity, SystemMessageRow};

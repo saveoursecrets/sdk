@@ -1,11 +1,13 @@
+use crate::entity::AccountEntity;
 use crate::{Error, Result};
 use async_sqlite::Client;
 use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
     Transaction,
 };
-use sos_core::UtcDateTime;
+use sos_core::{AccountId, UtcDateTime};
 use sql_query_builder as sql;
+use std::ops::DerefMut;
 use std::{ops::Deref, result::Result as StdResult};
 
 fn recipient_select_columns(sql: sql::Select) -> sql::Select {
@@ -93,6 +95,40 @@ impl RecipientRow {
     }
 }
 
+/// Record for a recipient.
+pub struct RecipientRecord {
+    /// Row identifier.
+    pub row_id: i64,
+    /// Created date and time.
+    pub created_at: UtcDateTime,
+    /// Modified date and time.
+    pub modified_at: UtcDateTime,
+    /// Recipient public name.
+    pub recipient_name: String,
+    /// Recipient email address.
+    pub recipient_email: Option<String>,
+    /// Recipient public key.
+    pub recipient_public_key: String,
+    /// Whether the recipient public key has been revoked.
+    pub revoked: bool,
+}
+
+impl TryFrom<RecipientRow> for RecipientRecord {
+    type Error = Error;
+
+    fn try_from(value: RecipientRow) -> Result<Self> {
+        Ok(Self {
+            row_id: value.recipient_id,
+            created_at: UtcDateTime::parse_rfc3339(&value.created_at)?,
+            modified_at: UtcDateTime::parse_rfc3339(&value.modified_at)?,
+            recipient_name: value.recipient_name,
+            recipient_email: value.recipient_email,
+            recipient_public_key: value.recipient_public_key,
+            revoked: value.revoked > 0,
+        })
+    }
+}
+
 /// Join table for shared folders.
 pub struct AccountSharedFolderRow {
     account_id: i64,
@@ -120,7 +156,7 @@ impl<'conn, C> RecipientEntity<'conn, C>
 where
     C: Deref<Target = Connection>,
 {
-    /// Create a new shared folder entity.
+    /// Create a new shared folder recipient.
     pub fn new(conn: &'conn C) -> Self {
         Self { conn }
     }
@@ -134,8 +170,8 @@ where
         self.conn.prepare_cached(&query.as_string())
     }
 
-    /// Find a folder in the database.
-    pub fn find_one_recipient(
+    /// Find a recipient in the database.
+    pub fn find_one(
         &self,
         account_id: i64,
     ) -> StdResult<RecipientRow, SqlError> {
@@ -143,8 +179,8 @@ where
         stmt.query_row([account_id], |row| row.try_into())
     }
 
-    /// Find an optional folder in the database.
-    pub fn find_optional_recipient(
+    /// Find an optional recipient in the database.
+    pub fn find_optional(
         &self,
         account_id: i64,
     ) -> StdResult<Option<RecipientRow>, SqlError> {
@@ -218,56 +254,75 @@ where
 }
 
 /// Shared folder entity.
-pub struct SharedFolderEntity<'conn, C>
-where
-    C: Deref<Target = Connection>,
-{
-    conn: &'conn C,
+pub struct SharedFolderEntity<'conn> {
+    conn: &'conn mut Connection,
 }
 
-impl<'conn> SharedFolderEntity<'conn, Transaction<'conn>> {
+impl<'conn> SharedFolderEntity<'conn> {
+    /// Create a new shared folder entity.
+    pub fn new(conn: &'conn mut Connection) -> Self {
+        Self { conn }
+    }
+
     /// Create or update recipient information for an account.
-    pub async fn upsert_recipient(
-        client: &Client,
-        account_id: i64,
+    pub fn upsert_recipient(
+        &mut self,
+        account_id: AccountId,
         recipient_name: String,
         recipient_email: Option<String>,
         recipient_public_key: String,
     ) -> Result<i64> {
-        client
-            .conn_mut_and_then(move |conn| {
-                let tx = conn.transaction()?;
-                let recipient_entity = RecipientEntity::new(&tx);
+        let tx = self.conn.transaction()?;
 
-                let recipient_id = if let Some(recipient_row) =
-                    recipient_entity.find_optional_recipient(account_id)?
-                {
-                    let recipient_row = recipient_row.new_update(
-                        recipient_name,
-                        recipient_email,
-                        recipient_public_key,
-                    )?;
-                    recipient_entity.update_recipient(&recipient_row)?;
-                    recipient_row.recipient_id
-                } else {
-                    let recipient_row = RecipientRow::new_insert(
-                        account_id,
-                        recipient_name,
-                        recipient_email,
-                        recipient_public_key,
-                    )?;
-                    recipient_entity.insert_recipient(&recipient_row)?
-                };
+        let account = AccountEntity::new(&tx);
+        let account_row = account.find_one(&account_id)?;
 
-                tx.commit()?;
-                Ok::<_, Error>(recipient_id)
-            })
-            .await
+        let recipient_entity = RecipientEntity::new(&tx);
+        let recipient_id = if let Some(recipient_row) =
+            recipient_entity.find_optional(account_row.row_id)?
+        {
+            let recipient_row = recipient_row.new_update(
+                recipient_name,
+                recipient_email,
+                recipient_public_key,
+            )?;
+            recipient_entity.update_recipient(&recipient_row)?;
+            recipient_row.recipient_id
+        } else {
+            let recipient_row = RecipientRow::new_insert(
+                account_row.row_id,
+                recipient_name,
+                recipient_email,
+                recipient_public_key,
+            )?;
+            recipient_entity.insert_recipient(&recipient_row)?
+        };
+        tx.commit()?;
+        Ok(recipient_id)
+    }
+
+    /// Try to find recipient information for an account.
+    pub fn find_recipient(
+        &mut self,
+        account_id: AccountId,
+    ) -> Result<Option<RecipientRecord>> {
+        let account = AccountEntity::new(&self.conn);
+        if let Some(account_row) = account.find_optional(&account_id)? {
+            let recipient_entity = RecipientEntity::new(&self.conn);
+            if let Some(recipient) =
+                recipient_entity.find_optional(account_row.row_id)?
+            {
+                Ok(Some(recipient.try_into()?))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
     }
 
     /// Invite a recipient to a folder.
-    pub async fn invite_recipient(
-        client: &Client,
+    pub fn invite_recipient(
         from_recipient: i64,
         to_recipient: i64,
         folder_id: i64,
