@@ -147,8 +147,8 @@ async fn database_entity_send_folder_invite() -> Result<()> {
     // creating recipient information
     {
         let recipients_info = [
-            (*account1.account_id(), "name_one", "one@example.com", "<public key 1>"),
-            (*account2.account_id(), "name_two", "two@example.com", "<public key 2>"),
+            (*account1.account_id(), "name_one", "one@example.com", account1.shared_access_public_key().await?.to_string()),
+            (*account2.account_id(), "name_two", "two@example.com", account2.shared_access_public_key().await?.to_string()),
         ];
 
         // Register each account as a recipient for sharing
@@ -160,7 +160,7 @@ async fn database_entity_send_folder_invite() -> Result<()> {
                         account_id,
                         name.to_string(),
                         Some(email.to_string()),
-                        public_key.to_string(),
+                        public_key,
                     )?;
                     Ok::<_, anyhow::Error>(recipient_id)
                 })
@@ -187,9 +187,11 @@ async fn database_entity_send_folder_invite() -> Result<()> {
 
     let from_account_id = *account1.account_id();
     let to_account_id = *account2.account_id();
+    let from_recipient_public_key = account1.shared_access_public_key().await?.to_string();
 
     // Invite the found recipient
     let to_recipient = found_recipients.remove(0);
+    let to_recipient_public_key = to_recipient.recipient_public_key.clone();
     server
         .conn_mut_and_then(move |conn| {
             let mut entity = SharedFolderEntity::new(conn);
@@ -229,6 +231,9 @@ async fn database_entity_send_folder_invite() -> Result<()> {
     assert_eq!(sent_invite.row_id, received_invite.row_id);
     assert_eq!(folder_name, &sent_invite.folder_name);
     assert_eq!(folder_name, &received_invite.folder_name);
+
+    assert_eq!(&to_recipient_public_key, &sent_invite.recipient_public_key);
+    assert_eq!(&from_recipient_public_key, &received_invite.recipient_public_key);
 
     // Name and email should be for the *other* recipient
     assert_eq!("name_two", &sent_invite.recipient_name);

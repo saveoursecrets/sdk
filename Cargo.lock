@@ -5096,6 +5096,7 @@ dependencies = [
 name = "sos-account"
 version = "0.17.6"
 dependencies = [
+ "age",
  "async-trait",
  "futures",
  "futures-util",
@@ -5646,6 +5647,7 @@ dependencies = [
 name = "sos-net"
 version = "0.17.7"
 dependencies = [
+ "age",
  "async-recursion",
  "async-trait",
  "binary-stream",
@@ -6123,6 +6125,7 @@ dependencies = [
 name = "sos-web"
 version = "0.17.2"
 dependencies = [
+ "age",
  "async-trait",
  "indexmap 2.12.1",
  "secrecy",

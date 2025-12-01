@@ -69,6 +69,9 @@ pub trait Account {
 
     /// Determine if the account is authenticated.
     async fn is_authenticated(&self) -> bool;
+    
+    /// Public key for shared access.
+    async fn shared_access_public_key(&self) -> Result<age::x25519::Recipient, Self::Error>;
 
     /// Import encrypted account events into the client storage.
     async fn import_account_events(

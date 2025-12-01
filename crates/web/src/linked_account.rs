@@ -153,6 +153,11 @@ impl Account for LinkedAccount {
         account.is_authenticated().await
     }
 
+    async fn shared_access_public_key(&self) -> Result<age::x25519::Recipient> {
+        let account = self.account.lock().await;
+        Ok(account.shared_access_public_key().await?)
+    }
+
     async fn import_account_events(
         &mut self,
         events: CreateSet,

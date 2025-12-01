@@ -100,6 +100,7 @@ binary-stream.workspace = true
 rs_merkle.workspace = true
 prost.workspace = true
 tokio.workspace = true
+age.workspace = true
 
 # pairing
 snow = { workspace = true, optional = true }

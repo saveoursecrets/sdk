@@ -189,7 +189,8 @@ impl<'conn> SharedFolderEntity<'conn> {
                   fi.invite_status,
                   f.name,
                   r.recipient_name,
-                  r.recipient_email
+                  r.recipient_email,
+                  r.recipient_public_key
               "#,
             )
             .from("folder_invites AS fi");

@@ -68,6 +68,7 @@ uuid.workspace = true
 time.workspace = true
 hex.workspace = true
 serde_json.workspace = true
+age.workspace = true
 
 sos-search = { workspace = true, optional = true }
 

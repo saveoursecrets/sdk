@@ -30,6 +30,7 @@ pub(super) struct FolderInviteRow {
     folder_name: String,
     recipient_name: String,
     recipient_email: Option<String>,
+    recipient_public_key: String,
 }
 
 impl<'a> TryFrom<&Row<'a>> for FolderInviteRow {
@@ -46,6 +47,7 @@ impl<'a> TryFrom<&Row<'a>> for FolderInviteRow {
             folder_name: row.get(7)?,
             recipient_name: row.get(8)?,
             recipient_email: row.get(9)?,
+            recipient_public_key: row.get(10)?,
         })
     }
 }
@@ -96,6 +98,8 @@ pub struct FolderInviteRecord {
     pub recipient_name: String,
     /// Recipient email (from/to depending on context).
     pub recipient_email: Option<String>,
+    /// Recipient public key (from/to depending on context).
+    pub recipient_public_key: String,
 }
 
 impl TryFrom<FolderInviteRow> for FolderInviteRecord {
@@ -113,6 +117,7 @@ impl TryFrom<FolderInviteRow> for FolderInviteRecord {
             folder_name: value.folder_name,
             recipient_name: value.recipient_name,
             recipient_email: value.recipient_email,
+            recipient_public_key: value.recipient_public_key,
         })
     }
 }

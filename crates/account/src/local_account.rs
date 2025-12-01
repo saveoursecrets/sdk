@@ -627,6 +627,14 @@ impl Account for LocalAccount {
         self.storage.is_authenticated()
     }
 
+    async fn shared_access_public_key(&self) -> Result<age::x25519::Recipient> {
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
+        Ok(authenticated_user.shared_public_access_key()?)
+    }
+
     async fn device_signer(&self) -> Result<DeviceSigner> {
         let authenticated_user = self
             .storage
