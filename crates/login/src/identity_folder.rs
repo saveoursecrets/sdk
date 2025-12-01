@@ -4,25 +4,25 @@
 //! delegated passwords used to decrypt folders managed
 //! by an account.
 use crate::{
-    device::{DeviceManager, DeviceSigner},
     DelegatedAccess, Error, PrivateIdentity, Result, UrnLookup,
+    device::{DeviceManager, DeviceSigner},
 };
 use async_trait::async_trait;
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use sos_backend::{
-    database::entity::{AccountEntity, AccountRow, FolderEntity, FolderRow},
     AccessPoint, BackendTarget, Folder, FolderEventLog,
+    database::entity::{AccountEntity, AccountRow, FolderEntity, FolderRow},
 };
 use sos_core::{
+    AccountId, AuthenticationError, VaultFlags, VaultId,
     constants::LOGIN_AGE_KEY_URN, crypto::AccessKey, encode,
-    events::EventLogType, AccountId, AuthenticationError, VaultFlags,
-    VaultId,
+    events::EventLogType,
 };
 use sos_filesystem::write_exclusive;
 use sos_vault::Summary;
 use sos_vault::{
-    secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
     BuilderCredentials, SecretAccess, Vault, VaultBuilder,
+    secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -364,15 +364,14 @@ impl IdentityFolder {
         for secret_id in keeper.vault().keys() {
             if let Some((meta, secret, _)) =
                 keeper.read_secret(secret_id).await?
+                && let Some(urn) = meta.urn()
             {
-                if let Some(urn) = meta.urn() {
-                    if urn == &identity_urn {
-                        identity_secret = Some(secret);
-                    }
-
-                    // Add to the URN lookup index
-                    index.insert((*keeper.id(), urn.clone()), *secret_id);
+                if urn == &identity_urn {
+                    identity_secret = Some(secret);
                 }
+
+                // Add to the URN lookup index
+                index.insert((*keeper.id(), urn.clone()), *secret_id);
             }
         }
         Ok((index, identity_secret))

@@ -1,4 +1,4 @@
-use super::{types::ManifestVersion3, Error, Result};
+use super::{Error, Result, types::ManifestVersion3};
 use crate::entity::{
     AccountEntity, AccountRecord, AccountRow, EventEntity, EventRecordRow,
     FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, SecretRow,
@@ -6,13 +6,13 @@ use crate::entity::{
 };
 use async_sqlite::rusqlite::Connection;
 use sha2::{Digest, Sha256};
-use sos_archive::{sanitize_file_path, ZipReader};
+use sos_archive::{ZipReader, sanitize_file_path};
 use sos_core::{
+    AccountId, ExternalFile, ExternalFileName, Paths, SecretId, SecretPath,
+    VaultId,
     commit::CommitHash,
     constants::{BLOBS_DIR, DATABASE_FILE},
     events::EventLogType,
-    AccountId, ExternalFile, ExternalFileName, Paths, SecretId, SecretPath,
-    VaultId,
 };
 use sos_vfs as vfs;
 use std::{
@@ -427,27 +427,21 @@ fn find_blobs(
                 Some(fourth),
                 Some(fifth),
             ) = (it.next(), it.next(), it.next(), it.next(), it.next())
+                && first == BLOBS_DIR
+                && let Ok(account_id) =
+                    second.to_string_lossy().parse::<AccountId>()
             {
-                if first == BLOBS_DIR {
-                    if let Ok(account_id) =
-                        second.to_string_lossy().parse::<AccountId>()
-                    {
-                        let files =
-                            out.entry(account_id).or_insert(Vec::new());
+                let files = out.entry(account_id).or_insert(Vec::new());
 
-                        if let (Ok(folder_id), Ok(secret_id), Ok(file_name)) = (
-                            third.to_string_lossy().parse::<VaultId>(),
-                            fourth.to_string_lossy().parse::<SecretId>(),
-                            fifth
-                                .to_string_lossy()
-                                .parse::<ExternalFileName>(),
-                        ) {
-                            files.push(ExternalFile::new(
-                                SecretPath(folder_id, secret_id),
-                                file_name,
-                            ));
-                        }
-                    }
+                if let (Ok(folder_id), Ok(secret_id), Ok(file_name)) = (
+                    third.to_string_lossy().parse::<VaultId>(),
+                    fourth.to_string_lossy().parse::<SecretId>(),
+                    fifth.to_string_lossy().parse::<ExternalFileName>(),
+                ) {
+                    files.push(ExternalFile::new(
+                        SecretPath(folder_id, secret_id),
+                        file_name,
+                    ));
                 }
             }
         }

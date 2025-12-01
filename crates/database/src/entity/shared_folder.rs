@@ -1,9 +1,9 @@
 use crate::{Error, Result};
+use async_sqlite::Client;
 use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
     Transaction,
 };
-use async_sqlite::Client;
 use sos_core::UtcDateTime;
 use sql_query_builder as sql;
 use std::{ops::Deref, result::Result as StdResult};
@@ -164,7 +164,7 @@ where
         let query = sql::Insert::new()
             .insert_into(
                 r#"
-                recipients,
+                recipients
                 (
                     account_id,
                     created_at,
@@ -256,7 +256,6 @@ impl<'conn> SharedFolderEntity<'conn, Transaction<'conn>> {
                         recipient_email,
                         recipient_public_key,
                     )?;
-
                     recipient_entity.insert_recipient(&recipient_row)?
                 };
 

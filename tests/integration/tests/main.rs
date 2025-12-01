@@ -4,6 +4,7 @@ mod auto_merge;
 mod backup_archive;
 mod changes;
 mod database;
+mod database_entity;
 mod diff_merge;
 mod event_log;
 mod file_transfers;

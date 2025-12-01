@@ -1,5 +1,5 @@
 //! Parser for keychain access dumps.
-use super::{error::LexError, Error, Result};
+use super::{Error, Result, error::LexError};
 use logos::{Lexer, Logos};
 use std::{borrow::Cow, collections::HashMap, ops::Range};
 
@@ -64,10 +64,10 @@ pub fn plist_secure_note<'a>(
         Cow::Borrowed(value)
     };
     let value: plist::Value = plist::from_bytes(plist.as_bytes())?;
-    if let plist::Value::Dictionary(map) = value {
-        if let Some(plist::Value::String(data)) = map.get(NOTE_PLIST_KEY) {
-            return Ok(Some(Cow::Owned(data.to_owned())));
-        }
+    if let plist::Value::Dictionary(map) = value
+        && let Some(plist::Value::String(data)) = map.get(NOTE_PLIST_KEY)
+    {
+        return Ok(Some(Cow::Owned(data.to_owned())));
     }
     Ok(None)
 }
@@ -382,7 +382,7 @@ impl<'s> KeychainParser<'s> {
                 _ => {
                     return Err(Error::ParseValue(
                         source[lex.span()].to_owned(),
-                    ))
+                    ));
                 }
             }
         }
@@ -433,20 +433,20 @@ impl<'s> KeychainList<'s> {
         account: &str,
     ) -> Option<&KeychainEntry<'_>> {
         self.entries.iter().find(|entry| {
-            if let Some(EntryClass::GenericPassword) = entry.class {
-                if let (Some((_, attr_service)), Some((_, attr_account))) = (
+            if let Some(EntryClass::GenericPassword) = entry.class
+                && let (Some((_, attr_service)), Some((_, attr_account))) = (
                     entry.find_attribute_by_name(
                         AttributeName::SecServiceItemAttr,
                     ),
                     entry.find_attribute_by_name(
                         AttributeName::SecAccountItemAttr,
                     ),
-                ) {
-                    if attr_service.matches(service)
-                        && attr_account.matches(account)
-                    {
-                        return true;
-                    }
+                )
+            {
+                if attr_service.matches(service)
+                    && attr_account.matches(account)
+                {
+                    return true;
                 }
             }
             false
@@ -459,20 +459,20 @@ impl<'s> KeychainList<'s> {
         service: &str,
     ) -> Option<&KeychainEntry<'_>> {
         self.entries.iter().find(|entry| {
-            if let Some(EntryClass::GenericPassword) = entry.class {
-                if let (Some((_, attr_service)), Some((_, attr_type))) = (
+            if let Some(EntryClass::GenericPassword) = entry.class
+                && let (Some((_, attr_service)), Some((_, attr_type))) = (
                     entry.find_attribute_by_name(
                         AttributeName::SecServiceItemAttr,
                     ),
                     entry.find_attribute_by_name(
                         AttributeName::SecTypeItemAttr,
                     ),
-                ) {
-                    if attr_service.matches(service)
-                        && attr_type.matches(NOTE_TYPE)
-                    {
-                        return true;
-                    }
+                )
+            {
+                if attr_service.matches(service)
+                    && attr_type.matches(NOTE_TYPE)
+                {
+                    return true;
                 }
             }
             false
@@ -529,22 +529,22 @@ impl<'s> KeychainEntry<'s> {
     /// Attempt to get the entry data as a string
     /// for the generic password class.
     pub fn generic_data<'a>(&'a self) -> Result<Option<Cow<'a, str>>> {
-        if let Some(data) = &self.data {
-            if let Some(EntryClass::GenericPassword) = self.class {
-                if self.is_note() {
-                    if let Value::BlobString(_, value) = data {
-                        return plist_secure_note(value, true);
+        if let Some(data) = &self.data
+            && let Some(EntryClass::GenericPassword) = self.class
+        {
+            if self.is_note() {
+                if let Value::BlobString(_, value) = data {
+                    return plist_secure_note(value, true);
+                }
+            } else {
+                match data {
+                    Value::String(value) => {
+                        return Ok(Some(Cow::Borrowed(value)));
                     }
-                } else {
-                    match data {
-                        Value::String(value) => {
-                            return Ok(Some(Cow::Borrowed(value)))
-                        }
-                        Value::BlobString(_, value) => {
-                            return Ok(Some(Cow::Borrowed(value)))
-                        }
-                        _ => {}
+                    Value::BlobString(_, value) => {
+                        return Ok(Some(Cow::Borrowed(value)));
                     }
+                    _ => {}
                 }
             }
         }

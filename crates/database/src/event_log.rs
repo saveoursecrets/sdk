@@ -8,13 +8,13 @@
 //! re-owner an event log you must create a new event log so
 //! the owner reference is updated.
 use crate::{
+    Error,
     entity::{
         AccountEntity, CommitRecord, EventEntity, EventRecordRow,
         FolderEntity, FolderRecord,
     },
-    Error,
 };
-use async_sqlite::{rusqlite::Row, Client};
+use async_sqlite::{Client, rusqlite::Row};
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use futures::{
@@ -22,15 +22,14 @@ use futures::{
     stream::{BoxStream, StreamExt, TryStreamExt},
 };
 use sos_core::{
+    AccountId, VaultId,
     commit::{CommitHash, CommitProof, CommitSpan, CommitTree, Comparison},
     encoding::VERSION1,
     events::{
-        changes_feed,
-        patch::{CheckedPatch, Diff, Patch},
         AccountEvent, DeviceEvent, EventLog, EventLogType, EventRecord,
-        LocalChangeEvent, WriteEvent,
+        LocalChangeEvent, WriteEvent, changes_feed,
+        patch::{CheckedPatch, Diff, Patch},
     },
-    AccountId, VaultId,
 };
 
 /// Owner of an event log.
@@ -640,10 +639,10 @@ where
 
         while let Some(record) = stream.next().await {
             let record = record?;
-            if let Some(commit) = commit {
-                if record.commit() == commit {
-                    return Ok(events);
-                }
+            if let Some(commit) = commit
+                && record.commit() == commit
+            {
+                return Ok(events);
             }
             // Iterating in reverse order as we would typically
             // be looking for commits near the end of the event log
