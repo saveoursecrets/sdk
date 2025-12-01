@@ -147,12 +147,24 @@ async fn database_entity_send_folder_invite() -> Result<()> {
     // creating recipient information
     {
         let recipients_info = [
-            (*account1.account_id(), "name_one", "one@example.com", account1.shared_access_public_key().await?.to_string()),
-            (*account2.account_id(), "name_two", "two@example.com", account2.shared_access_public_key().await?.to_string()),
+            (
+                *account1.account_id(),
+                "name_one",
+                "one@example.com",
+                account1.shared_access_public_key().await?.to_string(),
+            ),
+            (
+                *account2.account_id(),
+                "name_two",
+                "two@example.com",
+                account2.shared_access_public_key().await?.to_string(),
+            ),
         ];
 
         // Register each account as a recipient for sharing
-        for (account_id, name, email, public_key) in recipients_info.into_iter() {
+        for (account_id, name, email, public_key) in
+            recipients_info.into_iter()
+        {
             server
                 .conn_mut_and_then(move |conn| {
                     let mut entity = SharedFolderEntity::new(conn);
@@ -187,7 +199,8 @@ async fn database_entity_send_folder_invite() -> Result<()> {
 
     let from_account_id = *account1.account_id();
     let to_account_id = *account2.account_id();
-    let from_recipient_public_key = account1.shared_access_public_key().await?.to_string();
+    let from_recipient_public_key =
+        account1.shared_access_public_key().await?.to_string();
 
     // Invite the found recipient
     let to_recipient = found_recipients.remove(0);
@@ -227,19 +240,28 @@ async fn database_entity_send_folder_invite() -> Result<()> {
 
     let sent_invite = sent_invites.remove(0);
     let received_invite = received_invites.remove(0);
-       
+
     assert_eq!(sent_invite.row_id, received_invite.row_id);
     assert_eq!(folder_name, &sent_invite.folder_name);
     assert_eq!(folder_name, &received_invite.folder_name);
 
     assert_eq!(&to_recipient_public_key, &sent_invite.recipient_public_key);
-    assert_eq!(&from_recipient_public_key, &received_invite.recipient_public_key);
+    assert_eq!(
+        &from_recipient_public_key,
+        &received_invite.recipient_public_key
+    );
 
     // Name and email should be for the *other* recipient
     assert_eq!("name_two", &sent_invite.recipient_name);
     assert_eq!("name_one", &received_invite.recipient_name);
-    assert_eq!(Some("two@example.com"), sent_invite.recipient_email.as_deref());
-    assert_eq!(Some("one@example.com"), received_invite.recipient_email.as_deref());
+    assert_eq!(
+        Some("two@example.com"),
+        sent_invite.recipient_email.as_deref()
+    );
+    assert_eq!(
+        Some("one@example.com"),
+        received_invite.recipient_email.as_deref()
+    );
 
     teardown(TEST_ID).await;
 

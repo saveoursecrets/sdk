@@ -627,7 +627,9 @@ impl Account for LocalAccount {
         self.storage.is_authenticated()
     }
 
-    async fn shared_access_public_key(&self) -> Result<age::x25519::Recipient> {
+    async fn shared_access_public_key(
+        &self,
+    ) -> Result<age::x25519::Recipient> {
         let authenticated_user = self
             .storage
             .authenticated_user()

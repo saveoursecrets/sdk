@@ -91,7 +91,9 @@ impl DirBuilder {
                                 }
                             }
                             PathTarget::Root(_) => {
-                                return Err(ErrorKind::PermissionDenied.into());
+                                return Err(
+                                    ErrorKind::PermissionDenied.into()
+                                );
                             }
                         }
                     } else {

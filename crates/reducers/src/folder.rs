@@ -92,7 +92,7 @@ impl FolderReducer {
                     match event {
                         WriteEvent::CreateVault(_) => {
                             return Err(
-                                sos_core::Error::CreateEventOnlyFirst.into()
+                                sos_core::Error::CreateEventOnlyFirst.into(),
                             );
                         }
                         WriteEvent::SetVaultName(name) => {

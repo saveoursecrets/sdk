@@ -683,7 +683,9 @@ impl Account for NetworkAccount {
         account.is_authenticated().await
     }
 
-    async fn shared_access_public_key(&self) -> Result<age::x25519::Recipient> {
+    async fn shared_access_public_key(
+        &self,
+    ) -> Result<age::x25519::Recipient> {
         let account = self.account.lock().await;
         Ok(account.shared_access_public_key().await?)
     }
