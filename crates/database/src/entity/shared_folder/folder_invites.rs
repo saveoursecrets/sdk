@@ -27,6 +27,9 @@ pub(super) struct FolderInviteRow {
     to_recipient_id: i64,
     folder_id: i64,
     invite_status: i64,
+    folder_name: String,
+    recipient_name: String,
+    recipient_email: Option<String>,
 }
 
 impl<'a> TryFrom<&Row<'a>> for FolderInviteRow {
@@ -40,6 +43,9 @@ impl<'a> TryFrom<&Row<'a>> for FolderInviteRow {
             to_recipient_id: row.get(4)?,
             folder_id: row.get(5)?,
             invite_status: row.get(6)?,
+            folder_name: row.get(7)?,
+            recipient_name: row.get(8)?,
+            recipient_email: row.get(9)?,
         })
     }
 }
@@ -84,6 +90,12 @@ pub struct FolderInviteRecord {
     pub(super) folder_id: i64,
     /// Invite status.
     pub invite_status: InviteStatus,
+    /// Folder name.
+    pub folder_name: String,
+    /// Recipient name (from/to depending on context).
+    pub recipient_name: String,
+    /// Recipient email (from/to depending on context).
+    pub recipient_email: Option<String>,
 }
 
 impl TryFrom<FolderInviteRow> for FolderInviteRecord {
@@ -98,6 +110,9 @@ impl TryFrom<FolderInviteRow> for FolderInviteRecord {
             to_recipient_id: value.to_recipient_id,
             folder_id: value.folder_id,
             invite_status: value.invite_status.try_into()?,
+            folder_name: value.folder_name,
+            recipient_name: value.recipient_name,
+            recipient_email: value.recipient_email,
         })
     }
 }

@@ -147,19 +147,19 @@ async fn database_entity_send_folder_invite() -> Result<()> {
     // creating recipient information
     {
         let recipients_info = [
-            (*account1.account_id(), "name_one", "<public key 1>"),
-            (*account2.account_id(), "name_two", "<public key 2>"),
+            (*account1.account_id(), "name_one", "one@example.com", "<public key 1>"),
+            (*account2.account_id(), "name_two", "two@example.com", "<public key 2>"),
         ];
 
         // Register each account as a recipient for sharing
-        for (account_id, name, public_key) in recipients_info.into_iter() {
+        for (account_id, name, email, public_key) in recipients_info.into_iter() {
             server
                 .conn_mut_and_then(move |conn| {
                     let mut entity = SharedFolderEntity::new(conn);
                     let recipient_id = entity.upsert_recipient(
                         account_id,
                         name.to_string(),
-                        None,
+                        Some(email.to_string()),
                         public_key.to_string(),
                     )?;
                     Ok::<_, anyhow::Error>(recipient_id)
@@ -225,7 +225,16 @@ async fn database_entity_send_folder_invite() -> Result<()> {
 
     let sent_invite = sent_invites.remove(0);
     let received_invite = received_invites.remove(0);
+       
     assert_eq!(sent_invite.row_id, received_invite.row_id);
+    assert_eq!(folder_name, &sent_invite.folder_name);
+    assert_eq!(folder_name, &received_invite.folder_name);
+
+    // Name and email should be for the *other* recipient
+    assert_eq!("name_two", &sent_invite.recipient_name);
+    assert_eq!("name_one", &received_invite.recipient_name);
+    assert_eq!(Some("two@example.com"), sent_invite.recipient_email.as_deref());
+    assert_eq!(Some("one@example.com"), received_invite.recipient_email.as_deref());
 
     teardown(TEST_ID).await;
 
