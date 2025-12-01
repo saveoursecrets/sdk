@@ -5,7 +5,9 @@ use sos_backend::BackendTarget;
 use sos_client_storage::NewFolderOptions;
 use sos_database::async_sqlite::Client;
 use sos_database::{
-    entity::{AccountRecord, RecipientRecord, SharedFolderEntity},
+    entity::{
+        AccountRecord, RecipientEntity, RecipientRecord, SharedFolderEntity,
+    },
     migrations::migrate_client,
     open_file,
 };
@@ -173,18 +175,22 @@ async fn database_entity_send_folder_invite() -> Result<()> {
         .await?;
     let shared_folder_id = *folder.id();
 
+    // Search for recipients
     let mut found_recipients = server
-        .conn_mut_and_then(move |conn| {
-            let mut entity = SharedFolderEntity::new(conn);
+        .conn_and_then(move |conn| {
+            let mut entity = RecipientEntity::new(&conn);
             Ok::<_, anyhow::Error>(entity.search_recipients("two")?)
         })
         .await?;
 
     assert_eq!(1, found_recipients.len());
-    let to_recipient = found_recipients.remove(0);
 
     let from_account_id = *account1.account_id();
-    let invite_id = server
+    let to_account_id = *account2.account_id();
+
+    // Invite the found recipient
+    let to_recipient = found_recipients.remove(0);
+    server
         .conn_mut_and_then(move |conn| {
             let mut entity = SharedFolderEntity::new(conn);
             Ok::<_, anyhow::Error>(entity.invite_recipient(
@@ -195,7 +201,31 @@ async fn database_entity_send_folder_invite() -> Result<()> {
         })
         .await?;
 
-    println!("{invite_id}");
+    // Check the sent invites list for the sender (account1)
+    let mut sent_invites = server
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            Ok::<_, anyhow::Error>(
+                entity.sent_folder_invites(&from_account_id, None)?,
+            )
+        })
+        .await?;
+    assert_eq!(1, sent_invites.len());
+
+    // Check the received invites list for the receiver (account2)
+    let mut received_invites = server
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            Ok::<_, anyhow::Error>(
+                entity.received_folder_invites(&to_account_id, None)?,
+            )
+        })
+        .await?;
+    assert_eq!(1, received_invites.len());
+
+    let sent_invite = sent_invites.remove(0);
+    let received_invite = received_invites.remove(0);
+    assert_eq!(sent_invite.row_id, received_invite.row_id);
 
     teardown(TEST_ID).await;
 

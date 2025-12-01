@@ -1,13 +1,12 @@
-use crate::entity::{AccountEntity, FolderEntity};
 use crate::{Error, Result};
 use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
 };
-use sos_core::{AccountId, UtcDateTime, VaultId};
+use sos_core::UtcDateTime;
 use sql_query_builder as sql;
 use std::{ops::Deref, result::Result as StdResult};
 
-fn recipient_select_columns(sql: sql::Select) -> sql::Select {
+fn select_columns(sql: sql::Select) -> sql::Select {
     sql.select(
         r#"
             recipients.recipient_id,
@@ -26,14 +25,14 @@ fn recipient_select_columns(sql: sql::Select) -> sql::Select {
 #[doc(hidden)]
 #[derive(Debug)]
 pub struct RecipientRow {
-    recipient_id: i64,
-    account_id: i64,
-    created_at: String,
-    modified_at: String,
-    recipient_name: String,
-    recipient_email: Option<String>,
-    recipient_public_key: String,
-    revoked: i64,
+    pub recipient_id: i64,
+    pub account_id: i64,
+    pub created_at: String,
+    pub modified_at: String,
+    pub recipient_name: String,
+    pub recipient_email: Option<String>,
+    pub recipient_public_key: String,
+    pub revoked: i64,
 }
 
 impl<'a> TryFrom<&Row<'a>> for RecipientRow {
@@ -127,23 +126,6 @@ impl TryFrom<RecipientRow> for RecipientRecord {
     }
 }
 
-/// Join table for shared folders.
-struct AccountSharedFolderRow {
-    account_id: i64,
-    folder_id: i64,
-}
-
-/// Represents an invite to a shared folder.
-struct FolderInviteRow {
-    folder_invite_id: i64,
-    created_at: String,
-    modified_at: String,
-    from_recipient_id: i64,
-    to_recipient_id: i64,
-    folder_id: i64,
-    invite_status: i64,
-}
-
 /// Recipient entity.
 pub struct RecipientEntity<'conn, C>
 where
@@ -164,7 +146,7 @@ where
     fn select_recipient<'a>(
         &'a self,
     ) -> StdResult<CachedStatement<'a>, SqlError> {
-        let query = recipient_select_columns(sql::Select::new())
+        let query = select_columns(sql::Select::new())
             .from("recipients")
             .where_clause("account_id = ?1");
         self.conn.prepare_cached(&query.as_string())
@@ -197,7 +179,7 @@ where
         &self,
         public_key: &str,
     ) -> StdResult<Option<RecipientRow>, SqlError> {
-        let query = recipient_select_columns(sql::Select::new())
+        let query = select_columns(sql::Select::new())
             .from("recipients")
             .where_clause("recipient_public_key = ?1");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
@@ -268,75 +250,6 @@ where
 
         Ok(())
     }
-}
-
-/// Shared folder entity.
-pub struct SharedFolderEntity<'conn> {
-    conn: &'conn mut Connection,
-}
-
-impl<'conn> SharedFolderEntity<'conn> {
-    /// Create a new shared folder entity.
-    pub fn new(conn: &'conn mut Connection) -> Self {
-        Self { conn }
-    }
-
-    /// Create or update recipient information for an account.
-    pub fn upsert_recipient(
-        &mut self,
-        account_id: AccountId,
-        recipient_name: String,
-        recipient_email: Option<String>,
-        recipient_public_key: String,
-    ) -> Result<i64> {
-        let tx = self.conn.transaction()?;
-
-        let account = AccountEntity::new(&tx);
-        let account_row = account.find_one(&account_id)?;
-
-        let recipient_entity = RecipientEntity::new(&tx);
-        let recipient_id = if let Some(recipient_row) =
-            recipient_entity.find_optional(account_row.row_id)?
-        {
-            let recipient_row = recipient_row.new_update(
-                recipient_name,
-                recipient_email,
-                recipient_public_key,
-            )?;
-            recipient_entity.update_recipient(&recipient_row)?;
-            recipient_row.recipient_id
-        } else {
-            let recipient_row = RecipientRow::new_insert(
-                account_row.row_id,
-                recipient_name,
-                recipient_email,
-                recipient_public_key,
-            )?;
-            recipient_entity.insert_recipient(&recipient_row)?
-        };
-        tx.commit()?;
-        Ok(recipient_id)
-    }
-
-    /// Try to find recipient information for an account.
-    pub fn find_recipient(
-        &mut self,
-        account_id: AccountId,
-    ) -> Result<Option<RecipientRecord>> {
-        let account = AccountEntity::new(&self.conn);
-        if let Some(account_row) = account.find_optional(&account_id)? {
-            let recipient_entity = RecipientEntity::new(&self.conn);
-            if let Some(recipient) =
-                recipient_entity.find_optional(account_row.row_id)?
-            {
-                Ok(Some(recipient.try_into()?))
-            } else {
-                Ok(None)
-            }
-        } else {
-            Ok(None)
-        }
-    }
 
     /// Search for recipients
     pub fn search_recipients(
@@ -381,75 +294,5 @@ impl<'conn> SharedFolderEntity<'conn> {
             recipients.push(row?.try_into()?);
         }
         Ok(recipients)
-    }
-
-    /// Invite a recipient to a folder.
-    pub fn invite_recipient(
-        &mut self,
-        account_id: &AccountId,
-        recipient_public_key: &str,
-        folder_id: &VaultId,
-    ) -> Result<i64> {
-        let tx = self.conn.transaction()?;
-
-        let account = AccountEntity::new(&tx);
-        let account = account
-            .find_optional(account_id)?
-            .ok_or(Error::SharingInviteNoAccount(*account_id))?;
-
-        let recipient = RecipientEntity::new(&tx);
-        let from_recipient = recipient.find_one(account.row_id)?;
-        let to_recipient = recipient
-            .find_by_public_key(recipient_public_key)?
-            .ok_or(Error::SharingInviteNoRecipient(
-                recipient_public_key.to_owned(),
-            ))?;
-
-        let folder = FolderEntity::new(&tx);
-        let folder = folder
-            .find_optional(folder_id)?
-            .ok_or(Error::SharingInviteNoFolder(*folder_id))?;
-
-        let row = FolderInviteRow {
-            folder_invite_id: 0,
-            created_at: UtcDateTime::default().to_rfc3339()?,
-            modified_at: UtcDateTime::default().to_rfc3339()?,
-            from_recipient_id: from_recipient.recipient_id,
-            to_recipient_id: to_recipient.recipient_id,
-            folder_id: folder.row_id,
-            invite_status: 0,
-        };
-
-        let query = sql::Insert::new()
-            .insert_into(
-                r#"
-                folder_invites
-                (
-                    created_at,
-                    modified_at,
-                    from_recipient_id,
-                    to_recipient_id,
-                    folder_id,
-                    invite_status
-                )
-            "#,
-            )
-            .values("(?1, ?2, ?3, ?4, ?5, ?6)");
-
-        let row_id = {
-            let mut stmt = tx.prepare_cached(&query.as_string())?;
-            stmt.execute((
-                &row.created_at,
-                &row.modified_at,
-                &row.from_recipient_id,
-                &row.to_recipient_id,
-                &row.folder_id,
-                &row.invite_status,
-            ))?;
-            tx.last_insert_rowid()
-        };
-
-        tx.commit()?;
-        Ok(row_id)
     }
 }
