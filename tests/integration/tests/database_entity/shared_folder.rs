@@ -1,16 +1,18 @@
 use anyhow::Result;
-use sos_account::Account;
+use secrecy::SecretString;
+use sos_account::{Account, FolderCreate, LocalAccount};
 use sos_backend::BackendTarget;
+use sos_client_storage::NewFolderOptions;
+use sos_database::async_sqlite::Client;
 use sos_database::{
-    entity::{RecipientRecord, SharedFolderEntity},
+    entity::{AccountRecord, RecipientRecord, SharedFolderEntity},
     migrations::migrate_client,
     open_file,
 };
 use sos_sdk::prelude::*;
-use sos_test_utils::{setup, teardown};
+use sos_test_utils::{default_server_paths, setup, teardown, TestDirs};
 
-/// Test shared folder database entities outside of the
-/// context of any networking or public API.
+/// Test managing recipient information for an account.
 #[tokio::test]
 async fn database_entity_manage_recipient() -> Result<()> {
     const TEST_ID: &str = "database_entity_manage_recipient";
@@ -104,6 +106,83 @@ async fn database_entity_manage_recipient() -> Result<()> {
     );
 
     teardown(TEST_ID).await;
+
+    Ok(())
+}
+
+/// Test sending a folder invite to another recipient.
+#[tokio::test]
+async fn database_entity_send_folder_invite() -> Result<()> {
+    const TEST_ID: &str = "database_entity_send_folder_invite";
+    // sos_test_utils::init_tracing();
+
+    // This test is outside of the context of the network however
+    // the data source must be shared between clients so we configure
+    // a shared database
+    let server_paths = default_server_paths(TEST_ID).await?;
+    let mut server = open_file(server_paths.database_file()).await?;
+    migrate_client(&mut server).await?;
+
+    let dirs = setup(TEST_ID, 2).await?;
+
+    #[inline(always)]
+    async fn prepare_db(
+        dirs: &TestDirs,
+        index: usize,
+        server: Client,
+    ) -> Result<(AccountRecord, LocalAccount, Summary, SecretString)> {
+        let name = format!("{}_account_{}", TEST_ID, index);
+        let paths = Paths::new_client(dirs.clients.get(index).unwrap());
+        let target = BackendTarget::Database(paths, server);
+        super::prepare_local_db_account(&target, &name).await
+    }
+
+    let (_, mut account1, _, _) =
+        prepare_db(&dirs, 0, server.clone()).await?;
+    let (_, account2, _, _) = prepare_db(&dirs, 1, server.clone()).await?;
+
+    // Both accounts must have enabled sharing by
+    // creating recipient information
+    {
+        let recipients_info = [
+            (*account1.account_id(), "name_one", "<public key 1>"),
+            (*account2.account_id(), "name_two", "<public key 2>"),
+        ];
+
+        // Register each account as a recipient for sharing
+        for (account_id, name, public_key) in recipients_info.into_iter() {
+            server
+                .conn_mut_and_then(move |conn| {
+                    let mut entity = SharedFolderEntity::new(conn);
+                    let recipient_id = entity.upsert_recipient(
+                        account_id,
+                        name.to_string(),
+                        None,
+                        public_key.to_string(),
+                    )?;
+                    Ok::<_, anyhow::Error>(recipient_id)
+                })
+                .await?;
+        }
+    }
+
+    // First account is the owner of the shared folder
+    let folder_name = "shared_folder";
+    let FolderCreate { folder, .. } = account1
+        .create_shared_folder(NewFolderOptions::new(folder_name.to_string()))
+        .await?;
+    let shared_folder_id = *folder.id();
+
+    let found_recipients = server
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            Ok::<_, anyhow::Error>(entity.search_recipients("two")?)
+        })
+        .await?;
+
+    println!("recipients: {:#?}", found_recipients);
+
+    // teardown(TEST_ID).await;
 
     Ok(())
 }

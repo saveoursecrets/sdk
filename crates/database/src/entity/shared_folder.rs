@@ -93,6 +93,7 @@ impl RecipientRow {
 }
 
 /// Record for a recipient.
+#[derive(Debug)]
 pub struct RecipientRecord {
     /// Row identifier.
     pub row_id: i64,
@@ -317,6 +318,51 @@ impl<'conn> SharedFolderEntity<'conn> {
         } else {
             Ok(None)
         }
+    }
+
+    /// Search for recipients
+    pub fn search_recipients(
+        &mut self,
+        search_query: &str,
+    ) -> Result<Vec<RecipientRecord>> {
+        let search_query = search_query
+            .split_whitespace()
+            .map(|word| format!("\"{}\"", word))
+            .collect::<Vec<_>>()
+            .join(" OR ");
+
+        let query = sql::Select::new()
+            .select(
+                r#"
+                r.recipient_id,
+                r.account_id,
+                r.created_at,
+                r.modified_at,
+                r.recipient_name,
+                r.recipient_email,
+                r.recipient_public_key,
+                r.revoked,
+                fts.rowid,
+                fts.rank
+            "#,
+            )
+            .from("recipients_fts AS fts")
+            .inner_join("recipients AS r ON fts.rowid = r.recipient_id")
+            .where_clause("recipients_fts MATCH ?1")
+            .order_by("fts.rank DESC")
+            .limit("25");
+
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
+        fn convert_row(row: &Row<'_>) -> Result<RecipientRow> {
+            Ok(row.try_into()?)
+        }
+
+        let rows = stmt.query_and_then([search_query], convert_row)?;
+        let mut recipients = Vec::new();
+        for row in rows {
+            recipients.push(row?.try_into()?);
+        }
+        Ok(recipients)
     }
 
     /// Invite a recipient to a folder.
