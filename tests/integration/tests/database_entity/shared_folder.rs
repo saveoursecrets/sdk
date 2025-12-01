@@ -173,16 +173,31 @@ async fn database_entity_send_folder_invite() -> Result<()> {
         .await?;
     let shared_folder_id = *folder.id();
 
-    let found_recipients = server
+    let mut found_recipients = server
         .conn_mut_and_then(move |conn| {
             let mut entity = SharedFolderEntity::new(conn);
             Ok::<_, anyhow::Error>(entity.search_recipients("two")?)
         })
         .await?;
 
-    println!("recipients: {:#?}", found_recipients);
+    assert_eq!(1, found_recipients.len());
+    let to_recipient = found_recipients.remove(0);
 
-    // teardown(TEST_ID).await;
+    let from_account_id = *account1.account_id();
+    let invite_id = server
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            Ok::<_, anyhow::Error>(entity.invite_recipient(
+                &from_account_id,
+                &to_recipient.recipient_public_key,
+                &shared_folder_id,
+            )?)
+        })
+        .await?;
+
+    println!("{invite_id}");
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

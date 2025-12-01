@@ -90,12 +90,16 @@ CREATE TABLE IF NOT EXISTS folder_invites
     folder_invite_id            INTEGER             PRIMARY KEY NOT NULL,
     -- Created date and time.
     created_at                  DATETIME            NOT NULL,
+    -- Modified date and time.
+    modified_at                 DATETIME            NOT NULL,
     -- Recipient sending the invite.
     from_recipient_id           INTEGER             NOT NULL,
     -- Recipient receiving the invite.
     to_recipient_id             INTEGER             NOT NULL,
     -- Folder being shared.
     folder_id                   INTEGER             NOT NULL,
+    -- Status of the invite.
+    invite_status               INTEGER             NOT NULL DEFAULT 0,
     
     FOREIGN KEY (from_recipient_id)
       REFERENCES recipients (recipient_id) ON DELETE CASCADE,
