@@ -1,23 +1,23 @@
 //! Folder combines an access point with an event log.
 use crate::{AccessPoint, BackendTarget, Error, FolderEventLog, Result};
 use sos_core::{
+    AccountId, VaultFlags, VaultId,
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     encode,
     events::{EventLog, EventLogType, EventRecord, ReadEvent, WriteEvent},
-    AccountId, VaultFlags, VaultId,
 };
-use sos_core::{constants::EVENT_LOG_EXT, decode, VaultCommit};
+use sos_core::{VaultCommit, constants::EVENT_LOG_EXT, decode};
 use sos_database::{
-    entity::{FolderEntity, FolderRecord, SecretRecord},
     VaultDatabaseWriter,
+    entity::{FolderEntity, FolderRecord, SecretRecord},
 };
 use sos_filesystem::VaultFileWriter;
 use sos_reducers::FolderReducer;
 use sos_vault::{
-    secret::{Secret, SecretId, SecretMeta, SecretRow},
     AccessPoint as VaultAccessPoint, EncryptedEntry, SecretAccess, Vault,
     VaultMeta,
+    secret::{Secret, SecretId, SecretMeta, SecretRow},
 };
 use sos_vfs as vfs;
 use std::{path::Path, sync::Arc};

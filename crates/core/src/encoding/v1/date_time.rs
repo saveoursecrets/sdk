@@ -1,4 +1,4 @@
-use crate::{encoding::encoding_error, UtcDateTime};
+use crate::{UtcDateTime, encoding::encoding_error};
 use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,

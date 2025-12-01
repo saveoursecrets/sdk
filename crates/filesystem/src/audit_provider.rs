@@ -1,15 +1,15 @@
 //! File system audit log file and provider.
-use crate::formats::{
-    read_file_identity_bytes, FileItem, FileRecord, FormatStream,
-    FormatStreamIterator,
-};
 use crate::Result;
+use crate::formats::{
+    FileItem, FileRecord, FormatStream, FormatStreamIterator,
+    read_file_identity_bytes,
+};
 use async_fd_lock::{LockRead, LockWrite};
 use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
-use futures::{stream::BoxStream, StreamExt};
+use futures::{StreamExt, stream::BoxStream};
 use sos_audit::{AuditEvent, AuditStreamSink};
 use sos_core::{constants::AUDIT_IDENTITY, encoding::encoding_options};
 use sos_vfs::{self as vfs, File};
@@ -24,7 +24,7 @@ use tokio::{
         AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
         AsyncWriteExt, BufReader, BufWriter,
     },
-    sync::{mpsc, Mutex},
+    sync::{Mutex, mpsc},
 };
 use tokio_stream::wrappers::ReceiverStream;
 

@@ -1,6 +1,6 @@
 //! Types that encapsulate commit proofs and comparisons.
 use super::TreeHash;
-use rs_merkle::{algorithms::Sha256, MerkleProof};
+use rs_merkle::{MerkleProof, algorithms::Sha256};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt,
@@ -74,10 +74,10 @@ pub enum Comparison {
 }
 
 mod proof_serde {
-    use rs_merkle::{algorithms::Sha256, MerkleProof};
+    use rs_merkle::{MerkleProof, algorithms::Sha256};
     use serde::{
-        de::{Deserialize, Deserializer, Error},
         Serializer,
+        de::{Deserialize, Deserializer, Error},
     };
     use std::borrow::Cow;
 

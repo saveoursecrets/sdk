@@ -57,8 +57,8 @@ pub mod ecdsa {
     use sha3::{Digest, Keccak256};
 
     pub use k256::ecdsa::{
-        hazmat::SignPrimitive, RecoveryId, Signature, SigningKey,
-        VerifyingKey,
+        RecoveryId, Signature, SigningKey, VerifyingKey,
+        hazmat::SignPrimitive,
     };
 
     use super::{BoxedSigner, Signer};
@@ -144,8 +144,8 @@ pub mod ecdsa {
 pub mod ed25519 {
     use async_trait::async_trait;
     pub use ed25519_dalek::{
-        Signature, Signer as Ed25519Signer, SigningKey, Verifier,
-        VerifyingKey, SECRET_KEY_LENGTH,
+        SECRET_KEY_LENGTH, Signature, Signer as Ed25519Signer, SigningKey,
+        Verifier, VerifyingKey,
     };
     use rand::rngs::OsRng;
 

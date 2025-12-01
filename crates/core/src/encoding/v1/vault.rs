@@ -1,6 +1,6 @@
 use crate::{
-    commit::CommitHash, crypto::AeadPack, encoding::encoding_error,
-    VaultCommit, VaultEntry,
+    VaultCommit, VaultEntry, commit::CommitHash, crypto::AeadPack,
+    encoding::encoding_error,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{

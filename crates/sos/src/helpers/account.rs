@@ -2,7 +2,7 @@
 use crate::helpers::{
     display_passphrase,
     messages::success,
-    readline::{choose, choose_password, read_flag, read_password, Choice},
+    readline::{Choice, choose, choose_password, read_flag, read_password},
 };
 use crate::{Error, Result};
 use parking_lot::Mutex;
@@ -10,8 +10,8 @@ use secrecy::{ExposeSecret, SecretString};
 use sos_account::Account;
 use sos_backend::BackendTarget;
 use sos_core::{
-    constants::DEFAULT_VAULT_NAME, crypto::AccessKey, AccountId, AccountRef,
-    FolderRef, Paths, PublicIdentity,
+    AccountId, AccountRef, FolderRef, Paths, PublicIdentity,
+    constants::DEFAULT_VAULT_NAME, crypto::AccessKey,
 };
 use sos_net::{NetworkAccount, NetworkAccountSwitcher};
 use sos_password::diceware::generate_passphrase;

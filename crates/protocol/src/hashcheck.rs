@@ -1,5 +1,5 @@
 //! Check password hashes using the hashcheck service.
-use super::{is_offline, Result};
+use super::{Result, is_offline};
 use tracing::instrument;
 
 /// Default endpoint for HIBP database checks.

@@ -1,6 +1,6 @@
 //! Encrypt and decrypt using X25519 asymmetric encryption (AGE).
-use crate::crypto::{AeadPack, Nonce};
 use crate::Result;
+use crate::crypto::{AeadPack, Nonce};
 use age::x25519::{Identity, Recipient};
 use futures::io::{AsyncReadExt, BufReader};
 

@@ -1,14 +1,14 @@
 //! Local account storage and search index.
 use crate::{
-    convert::CipherComparison, Account, AccountBuilder, AccountChange,
-    AccountData, Error, FolderChange, FolderCreate, FolderDelete, Result,
-    SecretChange, SecretDelete, SecretInsert, SecretMove,
+    Account, AccountBuilder, AccountChange, AccountData, Error, FolderChange,
+    FolderCreate, FolderDelete, Result, SecretChange, SecretDelete,
+    SecretInsert, SecretMove, convert::CipherComparison,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use secrecy::SecretString;
 use sos_backend::{
-    compact::compact_folder, AccessPoint, BackendTarget, Folder, StorageError,
+    AccessPoint, BackendTarget, Folder, StorageError, compact::compact_folder,
 };
 use sos_client_storage::{
     AccessOptions, ClientAccountStorage, ClientBaseStorage,
@@ -16,29 +16,29 @@ use sos_client_storage::{
     ClientStorage, NewFolderOptions,
 };
 use sos_core::{
+    AccountId, AccountRef, AuthenticationError, FolderRef, Paths, SecretId,
+    UtcDateTime, VaultCommit, VaultFlags, VaultId,
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode,
     device::{DevicePublicKey, TrustedDevice},
     encode,
     events::{
-        changes_feed, AccountEvent, DeviceEvent, Event, EventKind, EventLog,
-        EventRecord, LocalChangeEvent, ReadEvent, WriteEvent,
+        AccountEvent, DeviceEvent, Event, EventKind, EventLog, EventRecord,
+        LocalChangeEvent, ReadEvent, WriteEvent, changes_feed,
     },
-    AccountId, AccountRef, AuthenticationError, FolderRef, Paths, SecretId,
-    UtcDateTime, VaultCommit, VaultFlags, VaultId,
 };
 use sos_filesystem::write_exclusive;
 use sos_login::{
-    device::{DeviceManager, DeviceSigner},
     DelegatedAccess, FolderKeys, Identity, PublicIdentity,
+    device::{DeviceManager, DeviceSigner},
 };
 use sos_reducers::FolderReducer;
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{
-    secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
     BuilderCredentials, Header, SecretAccess, SharedAccess, Summary, Vault,
     VaultBuilder,
+    secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
 };
 use sos_vfs as vfs;
 use std::{
@@ -72,16 +72,16 @@ use crate::ContactImportProgress;
 
 #[cfg(feature = "migrate")]
 use sos_migrate::{
+    Convert,
     export::PublicExport,
     import::{
+        ImportFormat, ImportTarget,
         csv::{
             bitwarden::BitwardenCsv, chrome::ChromePasswordCsv,
             dashlane::DashlaneCsvZip, firefox::FirefoxPasswordCsv,
             macos::MacPasswordCsv, one_password::OnePasswordCsv,
         },
-        ImportFormat, ImportTarget,
     },
-    Convert,
 };
 
 #[cfg(feature = "clipboard")]
@@ -281,9 +281,10 @@ impl LocalAccount {
         // Bail early if the folder is already open
         {
             if let Some(current) = self.storage.current_folder()
-                && current.id() == folder_id {
-                    return Ok(());
-                }
+                && current.id() == folder_id
+            {
+                return Ok(());
+            }
         }
 
         let event = self.storage.open_folder(folder_id)?;
@@ -357,9 +358,10 @@ impl LocalAccount {
         self.open_folder(folder.id()).await?;
 
         if let Secret::Pem { certificates, .. } = &secret
-            && certificates.is_empty() {
-                return Err(Error::PemEncoding);
-            }
+            && certificates.is_empty()
+        {
+            return Err(Error::PemEncoding);
+        }
 
         let id = SecretId::new_v4();
         let secret_data = SecretRow::new(id, meta, secret);
@@ -1172,8 +1174,6 @@ impl Account for LocalAccount {
             compact_folder(self.account_id(), identity.id(), &mut log_file)
                 .await?;
 
-            
-
             FolderReducer::new()
                 .reduce(&*log_file)
                 .await?
@@ -1487,9 +1487,10 @@ impl Account for LocalAccount {
         self.open_folder(folder.id()).await?;
 
         if let Some(Secret::Pem { certificates, .. }) = &secret
-            && certificates.is_empty() {
-                return Err(Error::PemEncoding);
-            }
+            && certificates.is_empty()
+        {
+            return Err(Error::PemEncoding);
+        }
 
         let result = self
             .storage

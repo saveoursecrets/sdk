@@ -1,9 +1,9 @@
 use crate::{
+    Error, Result,
     helpers::{
         account::resolve_user,
         messages::{fail, success},
     },
-    Error, Result,
 };
 use clap::Subcommand;
 use sos_core::{AccountRef, Origin};

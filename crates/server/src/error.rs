@@ -4,7 +4,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Json, Response},
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sos_core::AccountId;
 use std::path::PathBuf;
 use thiserror::Error;

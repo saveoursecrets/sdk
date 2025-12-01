@@ -1,6 +1,6 @@
 use crate::entity::{AccountEntity, FolderEntity};
 use crate::{Error, Result};
-use async_sqlite::rusqlite::Connection;
+use async_sqlite::rusqlite::{Connection, Row};
 use sos_core::{AccountId, UtcDateTime, VaultId};
 use sql_query_builder as sql;
 
@@ -155,53 +155,94 @@ impl<'conn> SharedFolderEntity<'conn> {
         account_id: &AccountId,
         limit: Option<usize>,
     ) -> Result<Vec<FolderInviteRecord>> {
-        // TODO: optimize to use joins
-        let tx = self.conn.transaction()?;
+        let limit =
+            limit.map(|l| l.to_string()).unwrap_or(String::from("10"));
 
-        let account = AccountEntity::new(&tx);
-        let account = account
-            .find_optional(account_id)?
-            .ok_or(Error::SharingInviteNoAccount(*account_id))?;
+        let query = sql::Select::new()
+            .select(
+                r#"
+                  fi.folder_invite_id,
+                  fi.created_at,
+                  fi.modified_at,
+                  fi.from_recipient_id,
+                  fi.to_recipient_id,
+                  fi.folder_id,
+                  fi.invite_status
+              "#,
+            )
+            .from("folder_invites AS fi")
+            .inner_join(
+                "recipients AS r ON fi.to_recipient_id = r.recipient_id",
+            )
+            .inner_join("accounts AS a ON r.account_id = a.account_id")
+            .where_clause("a.identifier = ?1")
+            .limit(&limit)
+            .order_by("fi.modified_at DESC");
 
-        let recipient = RecipientEntity::new(&tx);
-        let recipient = recipient
-            .find_optional(account.row_id)?
-            .ok_or(Error::SharingInviteRecipientNotCreated(*account_id))?;
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
 
-        let folder_invites = FolderInviteEntity::new(&tx);
-        let records = folder_invites
-            .find_all_by_to_recipient_id(recipient.recipient_id, limit)?;
+        fn convert_row(
+            row: &Row<'_>,
+        ) -> Result<folder_invites::FolderInviteRow> {
+            Ok(row.try_into()?)
+        }
 
-        tx.commit()?;
+        let rows =
+            stmt.query_and_then([account_id.to_string()], convert_row)?;
 
-        Ok(records)
+        let mut invites = Vec::new();
+        for row in rows {
+            invites.push(row?.try_into()?);
+        }
+        Ok(invites)
     }
 
-    /// Folder invites sent to from this account.
+    /// Folder invites sent from this account.
     pub fn sent_folder_invites(
         &mut self,
         account_id: &AccountId,
         limit: Option<usize>,
     ) -> Result<Vec<FolderInviteRecord>> {
-        // TODO: optimize to use joins
-        let tx = self.conn.transaction()?;
+        let limit =
+            limit.map(|l| l.to_string()).unwrap_or(String::from("10"));
 
-        let account = AccountEntity::new(&tx);
-        let account = account
-            .find_optional(account_id)?
-            .ok_or(Error::SharingInviteNoAccount(*account_id))?;
+        let query = sql::Select::new()
+            .select(
+                r#"
+                  fi.folder_invite_id,
+                  fi.created_at,
+                  fi.modified_at,
+                  fi.from_recipient_id,
+                  fi.to_recipient_id,
+                  fi.folder_id,
+                  fi.invite_status
+              "#,
+            )
+            .from("folder_invites AS fi")
+            .inner_join(
+                "recipients AS r ON fi.from_recipient_id =
+  r.recipient_id",
+            )
+            .inner_join("accounts AS a ON r.account_id = a.account_id")
+            .where_clause("a.identifier = ?1")
+            .limit(&limit)
+            .order_by("fi.modified_at DESC");
 
-        let recipient = RecipientEntity::new(&tx);
-        let recipient = recipient
-            .find_optional(account.row_id)?
-            .ok_or(Error::SharingInviteRecipientNotCreated(*account_id))?;
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
 
-        let folder_invites = FolderInviteEntity::new(&tx);
-        let records = folder_invites
-            .find_all_by_from_recipient_id(recipient.recipient_id, limit)?;
+        fn convert_row(
+            row: &Row<'_>,
+        ) -> Result<folder_invites::FolderInviteRow> {
+            Ok(row.try_into()?)
+        }
 
-        tx.commit()?;
+        let rows =
+            stmt.query_and_then([account_id.to_string()], convert_row)?;
 
-        Ok(records)
+        let mut invites = Vec::new();
+        for row in rows {
+            invites.push(row?.try_into()?);
+        }
+        Ok(invites)
     }
 }

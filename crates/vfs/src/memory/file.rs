@@ -14,7 +14,7 @@ use tokio::{
 
 use std::cmp;
 use std::fmt;
-use std::io::{self, prelude::*, ErrorKind, Seek, SeekFrom};
+use std::io::{self, ErrorKind, Seek, SeekFrom, prelude::*};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::task::Context;
@@ -22,10 +22,10 @@ use std::task::Poll;
 use std::task::Poll::*;
 
 use super::{
+    Metadata, OpenOptions, Permissions,
     fs::{Fd, FileContent, MemoryFd},
     metadata,
     open_options::OpenFlags,
-    Metadata, OpenOptions, Permissions,
 };
 
 /// A reference to an open file on the filesystem.

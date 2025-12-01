@@ -18,12 +18,12 @@ use crate::{Error, Result};
 use futures::FutureExt;
 use sos_core::{ExternalFile, Origin, Paths};
 use sos_protocol::{
+    SyncClient,
     network_client::NetworkRetry,
     transfer::{
         CancelReason, FileOperation, FileSyncClient,
         FileTransferQueueRequest, ProgressChannel, TransferOperation,
     },
-    SyncClient,
 };
 use sos_vfs as vfs;
 use std::{
@@ -33,7 +33,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 use tokio::{
-    sync::{broadcast, mpsc, oneshot, watch, Mutex, RwLock, Semaphore},
+    sync::{Mutex, RwLock, Semaphore, broadcast, mpsc, oneshot, watch},
     time,
 };
 
@@ -738,11 +738,7 @@ where
 
         Ok({
             let queue = queue.read().await;
-            if queue.is_empty() {
-                None
-            } else {
-                Some(())
-            }
+            if queue.is_empty() { None } else { Some(()) }
         })
     }
 

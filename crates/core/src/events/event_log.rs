@@ -1,10 +1,10 @@
 use crate::{
+    Error,
     commit::{CommitHash, CommitProof, CommitTree},
     events::{
-        patch::{CheckedPatch, Diff, Patch},
         EventRecord,
+        patch::{CheckedPatch, Diff, Patch},
     },
-    Error,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};

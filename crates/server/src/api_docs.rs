@@ -1,5 +1,5 @@
 use crate::handlers::{account, files};
-use utoipa::{openapi::security::*, Modify, OpenApi};
+use utoipa::{Modify, OpenApi, openapi::security::*};
 
 #[derive(OpenApi)]
 #[openapi(

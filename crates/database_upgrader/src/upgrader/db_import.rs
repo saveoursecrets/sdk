@@ -1,6 +1,6 @@
 use crate::{Error, Result, UpgradeOptions};
 use async_trait::async_trait;
-use futures::{pin_mut, StreamExt};
+use futures::{StreamExt, pin_mut};
 use indexmap::IndexSet;
 use sos_audit::AuditStreamSink;
 use sos_backend::{
@@ -8,15 +8,14 @@ use sos_backend::{
     FolderEventLog,
 };
 use sos_client_storage::ClientStorage;
-use sos_core::{
-    decode, encode,
-    events::{EventLog, EventRecord},
-    VaultId,
-};
 use sos_core::{Origin, VaultCommit};
 use sos_core::{Paths, PublicIdentity, SecretId};
+use sos_core::{
+    VaultId, decode, encode,
+    events::{EventLog, EventRecord},
+};
 use sos_database::{
-    async_sqlite::{rusqlite::Transaction, Client},
+    async_sqlite::{Client, rusqlite::Transaction},
     entity::{
         AccountEntity, AccountRow, AuditEntity, EventEntity, EventRecordRow,
         FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, SecretRow,
@@ -28,7 +27,7 @@ use sos_preferences::PreferenceMap;
 use sos_server_storage::ServerStorage;
 use sos_sync::{StorageEventLogs, SyncStatus, SyncStorage};
 use sos_system_messages::SystemMessageMap;
-use sos_vault::{list_local_folders, Summary, Vault};
+use sos_vault::{Summary, Vault, list_local_folders};
 use sos_vfs as vfs;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;

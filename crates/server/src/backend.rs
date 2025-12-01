@@ -1,6 +1,6 @@
 use super::{Error, Result};
 use sos_backend::BackendTarget;
-use sos_core::{device::DevicePublicKey, AccountId, Paths};
+use sos_core::{AccountId, Paths, device::DevicePublicKey};
 use sos_database::{async_sqlite::Client, entity::AccountEntity};
 use sos_server_storage::{ServerAccountStorage, ServerStorage};
 use sos_signer::ed25519::{self, Verifier, VerifyingKey};
@@ -82,26 +82,21 @@ impl Backend {
             let path = entry.path();
             if vfs::metadata(&path).await?.is_dir()
                 && let Some(name) = path.file_stem()
-                    && let Ok(account_id) =
-                        name.to_string_lossy().parse::<AccountId>()
-                    {
-                        tracing::debug!(
-                            account_id = %account_id,
-                            "server_backend::load_fs_accounts",
-                        );
+                && let Ok(account_id) =
+                    name.to_string_lossy().parse::<AccountId>()
+            {
+                tracing::debug!(
+                    account_id = %account_id,
+                    "server_backend::load_fs_accounts",
+                );
 
-                        let account = ServerStorage::new(
-                            self.target.clone(),
-                            &account_id,
-                        )
+                let account =
+                    ServerStorage::new(self.target.clone(), &account_id)
                         .await?;
 
-                        let mut accounts = self.accounts.write().await;
-                        accounts.insert(
-                            account_id,
-                            Arc::new(RwLock::new(account)),
-                        );
-                    }
+                let mut accounts = self.accounts.write().await;
+                accounts.insert(account_id, Arc::new(RwLock::new(account)));
+            }
         }
 
         Ok(())

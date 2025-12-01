@@ -49,7 +49,7 @@ pub use diff::*;
 pub use error::{AsConflict, ConflictError, Error, ErrorReply, NetworkError};
 pub use traits::*;
 
-use prost::{bytes::Buf, Message};
+use prost::{Message, bytes::Buf};
 
 #[cfg(feature = "network-client")]
 pub use reqwest;

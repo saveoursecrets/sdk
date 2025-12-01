@@ -10,8 +10,8 @@ use sos_backend::AccessPoint;
 use sos_core::VaultId;
 use sos_password::generator::measure_entropy;
 use sos_vault::{
-    secret::{Secret, SecretId, SecretType},
     SecretAccess, Summary,
+    secret::{Secret, SecretId, SecretType},
 };
 use zxcvbn::{Entropy, Score};
 

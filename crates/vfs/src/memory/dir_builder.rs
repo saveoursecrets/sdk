@@ -6,8 +6,8 @@ use std::{
 };
 
 use super::fs::{
-    has_parent, resolve, resolve_parent, root_fs, MemoryFd, Parent,
-    PathTarget,
+    MemoryFd, Parent, PathTarget, has_parent, resolve, resolve_parent,
+    root_fs,
 };
 
 /// A builder for creating directories in various manners.
@@ -86,12 +86,12 @@ impl DirBuilder {
                                         return Err(
                                             ErrorKind::PermissionDenied
                                                 .into(),
-                                        )
+                                        );
                                     }
                                 }
                             }
                             PathTarget::Root(_) => {
-                                return Err(ErrorKind::PermissionDenied.into())
+                                return Err(ErrorKind::PermissionDenied.into());
                             }
                         }
                     } else {

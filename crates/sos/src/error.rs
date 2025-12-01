@@ -54,7 +54,9 @@ pub enum Error {
     NoMatchServers,
 
     /// Failed to copy to the clipboard.
-    #[error("unable to copy to the clipboard, secret type may not support copy operation")]
+    #[error(
+        "unable to copy to the clipboard, secret type may not support copy operation"
+    )]
     ClipboardCopy,
 
     /// Archive folder not found.

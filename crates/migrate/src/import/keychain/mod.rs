@@ -18,15 +18,15 @@ use sos_backend::AccessPoint;
 use sos_core::crypto::AccessKey;
 use sos_search::SearchIndex;
 use sos_vault::{
-    secret::{Secret, SecretId, SecretMeta, SecretRow},
     SecretAccess, Vault,
+    secret::{Secret, SecretId, SecretMeta, SecretRow},
 };
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader, BufWriter, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    sync::mpsc::{channel, Receiver},
+    sync::mpsc::{Receiver, channel},
 };
 
 /// Import a MacOS keychain access dump into a vault.

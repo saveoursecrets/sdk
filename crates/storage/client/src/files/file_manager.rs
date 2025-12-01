@@ -1,23 +1,23 @@
 //! File manager to keep external files in sync
 //! as secrets are created, updated and moved.
-use crate::{files::FileStorage, Error, Result};
+use crate::{Error, Result, files::FileStorage};
 use hex;
 use sos_backend::FileEventLog;
 use sos_core::events::{EventLog, FileEvent};
 use sos_core::{
-    basename, ExternalFileName, Paths, SecretId, SecretPath, VaultId,
+    ExternalFileName, Paths, SecretId, SecretPath, VaultId, basename,
 };
 use sos_external_files::{
     EncryptedFile, FileMutationEvent, FileProgress, FileSource,
     FileStorageDiff, FileStorageResult,
 };
 use sos_vault::{
-    secret::{FileContent, Secret, SecretRow, UserData},
     Summary,
+    secret::{FileContent, Secret, SecretRow, UserData},
 };
 use sos_vfs as vfs;
 use std::{collections::HashMap, path::Path, sync::Arc};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 
 /// Manages external files.
 pub struct ExternalFileManager {

@@ -22,7 +22,7 @@ pub use vault::{
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 pub(crate) use vault::Auth;
 
-use sos_core::{constants::VAULT_EXT, Paths, PublicIdentity};
+use sos_core::{Paths, PublicIdentity, constants::VAULT_EXT};
 use sos_vfs as vfs;
 use std::{
     path::{Path, PathBuf},

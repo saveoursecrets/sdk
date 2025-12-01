@@ -7,13 +7,13 @@
 //! the delegated passwords used by an account to decrypt
 //! the folders for the account.
 use crate::{
-    device::DeviceManager, DelegatedAccess, Error, IdentityFolder,
-    PublicIdentity, Result,
+    DelegatedAccess, Error, IdentityFolder, PublicIdentity, Result,
+    device::DeviceManager,
 };
 use async_trait::async_trait;
 use sos_backend::BackendTarget;
 use sos_core::{
-    crypto::AccessKey, AccountId, AuthenticationError, SecretId, VaultId,
+    AccountId, AuthenticationError, SecretId, VaultId, crypto::AccessKey,
 };
 use std::collections::HashMap;
 use urn::Urn;

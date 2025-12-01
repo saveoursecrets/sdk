@@ -1,11 +1,11 @@
 include!(concat!(env!("OUT_DIR"), "/common.rs"));
 
-use crate::{decode_uuid, encode_uuid, Error, ProtoBinding, Result};
-use rs_merkle::{algorithms::Sha256, MerkleProof};
+use crate::{Error, ProtoBinding, Result, decode_uuid, encode_uuid};
+use rs_merkle::{MerkleProof, algorithms::Sha256};
 use sos_core::{
-    commit::{CommitHash, CommitProof, CommitState},
-    events::{patch::CheckedPatch, EventLogType, EventRecord},
     SecretPath, UtcDateTime,
+    commit::{CommitHash, CommitProof, CommitState},
+    events::{EventLogType, EventRecord, patch::CheckedPatch},
 };
 use time::{Duration, OffsetDateTime};
 

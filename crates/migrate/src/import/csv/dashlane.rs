@@ -2,8 +2,8 @@
 
 use async_trait::async_trait;
 use serde::Deserialize;
-use sos_core::{crypto::AccessKey, UtcDateTime};
-use sos_vault::{secret::IdentityKind, Vault};
+use sos_core::{UtcDateTime, crypto::AccessKey};
+use sos_vault::{Vault, secret::IdentityKind};
 use sos_vfs as vfs;
 use std::{
     collections::HashSet,
@@ -12,7 +12,7 @@ use std::{
 };
 use time::{Date, Month};
 use url::Url;
-use vcard4::{property::DeliveryAddress, Uri, VcardBuilder};
+use vcard4::{Uri, VcardBuilder, property::DeliveryAddress};
 
 use async_zip::tokio::read::seek::ZipFileReader;
 use tokio::io::{AsyncBufRead, AsyncSeek, BufReader};
@@ -22,7 +22,7 @@ use super::{
     GenericIdRecord, GenericNoteRecord, GenericPasswordRecord,
     GenericPaymentRecord, UNTITLED,
 };
-use crate::{import::read_csv_records, Convert, Result};
+use crate::{Convert, Result, import::read_csv_records};
 
 /// Record used to deserialize dashlane CSV files.
 #[derive(Debug)]

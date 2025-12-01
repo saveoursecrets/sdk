@@ -7,17 +7,17 @@ use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sos_core::{
+    AuthenticationError, SecretId, UtcDateTime, VaultCommit, VaultEntry,
+    VaultFlags, VaultId,
     commit::CommitHash,
     constants::{DEFAULT_VAULT_NAME, URN_NID, VAULT_IDENTITY, VAULT_NSS},
     crypto::{
         AccessKey, AeadPack, Cipher, Deriver, KeyDerivation, PrivateKey, Seed,
     },
     decode, encode,
-    encoding::{encoding_options, VERSION},
+    encoding::{VERSION, encoding_options},
     events::{ReadEvent, WriteEvent},
     file_identity::FileIdentity,
-    AuthenticationError, SecretId, UtcDateTime, VaultCommit, VaultEntry,
-    VaultFlags, VaultId,
 };
 use sos_vfs::File;
 use std::io::Cursor;
@@ -924,7 +924,7 @@ impl Vault {
         self.contents
             .data
             .iter()
-            .map(|(k, v)| (k, &v.1 .0))
+            .map(|(k, v)| (k, &v.1.0))
             .collect::<HashMap<_, _>>()
     }
 

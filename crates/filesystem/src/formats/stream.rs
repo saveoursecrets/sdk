@@ -1,7 +1,7 @@
 //! File streams.
-use crate::{formats::FileItem, Result};
+use crate::{Result, formats::FileItem};
 use async_trait::async_trait;
-use binary_stream::futures::{stream_length, BinaryReader};
+use binary_stream::futures::{BinaryReader, stream_length};
 use sos_core::encoding::encoding_options;
 use sos_vfs::File;
 use std::{io::SeekFrom, ops::Range};
@@ -205,17 +205,19 @@ where
         let offset = self.header_offset;
 
         if let (Some(lpos), Some(rpos)) = (self.forward, self.backward)
-            && lpos == rpos {
-                return Ok(None);
-            }
+            && lpos == rpos
+        {
+            return Ok(None);
+        }
 
         let len = stream_length(&mut self.read_stream).await?;
         if len > offset {
             // Got to EOF
             if let Some(lpos) = self.forward
-                && lpos == len {
-                    return Ok(None);
-                }
+                && lpos == len
+            {
+                return Ok(None);
+            }
 
             if self.forward.is_none() {
                 self.forward = Some(offset);
@@ -231,17 +233,19 @@ where
         let offset: u64 = self.header_offset;
 
         if let (Some(lpos), Some(rpos)) = (self.forward, self.backward)
-            && lpos == rpos {
-                return Ok(None);
-            }
+            && lpos == rpos
+        {
+            return Ok(None);
+        }
 
         let len = stream_length(&mut self.read_stream).await?;
         if len > offset {
             // Got to EOF
             if let Some(rpos) = self.backward
-                && rpos == offset {
-                    return Ok(None);
-                }
+                && rpos == offset
+            {
+                return Ok(None);
+            }
 
             if self.backward.is_none() {
                 self.backward = Some(len);

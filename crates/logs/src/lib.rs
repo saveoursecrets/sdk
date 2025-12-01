@@ -7,6 +7,6 @@ mod error;
 mod logger;
 
 pub use error::Error;
-pub use logger::{LogFileStatus, Logger, LOG_FILE_NAME};
+pub use logger::{LOG_FILE_NAME, LogFileStatus, Logger};
 
 pub(crate) type Result<T> = std::result::Result<T, Error>;

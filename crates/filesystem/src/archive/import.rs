@@ -2,23 +2,23 @@
 use crate::archive::{
     ArchiveItem, Error, ManifestVersion1, RestoreTargets, Result,
 };
-use crate::{write_exclusive, FolderEventLog, VaultFileWriter};
+use crate::{FolderEventLog, VaultFileWriter, write_exclusive};
 use hex;
 use sha2::{Digest, Sha256};
-use sos_archive::{sanitize_file_path, ZipReader};
-use sos_core::events::EventLogType;
+use sos_archive::{ZipReader, sanitize_file_path};
 use sos_core::AccountId;
+use sos_core::events::EventLogType;
 use sos_core::{
+    Paths, PublicIdentity, VaultId,
     constants::{
-        ACCOUNT_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS,
+        ACCOUNT_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILE_EVENTS, FILES_DIR,
         JSON_EXT, PREFERENCES_FILE, REMOTES_FILE, VAULT_EXT,
     },
     decode,
     events::EventLog,
-    Paths, PublicIdentity, VaultId,
 };
 use sos_reducers::FolderReducer;
-use sos_vault::{list_accounts, EncryptedEntry, Header, Vault};
+use sos_vault::{EncryptedEntry, Header, Vault, list_accounts};
 use sos_vfs::{self as vfs, File};
 use std::path::{Path, PathBuf};
 use tokio::io::BufReader;
@@ -249,36 +249,37 @@ async fn extract_files(
             let mut it = path.iter();
             if let (Some(first), Some(second)) = (it.next(), it.next())
                 && first == FILES_DIR
-                    && let Ok(_vault_id) =
-                        second.to_string_lossy().parse::<VaultId>()
-                    {
-                        // Only restore files for the selected vaults
-                        //
-                        // The given target path should already
-                        // include any files/ prefix so we need
-                        // to skip it
-                        let mut relative = PathBuf::new();
-                        for part in path.iter().skip(1) {
-                            relative = relative.join(part);
-                        }
-                        let destination = paths.files_dir().join(relative);
-                        if let Some(parent) = destination.parent()
-                            && !vfs::try_exists(&parent).await? {
-                                vfs::create_dir_all(parent).await?;
-                            }
+                && let Ok(_vault_id) =
+                    second.to_string_lossy().parse::<VaultId>()
+            {
+                // Only restore files for the selected vaults
+                //
+                // The given target path should already
+                // include any files/ prefix so we need
+                // to skip it
+                let mut relative = PathBuf::new();
+                for part in path.iter().skip(1) {
+                    relative = relative.join(part);
+                }
+                let destination = paths.files_dir().join(relative);
+                if let Some(parent) = destination.parent()
+                    && !vfs::try_exists(&parent).await?
+                {
+                    vfs::create_dir_all(parent).await?;
+                }
 
-                        let mut reader = reader
-                            .inner_mut()
-                            .reader_without_entry(index)
-                            .await
-                            .map_err(sos_archive::Error::from)?;
-                        let output = File::create(destination).await?;
-                        futures_util::io::copy(
-                            &mut reader,
-                            &mut output.compat_write(),
-                        )
-                        .await?;
-                    }
+                let mut reader = reader
+                    .inner_mut()
+                    .reader_without_entry(index)
+                    .await
+                    .map_err(sos_archive::Error::from)?;
+                let output = File::create(destination).await?;
+                futures_util::io::copy(
+                    &mut reader,
+                    &mut output.compat_write(),
+                )
+                .await?;
+            }
         }
     }
 

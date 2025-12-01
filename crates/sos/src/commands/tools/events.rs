@@ -1,4 +1,4 @@
-use crate::{helpers::account::resolve_account_address, Error, Result};
+use crate::{Error, Result, helpers::account::resolve_account_address};
 use binary_stream::futures::{Decodable, Encodable};
 use clap::Subcommand;
 use futures::{pin_mut, stream::StreamExt};
@@ -8,12 +8,12 @@ use sos_backend::{
     FileEventLog, FolderEventLog,
 };
 use sos_core::{
+    AccountRef, FolderRef, Paths, UtcDateTime,
     commit::{CommitHash, CommitTree},
     events::{
         AccountEvent, DeviceEvent, EventKind, EventLog, FileEvent, LogEvent,
         WriteEvent,
     },
-    AccountRef, FolderRef, Paths, UtcDateTime,
 };
 
 #[derive(Debug, Serialize)]

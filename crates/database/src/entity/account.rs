@@ -1,12 +1,12 @@
 use crate::{
-    entity::{FolderEntity, FolderRecord, SecretRow},
     Error, Result,
+    entity::{FolderEntity, FolderRecord, SecretRow},
 };
 use async_sqlite::{
+    Client,
     rusqlite::{
         Connection, Error as SqlError, OptionalExtension, Row, Transaction,
     },
-    Client,
 };
 use sos_core::{AccountId, PublicIdentity, UtcDateTime, VaultCommit};
 use sos_vault::Vault;

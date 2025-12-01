@@ -19,13 +19,17 @@ pub enum Error {
     /// Errors generated when a v1 or v2 backup archive
     /// is used with the v3 backend.
     #[cfg(feature = "archive")]
-    #[error("backup archive '{0}' (version {1}) is not compatible with {2} backend (backup archive needs upgrading)")]
+    #[error(
+        "backup archive '{0}' (version {1}) is not compatible with {2} backend (backup archive needs upgrading)"
+    )]
     BackupArchiveUpgradeRequired(PathBuf, u8, String),
 
     /// Errors generated when a v3 backup archive is used with
     /// the file system backend.
     #[cfg(feature = "archive")]
-    #[error("backup archive '{0}' (version {1}) is not compatible with {2} backend (accounts need upgrading)")]
+    #[error(
+        "backup archive '{0}' (version {1}) is not compatible with {2} backend (accounts need upgrading)"
+    )]
     IncompatibleBackupArchive(PathBuf, u8, String),
 
     /// Error generated converting to fixed length slice.

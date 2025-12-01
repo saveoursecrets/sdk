@@ -34,7 +34,7 @@ pub use rs_merkle as merkle;
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 use bitflags::bitflags;
-use rand::{rngs::OsRng, CryptoRng, Rng};
+use rand::{CryptoRng, Rng, rngs::OsRng};
 use serde::{Deserialize, Serialize};
 use std::{fmt, path::Path, str::FromStr};
 use uuid::Uuid;

@@ -8,11 +8,11 @@ use crate::Result;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use time::{
+    Date, Month, OffsetDateTime, Time, UtcOffset,
     format_description::{
         self,
         well_known::{Rfc2822, Rfc3339},
     },
-    Date, Month, OffsetDateTime, Time, UtcOffset,
 };
 use time_tz::{OffsetDateTimeExt, TimeZone};
 

@@ -11,6 +11,9 @@ use sos_account::{
 use sos_backend::{BackendTarget, Folder, ServerOrigins};
 use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::{
+    AccountId, AccountRef, AuthenticationError, FolderRef, Origin, Paths,
+    PublicIdentity, RemoteOrigins, SecretId, StorageError, UtcDateTime,
+    VaultCommit, VaultFlags, VaultId,
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DevicePublicKey, TrustedDevice},
@@ -18,25 +21,21 @@ use sos_core::{
         AccountEvent, DeviceEvent, EventLog, EventLogType, EventRecord,
         ReadEvent, WriteEvent,
     },
-    AccountId, AccountRef, AuthenticationError, FolderRef, Origin, Paths,
-    PublicIdentity, RemoteOrigins, SecretId, StorageError, UtcDateTime,
-    VaultCommit, VaultFlags, VaultId,
 };
 use sos_login::{
-    device::{DeviceManager, DeviceSigner},
     DelegatedAccess,
+    device::{DeviceManager, DeviceSigner},
 };
 use sos_protocol::{
-    is_offline,
-    network_client::{HttpClientOptions, NetworkConfig},
     AccountSync, DiffRequest, RemoteResult, RemoteSync, SyncClient,
-    SyncOptions, SyncResult,
+    SyncOptions, SyncResult, is_offline,
+    network_client::{HttpClientOptions, NetworkConfig},
 };
 use sos_remote_sync::RemoteSyncHandler;
 use sos_sync::{CreateSet, StorageEventLogs, UpdateSet};
 use sos_vault::{
-    secret::{Secret, SecretMeta, SecretRow, SecretType},
     Summary, Vault,
+    secret::{Secret, SecretMeta, SecretRow, SecretType},
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -47,7 +46,7 @@ use tokio::sync::{Mutex, RwLock};
 
 #[cfg(feature = "clipboard")]
 use {
-    sos_account::{xclipboard::Clipboard, ClipboardCopyRequest},
+    sos_account::{ClipboardCopyRequest, xclipboard::Clipboard},
     sos_core::SecretPath,
 };
 

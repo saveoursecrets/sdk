@@ -2,7 +2,7 @@
 mod proof;
 mod tree;
 
-use rs_merkle::{algorithms::Sha256, Hasher};
+use rs_merkle::{Hasher, algorithms::Sha256};
 use serde::{Deserialize, Serialize};
 
 /// Type for an Sha256 commit tree hash.

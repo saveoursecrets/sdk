@@ -1,7 +1,7 @@
 use crate::Error;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 use std::collections::hash_map::{IntoIter, Iter, IterMut};
 use std::{cmp::Ordering, collections::HashMap};
 use time::OffsetDateTime;
@@ -437,7 +437,9 @@ where
 // Hotfix for https://github.com/saveoursecrets/sdk/issues/811
 mod serde_hotfix {
     use serde::{Deserialize, Deserializer};
-    pub(super) fn bool_or_int<'de, D>(deserializer: D) -> Result<bool, D::Error>
+    pub(super) fn bool_or_int<'de, D>(
+        deserializer: D,
+    ) -> Result<bool, D::Error>
     where
         D: Deserializer<'de>,
     {

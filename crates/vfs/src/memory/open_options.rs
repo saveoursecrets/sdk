@@ -2,8 +2,8 @@ use std::io::{ErrorKind, Result};
 use std::{path::Path, sync::Arc};
 
 use super::{
-    fs::{create_file, resolve, MemoryFd, PathTarget},
     File,
+    fs::{MemoryFd, PathTarget, create_file, resolve},
 };
 use bitflags::bitflags;
 

@@ -1,8 +1,8 @@
-use futures::{pin_mut, StreamExt};
+use futures::{StreamExt, pin_mut};
 use indexmap::IndexMap;
 use sos_core::{
-    commit::CommitHash, crypto::AeadPack, decode, events::EventLog,
-    events::WriteEvent, SecretId, VaultCommit, VaultFlags,
+    SecretId, VaultCommit, VaultFlags, commit::CommitHash, crypto::AeadPack,
+    decode, events::EventLog, events::WriteEvent,
 };
 use sos_vault::{Error, Vault};
 
@@ -93,7 +93,7 @@ impl FolderReducer {
                         WriteEvent::CreateVault(_) => {
                             return Err(
                                 sos_core::Error::CreateEventOnlyFirst.into()
-                            )
+                            );
                         }
                         WriteEvent::SetVaultName(name) => {
                             self.vault_name = Some(name);

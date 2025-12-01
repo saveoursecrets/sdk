@@ -3,7 +3,7 @@ use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use sos_backend::BackendTarget;
 use sos_client_storage::ClientStorage;
-use sos_core::{constants::JSON_EXT, Paths, PublicIdentity};
+use sos_core::{Paths, PublicIdentity, constants::JSON_EXT};
 use sos_database::{
     async_sqlite::JournalMode, migrations::migrate_client,
     open_file_with_journal_mode, open_memory,
@@ -415,9 +415,10 @@ async fn copy_file_blobs(
                   "upgrade_accounts::copy_file");
 
                 if let Some(parent) = dest.parent()
-                    && !vfs::try_exists(parent).await? {
-                        vfs::create_dir_all(parent).await?;
-                    }
+                    && !vfs::try_exists(parent).await?
+                {
+                    vfs::create_dir_all(parent).await?;
+                }
 
                 let mut input = File::open(&source).await?;
                 let mut output = File::create(&dest).await?;

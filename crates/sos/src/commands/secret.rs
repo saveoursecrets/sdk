@@ -1,34 +1,34 @@
 use crate::{
+    Error, Result,
     helpers::{
-        account::{resolve_folder, resolve_user, verify, Owner, SHELL},
+        account::{Owner, SHELL, resolve_folder, resolve_user, verify},
         editor,
         messages::success,
         readline::{read_flag, read_line},
         secret::{
-            add_file, add_link, add_list, add_login, add_note, add_password,
-            copy_secret_text, download_file_secret, normalize_tags,
-            print_secret, read_file_secret, read_name, resolve_secret,
-            ResolvedSecret,
+            ResolvedSecret, add_file, add_link, add_list, add_login,
+            add_note, add_password, copy_secret_text, download_file_secret,
+            normalize_tags, print_secret, read_file_secret, read_name,
+            resolve_secret,
         },
     },
-    Error, Result,
 };
 use clap::Subcommand;
 use crossterm::{
     execute,
     terminal::{Clear, ClearType},
 };
-use futures::{future::LocalBoxFuture, select, FutureExt};
+use futures::{FutureExt, future::LocalBoxFuture, select};
 use human_bytes::human_bytes;
-use kdam::{term, tqdm, BarExt, Column, RichProgress, Spinner};
+use kdam::{BarExt, Column, RichProgress, Spinner, term, tqdm};
 use sos_account::Account;
 use sos_client_storage::AccessOptions;
 use sos_core::{AccountRef, FolderRef};
 use sos_external_files::FileProgress;
 use sos_search::{ArchiveFilter, Document, DocumentView};
 use sos_vault::{
-    secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
     Summary,
+    secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
 };
 use sos_vfs as vfs;
 use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};

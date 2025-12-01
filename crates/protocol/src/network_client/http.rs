@@ -1,20 +1,20 @@
 //! HTTP client implementation.
 use crate::{
-    constants::{
-        routes::v1::{
-            SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
-        },
-        MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
-    },
     DiffRequest, DiffResponse, Error, NetworkError, PatchRequest,
     PatchResponse, Result, ScanRequest, ScanResponse, SyncClient,
     WireEncodeDecode,
+    constants::{
+        MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
+        routes::v1::{
+            SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
+        },
+    },
 };
 use async_trait::async_trait;
 use http::StatusCode;
 use reqwest::{
-    header::{AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
     Certificate, RequestBuilder,
+    header::{AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -34,10 +34,10 @@ use super::{bearer_prefix, encode_device_signature};
 
 #[cfg(feature = "listen")]
 use crate::{
+    NetworkChangeEvent,
     network_client::websocket::{
         ListenOptions, WebSocketChangeListener, WebSocketHandle,
     },
-    NetworkChangeEvent,
 };
 
 #[cfg(feature = "files")]
@@ -485,8 +485,8 @@ impl FileSyncClient for HttpClient {
     ) -> Result<http::StatusCode> {
         use futures::StreamExt;
         use reqwest::{
-            header::{CONTENT_LENGTH, CONTENT_TYPE},
             Body,
+            header::{CONTENT_LENGTH, CONTENT_TYPE},
         };
         use sos_vfs as vfs;
         use tokio::sync::mpsc;

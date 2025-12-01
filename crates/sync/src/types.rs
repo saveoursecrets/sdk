@@ -3,17 +3,17 @@ use crate::Result;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use sos_core::{
-    commit::{CommitHash, CommitState, Comparison},
     AccountId, SecretId, VaultId,
+    commit::{CommitHash, CommitState, Comparison},
 };
 use sos_core::{
     device::DevicePublicKey,
     events::{
+        AccountEvent, DeviceEvent, WriteEvent,
         patch::{
             AccountDiff, AccountPatch, DeviceDiff, DevicePatch, FolderDiff,
             FolderPatch,
         },
-        AccountEvent, DeviceEvent, WriteEvent,
     },
 };
 use sos_vault::Summary;
@@ -21,11 +21,11 @@ use std::collections::HashMap;
 
 #[cfg(feature = "files")]
 use sos_core::{
-    events::{
-        patch::{FileDiff, FilePatch},
-        FileEvent,
-    },
     ExternalFile, ExternalFileName, SecretPath,
+    events::{
+        FileEvent,
+        patch::{FileDiff, FilePatch},
+    },
 };
 
 /// Debug snapshot of an account events at a point in time.

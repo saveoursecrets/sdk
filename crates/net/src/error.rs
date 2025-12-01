@@ -1,7 +1,7 @@
 //! Error type for network accounts.
 use sos_core::{AuthenticationError, Origin};
 use sos_core::{ErrorExt, VaultId};
-use sos_protocol::{transfer::CancelReason, AsConflict, ConflictError};
+use sos_protocol::{AsConflict, ConflictError, transfer::CancelReason};
 use std::error::Error as StdError;
 use std::path::PathBuf;
 use thiserror::Error;

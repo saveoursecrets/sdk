@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
-use rs_merkle::{algorithms::Sha256, MerkleProof};
+use rs_merkle::{MerkleProof, algorithms::Sha256};
 use std::io::{Error, Result};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 

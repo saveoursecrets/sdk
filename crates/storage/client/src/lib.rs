@@ -4,9 +4,9 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use sos_core::{
+    AccountId, VaultFlags, VaultId,
     crypto::{AccessKey, Cipher, KeyDerivation},
     events::WriteEvent,
-    AccountId, VaultFlags, VaultId,
 };
 use sos_vault::{SharedAccess, Vault};
 

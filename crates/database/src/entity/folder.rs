@@ -1,13 +1,13 @@
 use crate::{Error, Result};
+use async_sqlite::Client;
 use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
     Transaction,
 };
-use async_sqlite::Client;
 use sos_core::crypto::Seed;
 use sos_core::{
-    commit::CommitHash, crypto::AeadPack, decode, encode, SecretId,
-    UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
+    SecretId, UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
+    commit::CommitHash, crypto::AeadPack, decode, encode,
 };
 use sos_vault::{SharedAccess, Summary, Vault};
 use sql_query_builder as sql;

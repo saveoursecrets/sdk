@@ -15,7 +15,7 @@ mod error;
 pub use error::Error;
 
 #[cfg(feature = "audit")]
-use futures::{pin_mut, StreamExt};
+use futures::{StreamExt, pin_mut};
 
 /// Options for debug snapshots.
 #[derive(Debug)]
@@ -75,43 +75,45 @@ pub async fn export_debug_snapshot(
         while let Some(entry) = dir.next_entry().await? {
             let path = entry.path();
             if let Some(name) = path.file_name()
-                && name.to_string_lossy().starts_with(LOG_FILE_NAME) {
-                    let buffer = vfs::read(&path).await?;
-                    zip_writer
-                        .add_file(
-                            &format!("logs/{}.jsonl", name.to_string_lossy()),
-                            &buffer,
-                        )
-                        .await?;
-                }
+                && name.to_string_lossy().starts_with(LOG_FILE_NAME)
+            {
+                let buffer = vfs::read(&path).await?;
+                zip_writer
+                    .add_file(
+                        &format!("logs/{}.jsonl", name.to_string_lossy()),
+                        &buffer,
+                    )
+                    .await?;
+            }
         }
     }
 
     #[cfg(feature = "audit")]
     if options.include_audit_trail
-        && let Some(providers) = sos_backend::audit::providers() {
-            for (index, provider) in providers.iter().enumerate() {
-                let stream = provider.audit_stream(false).await?;
-                pin_mut!(stream);
+        && let Some(providers) = sos_backend::audit::providers()
+    {
+        for (index, provider) in providers.iter().enumerate() {
+            let stream = provider.audit_stream(false).await?;
+            pin_mut!(stream);
 
-                let events = stream
-                    .filter_map(|e| async move { e.ok() })
-                    .filter_map(|e| async move {
-                        if e.account_id() == &account_id {
-                            Some(e)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .await;
+            let events = stream
+                .filter_map(|e| async move { e.ok() })
+                .filter_map(|e| async move {
+                    if e.account_id() == &account_id {
+                        Some(e)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+                .await;
 
-                let buffer = serde_json::to_vec_pretty(&events)?;
-                zip_writer
-                    .add_file(&format!("audit/{}.json", index), &buffer)
-                    .await?;
-            }
+            let buffer = serde_json::to_vec_pretty(&events)?;
+            zip_writer
+                .add_file(&format!("audit/{}.json", index), &buffer)
+                .await?;
         }
+    }
 
     zip_writer.finish().await?;
 

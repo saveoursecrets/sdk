@@ -1,7 +1,7 @@
 //! Folder write operations.
 use super::{EventKind, LogEvent};
 use crate::SecretId;
-use crate::{crypto::AeadPack, VaultCommit, VaultFlags};
+use crate::{VaultCommit, VaultFlags, crypto::AeadPack};
 use serde::{Deserialize, Serialize};
 
 /// Write operations.

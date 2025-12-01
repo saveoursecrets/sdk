@@ -16,7 +16,7 @@ pub use patch::{PatchRequest, PatchResponse};
 #[cfg(feature = "pairing")]
 #[doc(hidden)]
 pub use relay::{
-    pairing_message, PairingConfirm, PairingMessage, PairingReady,
-    PairingRequest, RelayHeader, RelayPacket, RelayPayload,
+    PairingConfirm, PairingMessage, PairingReady, PairingRequest,
+    RelayHeader, RelayPacket, RelayPayload, pairing_message,
 };
 pub use scan::{ScanRequest, ScanResponse};

@@ -1,8 +1,8 @@
 //! Storage backed by the filesystem.
 use crate::{
-    traits::private::Internal, ClientAccountStorage, ClientBaseStorage,
-    ClientDeviceStorage, ClientEventLogStorage, ClientFolderStorage,
-    ClientVaultStorage, Error, Result,
+    ClientAccountStorage, ClientBaseStorage, ClientDeviceStorage,
+    ClientEventLogStorage, ClientFolderStorage, ClientVaultStorage, Error,
+    Result, traits::private::Internal,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -12,12 +12,12 @@ use sos_backend::{
     StorageError,
 };
 use sos_core::{
+    AccountId, Paths, SecretId, VaultFlags, VaultId,
     constants::VAULT_EXT,
     decode,
     device::TrustedDevice,
     encode,
     events::{DeviceEvent, Event, EventLog, EventLogType, ReadEvent},
-    AccountId, Paths, SecretId, VaultFlags, VaultId,
 };
 use sos_filesystem::write_exclusive;
 use sos_login::Identity;

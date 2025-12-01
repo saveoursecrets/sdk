@@ -19,7 +19,7 @@ fn folder_invites_select_columns(sql: sql::Select) -> sql::Select {
 }
 
 /// Represents an invite to a shared folder.
-struct FolderInviteRow {
+pub(super) struct FolderInviteRow {
     folder_invite_id: i64,
     created_at: String,
     modified_at: String,

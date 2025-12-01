@@ -1,16 +1,16 @@
 use axum::{
+    Json,
     extract::Extension,
     response::{IntoResponse, Redirect},
-    Json,
 };
 
 //use axum_macros::debug_handler;
 
 use crate::{
-    authenticate::{self, BearerToken},
     Error, Result, ServerBackend,
+    authenticate::{self, BearerToken},
 };
-use axum_extra::headers::{authorization::Bearer, Authorization};
+use axum_extra::headers::{Authorization, authorization::Bearer};
 use http::HeaderMap;
 use serde::Deserialize;
 use serde_json::json;
@@ -105,9 +105,10 @@ async fn authenticate_endpoint(
     {
         let reader = state.read().await;
         if let Some(access) = &reader.config.access
-            && !access.is_allowed_access(&token.account_id) {
-                return Err(Error::Forbidden);
-            }
+            && !access.is_allowed_access(&token.account_id)
+        {
+            return Err(Error::Forbidden);
+        }
     }
 
     let reader = backend.read().await;
@@ -138,9 +139,10 @@ pub(crate) async fn send_notification(
     match notification.encode().await {
         Ok(buffer) => {
             if let Some(account) = reader.sockets.get(caller.account_id())
-                && let Err(error) = account.broadcast(caller, buffer).await {
-                    tracing::warn!(error = ?error);
-                }
+                && let Err(error) = account.broadcast(caller, buffer).await
+            {
+                tracing::warn!(error = ?error);
+            }
         }
         Err(e) => {
             tracing::error!(error = %e, "send_notification");
