@@ -3,6 +3,7 @@ use secrecy::SecretString;
 use sos_account::{Account, FolderCreate, LocalAccount};
 use sos_backend::BackendTarget;
 use sos_client_storage::NewFolderOptions;
+use sos_core::AccountId;
 use sos_database::async_sqlite::Client;
 use sos_database::entity::InviteStatus;
 use sos_database::{
@@ -115,8 +116,8 @@ async fn database_entity_manage_recipient() -> Result<()> {
 
 /// Test sending a folder invite to another recipient.
 #[tokio::test]
-async fn database_entity_send_folder_invite() -> Result<()> {
-    const TEST_ID: &str = "database_entity_send_folder_invite";
+async fn database_entity_send_folder_invite_accept() -> Result<()> {
+    const TEST_ID: &str = "database_entity_send_folder_invite_accept";
     // sos_test_utils::init_tracing();
 
     // This test is outside of the context of the network however
@@ -142,8 +143,54 @@ async fn database_entity_send_folder_invite() -> Result<()> {
 
     let (_, mut account1, _, _) =
         prepare_db(&dirs, 0, server.clone()).await?;
-    let (_, account2, _, _) = prepare_db(&dirs, 1, server.clone()).await?;
+    let (_, mut account2, _, _) =
+        prepare_db(&dirs, 1, server.clone()).await?;
 
+    let ((from_account_id, _), (to_account_id, _)) = run_invite_flow(
+        &mut server,
+        &mut account1,
+        &mut account2,
+        InviteStatus::Accepted,
+    )
+    .await?;
+
+    // Sender can see the accepted invite
+    let sender_accepted_invites = server
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            Ok::<_, anyhow::Error>(entity.sent_folder_invites(
+                &from_account_id,
+                None,
+                Some(InviteStatus::Accepted),
+            )?)
+        })
+        .await?;
+    assert_eq!(1, sender_accepted_invites.len());
+
+    // Receiver can see the accepted invite
+    let receiver_accepted_invites = server
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            Ok::<_, anyhow::Error>(entity.received_folder_invites(
+                &to_account_id,
+                None,
+                Some(InviteStatus::Accepted),
+            )?)
+        })
+        .await?;
+    assert_eq!(1, receiver_accepted_invites.len());
+
+    teardown(TEST_ID).await;
+
+    Ok(())
+}
+
+async fn run_invite_flow(
+    server: &mut Client,
+    account1: &mut LocalAccount,
+    account2: &mut LocalAccount,
+    invite_status: InviteStatus,
+) -> Result<((AccountId, String), (AccountId, String))> {
     // Both accounts must have enabled sharing by
     // creating recipient information
     {
@@ -281,46 +328,21 @@ async fn database_entity_send_folder_invite() -> Result<()> {
         .await?;
     assert!(accepted_invites.is_empty());
 
-
-    // Accept the invite (account2)
+    // Accept or decline the invite (account2)
+    let from_public_key = from_recipient_public_key.clone();
     server
         .conn_mut_and_then(move |conn| {
             let mut entity = SharedFolderEntity::new(conn);
             Ok::<_, anyhow::Error>(entity.update_folder_invite(
                 &to_account_id,
-                &from_recipient_public_key,
-                InviteStatus::Accepted,
+                &from_public_key,
+                invite_status,
             )?)
         })
         .await?;
-    
-    // Sender can see the accepted invite
-    let sender_accepted_invites = server
-        .conn_mut_and_then(move |conn| {
-            let mut entity = SharedFolderEntity::new(conn);
-            Ok::<_, anyhow::Error>(entity.sent_folder_invites(
-                &from_account_id,
-                None,
-                Some(InviteStatus::Accepted),
-            )?)
-        })
-        .await?;
-    assert_eq!(1, sender_accepted_invites.len());
 
-    // Receiver can see the accepted invite
-    let receiver_accepted_invites = server
-        .conn_mut_and_then(move |conn| {
-            let mut entity = SharedFolderEntity::new(conn);
-            Ok::<_, anyhow::Error>(entity.received_folder_invites(
-                &to_account_id,
-                None,
-                Some(InviteStatus::Accepted),
-            )?)
-        })
-        .await?;
-    assert_eq!(1, receiver_accepted_invites.len());
-
-    teardown(TEST_ID).await;
-
-    Ok(())
+    Ok((
+        (from_account_id, from_recipient_public_key),
+        (to_account_id, to_recipient_public_key),
+    ))
 }
