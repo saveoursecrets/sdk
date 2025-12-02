@@ -87,11 +87,11 @@ pub async fn list_local_folders(
     let mut vaults = Vec::new();
     let mut dir = vfs::read_dir(vaults_dir).await?;
     while let Some(entry) = dir.next_entry().await? {
-        if let Some(extension) = entry.path().extension() {
-            if extension == VAULT_EXT {
-                let summary = Header::read_summary_file(entry.path()).await?;
-                vaults.push((summary, entry.path().to_path_buf()));
-            }
+        if let Some(extension) = entry.path().extension()
+            && extension == VAULT_EXT
+        {
+            let summary = Header::read_summary_file(entry.path()).await?;
+            vaults.push((summary, entry.path().to_path_buf()));
         }
     }
     Ok(vaults)
