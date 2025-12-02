@@ -54,18 +54,18 @@ fn secret_select_columns(sql: sql::Select) -> sql::Select {
 #[derive(Debug, Default)]
 pub struct FolderRow {
     pub row_id: i64,
-    created_at: String,
-    modified_at: String,
-    identifier: String,
-    name: String,
-    salt: Option<String>,
-    meta: Option<Vec<u8>>,
-    seed: Option<Vec<u8>>,
-    version: i64,
-    cipher: String,
-    kdf: String,
-    flags: Vec<u8>,
-    shared_access: Option<Vec<u8>>,
+    pub(crate) created_at: String,
+    pub(crate) modified_at: String,
+    pub(crate) identifier: String,
+    pub(crate) name: String,
+    pub(crate) salt: Option<String>,
+    pub(crate) meta: Option<Vec<u8>>,
+    pub(crate) seed: Option<Vec<u8>>,
+    pub(crate) version: i64,
+    pub(crate) cipher: String,
+    pub(crate) kdf: String,
+    pub(crate) flags: Vec<u8>,
+    pub(crate) shared_access: Option<Vec<u8>>,
 }
 
 impl FolderRow {

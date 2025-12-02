@@ -15,6 +15,9 @@ use sos_database::{
 };
 use sos_sdk::prelude::*;
 use sos_test_utils::{default_server_paths, setup, teardown, TestDirs};
+use sos_vault::SharedAccess;
+
+const FOLDER_NAME: &str = "shared_folder";
 
 /// Test managing recipient information for an account.
 #[tokio::test]
@@ -114,7 +117,8 @@ async fn database_entity_manage_recipient() -> Result<()> {
     Ok(())
 }
 
-/// Test sending a folder invite to another recipient.
+/// Test sending a folder invite to another recipient and 
+/// the recipient accepts the invite.
 #[tokio::test]
 async fn database_entity_send_folder_invite_accept() -> Result<()> {
     const TEST_ID: &str = "database_entity_send_folder_invite_accept";
@@ -180,6 +184,121 @@ async fn database_entity_send_folder_invite_accept() -> Result<()> {
         .await?;
     assert_eq!(1, receiver_accepted_invites.len());
 
+    // Receiver can list the shared folder
+    let shared_folder_rows = server
+        .conn_mut_and_then(move |conn| {
+            let entity = SharedFolderEntity::new(conn);
+            Ok::<_, anyhow::Error>(entity.list_shared_folders(
+                &to_account_id,
+            )?)
+        })
+        .await?;
+
+    let mut shared_folder_records = SharedFolderEntity::from_rows(shared_folder_rows).await?;
+    assert_eq!(1, shared_folder_records.len());
+    let record = shared_folder_records.remove(0);
+    assert_eq!(FOLDER_NAME, record.folder.summary.name());
+    assert!(record.folder.summary.flags().is_shared());
+    assert_eq!(Cipher::X25519, *record.folder.summary.cipher());
+    assert!(matches!(record.folder.shared_access, Some(SharedAccess::WriteAccess(_))));
+    
+    // Check in-memory folders list contains the shared folder
+    // for the owner we don't need to reload the folders
+    let account1_folders = account1.list_folders().await?;
+    assert!(account1_folders.iter().any(|s| s.name() == FOLDER_NAME));
+
+    // Check in-memory folders list contains the shared folder
+    // but for the recipient of the invite we need to call load_folders()
+    // to refresh the in-memory folders list
+    let account2_folders = account2.load_folders().await?;
+    assert!(account2_folders.iter().any(|s| s.name() == FOLDER_NAME));
+
+    teardown(TEST_ID).await;
+
+    Ok(())
+}
+
+/// Test sending a folder invite to another recipient and 
+/// the recipient declines the invite.
+#[tokio::test]
+async fn database_entity_send_folder_invite_decline() -> Result<()> {
+    const TEST_ID: &str = "database_entity_send_folder_invite_decline";
+    // sos_test_utils::init_tracing();
+
+    // This test is outside of the context of the network however
+    // the data source must be shared between clients so we configure
+    // a shared database
+    let server_paths = default_server_paths(TEST_ID).await?;
+    let mut server = open_file(server_paths.database_file()).await?;
+    migrate_client(&mut server).await?;
+
+    let dirs = setup(TEST_ID, 2).await?;
+
+    #[inline(always)]
+    async fn prepare_db(
+        dirs: &TestDirs,
+        index: usize,
+        server: Client,
+    ) -> Result<(AccountRecord, LocalAccount, Summary, SecretString)> {
+        let name = format!("{}_account_{}", TEST_ID, index);
+        let paths = Paths::new_client(dirs.clients.get(index).unwrap());
+        let target = BackendTarget::Database(paths, server);
+        super::prepare_local_db_account(&target, &name).await
+    }
+
+    let (_, mut account1, _, _) =
+        prepare_db(&dirs, 0, server.clone()).await?;
+    let (_, mut account2, _, _) =
+        prepare_db(&dirs, 1, server.clone()).await?;
+
+    let ((from_account_id, _), (to_account_id, _)) = run_invite_flow(
+        &mut server,
+        &mut account1,
+        &mut account2,
+        InviteStatus::Declined,
+    )
+    .await?;
+
+    // Sender can see the declined invite
+    let sender_declined_invites = server
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            Ok::<_, anyhow::Error>(entity.sent_folder_invites(
+                &from_account_id,
+                None,
+                Some(InviteStatus::Declined),
+            )?)
+        })
+        .await?;
+    assert_eq!(1, sender_declined_invites.len());
+
+    // Receiver can see the declined invite
+    let receiver_declined_invites = server
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            Ok::<_, anyhow::Error>(entity.received_folder_invites(
+                &to_account_id,
+                None,
+                Some(InviteStatus::Declined),
+            )?)
+        })
+        .await?;
+    assert_eq!(1, receiver_declined_invites.len());
+
+    // Receiver can list shared folders
+    let shared_folder_rows = server
+        .conn_mut_and_then(move |conn| {
+            let entity = SharedFolderEntity::new(conn);
+            Ok::<_, anyhow::Error>(entity.list_shared_folders(
+                &to_account_id,
+            )?)
+        })
+        .await?;
+    
+    // But we should not see any rows as the invite was declined,
+    // the join table entry was not created
+    assert!(shared_folder_rows.is_empty());
+
     teardown(TEST_ID).await;
 
     Ok(())
@@ -229,9 +348,8 @@ async fn run_invite_flow(
     }
 
     // First account is the owner of the shared folder
-    let folder_name = "shared_folder";
     let FolderCreate { folder, .. } = account1
-        .create_shared_folder(NewFolderOptions::new(folder_name.to_string()))
+        .create_shared_folder(NewFolderOptions::new(FOLDER_NAME.to_string()))
         .await?;
     let shared_folder_id = *folder.id();
 
@@ -294,8 +412,8 @@ async fn run_invite_flow(
     let received_invite = received_invites.remove(0);
 
     assert_eq!(sent_invite.row_id, received_invite.row_id);
-    assert_eq!(folder_name, &sent_invite.folder_name);
-    assert_eq!(folder_name, &received_invite.folder_name);
+    assert_eq!(FOLDER_NAME, &sent_invite.folder_name);
+    assert_eq!(FOLDER_NAME, &received_invite.folder_name);
 
     assert_eq!(&to_recipient_public_key, &sent_invite.recipient_public_key);
     assert_eq!(

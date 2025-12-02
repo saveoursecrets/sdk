@@ -1,5 +1,6 @@
 use crate::entity::{
-    AccountEntity, AccountRecord, FolderEntity, FolderRecord,
+    AccountEntity, AccountRecord, AccountRow, FolderEntity, FolderRecord,
+    FolderRow,
 };
 use crate::{Error, Result};
 use async_sqlite::rusqlite::{Connection, Row};
@@ -14,6 +15,7 @@ use recipient::RecipientRow;
 pub use recipient::{RecipientEntity, RecipientRecord};
 
 /// Record for a shared folder.
+#[derive(Debug)]
 pub struct SharedFolderRecord {
     /// Account information.
     pub account: AccountRecord,
@@ -346,12 +348,91 @@ impl<'conn> SharedFolderEntity<'conn> {
         tx.commit()?;
         Ok(())
     }
+    
+    #[doc(hidden)]
+    pub fn list_shared_folders(&self, account_id: &AccountId) -> Result<Vec<(AccountRow, FolderRow)>> {
+        let query = sql::Select::new()
+            .select(
+                r#"
+                a.account_id,
+                a.created_at,
+                a.modified_at,
+                a.identifier,
+                a.name,
+                f.folder_id,
+                f.created_at,
+                f.modified_at,
+                f.identifier,
+                f.name,
+                f.salt,
+                f.meta,
+                f.seed,
+                f.version,
+                f.cipher,
+                f.kdf,
+                f.flags,
+                f.shared_access
+            "#,
+            )
+            .from("account_shared_folder AS asf")
+            .inner_join("accounts AS a ON asf.account_id = a.account_id")
+            .inner_join("folders AS f ON asf.folder_id = f.folder_id")
+            .where_clause("a.identifier = ?1");
 
-    /// List shared folders for an account.
-    pub async fn list_shared_folders(
-        &mut self,
-        account_id: &AccountId,
-    ) -> Result<SharedFolderRecord> {
-        todo!();
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
+
+        fn convert_row(row: &Row<'_>) -> Result<(AccountRow, FolderRow)> {
+            let account = AccountRow {
+                row_id: row.get(0)?,
+                created_at: row.get(1)?,
+                modified_at: row.get(2)?,
+                identifier: row.get(3)?,
+                name: row.get(4)?,
+            };
+            let folder = FolderRow {
+                row_id: row.get(5)?,
+                created_at: row.get(6)?,
+                modified_at: row.get(7)?,
+                identifier: row.get(8)?,
+                name: row.get(9)?,
+                salt: row.get(10)?,
+                meta: row.get(11)?,
+                seed: row.get(12)?,
+                version: row.get(13)?,
+                cipher: row.get(14)?,
+                kdf: row.get(15)?,
+                flags: row.get(16)?,
+                shared_access: row.get(17)?,
+            };
+            Ok((account, folder))
+        }
+
+        let rows = stmt.query_and_then([account_id.to_string()], convert_row)?;
+
+        let mut shared_folders = Vec::new();
+        for row in rows {
+            shared_folders.push(row?);
+        }
+        Ok(shared_folders)
+    }
+
+    #[doc(hidden)]
+    /// Convert shared folders rows.
+    pub async fn from_rows(
+        rows: Vec<(AccountRow, FolderRow)>
+    ) -> Result<Vec<SharedFolderRecord>> {
+        
+        // TODO: if FolderRecord::from_row() was sync we could use 
+        // TODO: a much cleaner API; this would require
+        // TODO: using sync versions of encode() and decode()
+        // TODO: which is a big refactor so deferred for another time
+
+        let mut shared_folders = Vec::new();
+        for (account_row, folder_row)in rows {
+            let account: AccountRecord = account_row.try_into()?;
+            let folder = FolderRecord::from_row(folder_row).await?;
+            shared_folders.push(SharedFolderRecord { account, folder });
+        }
+        Ok(shared_folders)
     }
 }
