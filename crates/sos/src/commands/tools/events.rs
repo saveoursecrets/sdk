@@ -217,11 +217,10 @@ async fn print_events<
         tree.append(&mut vec![record.commit().into()]);
         tree.commit();
 
-        if let Some(commit) = &until_commit {
-            if commit == record.commit() {
+        if let Some(commit) = &until_commit
+            && commit == record.commit() {
                 break;
             }
-        }
     }
 
     if !tree.is_empty() {
