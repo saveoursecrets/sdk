@@ -928,11 +928,10 @@ impl DocumentView {
         doc: &Document,
         archive: Option<&ArchiveFilter>,
     ) -> bool {
-        if let Some(filter) = archive {
-            if !filter.include_documents && doc.folder_id() == &filter.id {
+        if let Some(filter) = archive
+            && !filter.include_documents && doc.folder_id() == &filter.id {
                 return false;
             }
-        }
         match self {
             DocumentView::All { ignored_types } => {
                 if let Some(ignored_types) = ignored_types {
