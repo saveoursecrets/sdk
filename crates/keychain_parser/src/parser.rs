@@ -442,13 +442,11 @@ impl<'s> KeychainList<'s> {
                         AttributeName::SecAccountItemAttr,
                     ),
                 )
-            {
-                if attr_service.matches(service)
+                && attr_service.matches(service)
                     && attr_account.matches(account)
                 {
                     return true;
                 }
-            }
             false
         })
     }
@@ -468,13 +466,11 @@ impl<'s> KeychainList<'s> {
                         AttributeName::SecTypeItemAttr,
                     ),
                 )
-            {
-                if attr_service.matches(service)
+                && attr_service.matches(service)
                     && attr_type.matches(NOTE_TYPE)
                 {
                     return true;
                 }
-            }
             false
         })
     }
