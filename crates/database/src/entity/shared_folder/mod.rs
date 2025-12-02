@@ -262,4 +262,18 @@ impl<'conn> SharedFolderEntity<'conn> {
         }
         Ok(invites)
     }
+
+    /// Update folder invite with a new status.
+    pub fn update_folder_invite(
+        &mut self,
+        account_id: &AccountId,
+        from_recipient_public_key: String,
+        invite_status: InviteStatus,
+    ) -> Result<Vec<FolderInviteRecord>> {
+        assert!(matches!(
+            invite_status,
+            InviteStatus::Accepted | InviteStatus::Declined
+        ));
+        todo!();
+    }
 }
