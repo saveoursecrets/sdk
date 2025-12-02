@@ -335,11 +335,10 @@ where
                             }
                         }
 
-                        if !items.is_empty() {
-                            if let Err(error) = queue_tx.send(items).await {
+                        if !items.is_empty()
+                            && let Err(error) = queue_tx.send(items).await {
                                 tracing::error!(error = ?error, "file_transfers::reinsert");
                             }
-                        }
                     }
                     Some(events) = queue_rx.recv() => {
                         // println!("queue events: {}", events.len());

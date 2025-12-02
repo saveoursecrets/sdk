@@ -1537,9 +1537,8 @@ impl Account for NetworkAccount {
 
         let result = {
             let mut account = self.account.lock().await;
-            let result =
-                account.update_file(secret_id, meta, path, options).await?;
-            result
+            
+            account.update_file(secret_id, meta, path, options).await?
         };
 
         let result = SecretChange {

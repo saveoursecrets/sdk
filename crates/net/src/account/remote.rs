@@ -222,15 +222,15 @@ mod listen {
             options: ListenOptions,
             channel: mpsc::Sender<NetworkChangeEvent>,
         ) -> WebSocketHandle {
-            let handle = self.client.listen(options, move |notification| {
+            
+
+            self.client.listen(options, move |notification| {
                 let tx = channel.clone();
                 async move {
                     tracing::debug!(notification = ?notification);
                     let _ = tx.send(notification).await;
                 }
-            });
-
-            handle
+            })
         }
     }
 }
