@@ -1,4 +1,6 @@
-use crate::entity::{AccountEntity, FolderEntity};
+use crate::entity::{
+    AccountEntity, AccountRecord, FolderEntity, FolderRecord,
+};
 use crate::{Error, Result};
 use async_sqlite::rusqlite::{Connection, Row};
 use sos_core::{AccountId, UtcDateTime, VaultId};
@@ -11,10 +13,12 @@ pub use folder_invites::{FolderInviteRecord, InviteStatus};
 use recipient::RecipientRow;
 pub use recipient::{RecipientEntity, RecipientRecord};
 
-/// Join table for shared folders.
-struct AccountSharedFolderRow {
-    account_id: i64,
-    folder_id: i64,
+/// Record for a shared folder.
+pub struct SharedFolderRecord {
+    /// Account information.
+    pub account: AccountRecord,
+    /// Folder information.
+    pub folder: FolderRecord,
 }
 
 /// Shared folder entity.
@@ -341,5 +345,13 @@ impl<'conn> SharedFolderEntity<'conn> {
 
         tx.commit()?;
         Ok(())
+    }
+
+    /// List shared folders for an account.
+    pub async fn list_shared_folders(
+        &mut self,
+        account_id: &AccountId,
+    ) -> Result<SharedFolderRecord> {
+        todo!();
     }
 }
