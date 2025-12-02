@@ -1,22 +1,7 @@
 use crate::{Error, Result};
-use async_sqlite::rusqlite::{Connection, Error as SqlError, Row};
+use async_sqlite::rusqlite::{Error as SqlError, Row};
 use sos_core::UtcDateTime;
-use sql_query_builder as sql;
-use std::{ops::Deref, result::Result as StdResult};
-
-fn folder_invites_select_columns(sql: sql::Select) -> sql::Select {
-    sql.select(
-        r#"
-            folder_invite_id,
-            created_at,
-            modified_at,
-            from_recipient_id,
-            to_recipient_id,
-            folder_id,
-            invite_status
-        "#,
-    )
-}
+use std::result::Result as StdResult;
 
 /// Represents an invite to a shared folder.
 pub(super) struct FolderInviteRow {
@@ -86,10 +71,13 @@ pub struct FolderInviteRecord {
     /// Modified date and time.
     pub modified_at: UtcDateTime,
     /// From recipient id.
+    #[allow(dead_code)]
     pub(super) from_recipient_id: i64,
     /// To recipient id.
+    #[allow(dead_code)]
     pub(super) to_recipient_id: i64,
     /// Folder id.
+    #[allow(dead_code)]
     pub(super) folder_id: i64,
     /// Invite status.
     pub invite_status: InviteStatus,
@@ -120,23 +108,5 @@ impl TryFrom<FolderInviteRow> for FolderInviteRecord {
             recipient_email: value.recipient_email,
             recipient_public_key: value.recipient_public_key,
         })
-    }
-}
-
-/// Folder invite entity.
-pub struct FolderInviteEntity<'conn, C>
-where
-    C: Deref<Target = Connection>,
-{
-    conn: &'conn C,
-}
-
-impl<'conn, C> FolderInviteEntity<'conn, C>
-where
-    C: Deref<Target = Connection>,
-{
-    /// Create a new folder invite.
-    pub fn new(conn: &'conn C) -> Self {
-        Self { conn }
     }
 }
