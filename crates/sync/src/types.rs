@@ -399,14 +399,14 @@ impl TrackedChanges {
                             dest,
                             from,
                         } = event
+                            && moved_name == &name
+                            && dest == &owner
                         {
-                            if moved_name == &name && dest == &owner {
-                                return Some(TrackedFileChange::Moved {
-                                    name: *moved_name,
-                                    from: *from,
-                                    dest: *dest,
-                                });
-                            }
+                            return Some(TrackedFileChange::Moved {
+                                name: *moved_name,
+                                from: *from,
+                                dest: *dest,
+                            });
                         }
                         None
                     });
