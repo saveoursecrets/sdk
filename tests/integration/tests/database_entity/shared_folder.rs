@@ -294,7 +294,6 @@ async fn database_entity_send_folder_invite() -> Result<()> {
         })
         .await?;
     
-    /*
     // Sender can see the accepted invite
     let sender_accepted_invites = server
         .conn_mut_and_then(move |conn| {
@@ -306,8 +305,20 @@ async fn database_entity_send_folder_invite() -> Result<()> {
             )?)
         })
         .await?;
-    assert_eq!(1, accepted_invites.len());
-    */
+    assert_eq!(1, sender_accepted_invites.len());
+
+    // Receiver can see the accepted invite
+    let receiver_accepted_invites = server
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            Ok::<_, anyhow::Error>(entity.received_folder_invites(
+                &to_account_id,
+                None,
+                Some(InviteStatus::Accepted),
+            )?)
+        })
+        .await?;
+    assert_eq!(1, receiver_accepted_invites.len());
 
     teardown(TEST_ID).await;
 
