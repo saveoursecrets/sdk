@@ -4,6 +4,7 @@ use sos_account::{Account, FolderCreate, LocalAccount};
 use sos_backend::BackendTarget;
 use sos_client_storage::NewFolderOptions;
 use sos_database::async_sqlite::Client;
+use sos_database::entity::InviteStatus;
 use sos_database::{
     entity::{
         AccountRecord, RecipientEntity, RecipientRecord, SharedFolderEntity,
@@ -220,9 +221,11 @@ async fn database_entity_send_folder_invite() -> Result<()> {
     let mut sent_invites = server
         .conn_mut_and_then(move |conn| {
             let mut entity = SharedFolderEntity::new(conn);
-            Ok::<_, anyhow::Error>(
-                entity.sent_folder_invites(&from_account_id, None)?,
-            )
+            Ok::<_, anyhow::Error>(entity.sent_folder_invites(
+                &from_account_id,
+                None,
+                None,
+            )?)
         })
         .await?;
     assert_eq!(1, sent_invites.len());
@@ -231,9 +234,11 @@ async fn database_entity_send_folder_invite() -> Result<()> {
     let mut received_invites = server
         .conn_mut_and_then(move |conn| {
             let mut entity = SharedFolderEntity::new(conn);
-            Ok::<_, anyhow::Error>(
-                entity.received_folder_invites(&to_account_id, None)?,
-            )
+            Ok::<_, anyhow::Error>(entity.received_folder_invites(
+                &to_account_id,
+                None,
+                None,
+            )?)
         })
         .await?;
     assert_eq!(1, received_invites.len());
@@ -262,6 +267,19 @@ async fn database_entity_send_folder_invite() -> Result<()> {
         Some("one@example.com"),
         received_invite.recipient_email.as_deref()
     );
+
+    // Check the sent invites list for the sender (account1) that have been accepted
+    let accepted_invites = server
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            Ok::<_, anyhow::Error>(entity.sent_folder_invites(
+                &from_account_id,
+                None,
+                Some(InviteStatus::Accepted),
+            )?)
+        })
+        .await?;
+    assert!(accepted_invites.is_empty());
 
     teardown(TEST_ID).await;
 

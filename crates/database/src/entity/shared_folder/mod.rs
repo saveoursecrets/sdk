@@ -7,7 +7,7 @@ use sql_query_builder as sql;
 mod folder_invites;
 mod recipient;
 
-pub use folder_invites::{FolderInviteEntity, FolderInviteRecord};
+pub use folder_invites::{FolderInviteRecord, InviteStatus};
 use recipient::RecipientRow;
 pub use recipient::{RecipientEntity, RecipientRecord};
 
@@ -154,8 +154,9 @@ impl<'conn> SharedFolderEntity<'conn> {
         &mut self,
         account_id: &AccountId,
         limit: Option<usize>,
+        invite_status: Option<InviteStatus>,
     ) -> Result<Vec<FolderInviteRecord>> {
-        self.list_folder_invites(account_id, limit, false)
+        self.list_folder_invites(account_id, limit, false, invite_status)
     }
 
     /// Folder invites sent from this account.
@@ -163,8 +164,9 @@ impl<'conn> SharedFolderEntity<'conn> {
         &mut self,
         account_id: &AccountId,
         limit: Option<usize>,
+        invite_status: Option<InviteStatus>,
     ) -> Result<Vec<FolderInviteRecord>> {
-        self.list_folder_invites(account_id, limit, true)
+        self.list_folder_invites(account_id, limit, true, invite_status)
     }
 
     /// Folder invites sent from this account.
@@ -173,6 +175,7 @@ impl<'conn> SharedFolderEntity<'conn> {
         account_id: &AccountId,
         limit: Option<usize>,
         from_recipient: bool,
+        invite_status: Option<InviteStatus>,
     ) -> Result<Vec<FolderInviteRecord>> {
         let limit =
             limit.map(|l| l.to_string()).unwrap_or(String::from("10"));
@@ -227,9 +230,13 @@ impl<'conn> SharedFolderEntity<'conn> {
 
         query = query
             .inner_join("folders AS f ON fi.folder_id = f.folder_id")
-            .where_clause("a.identifier = ?1")
-            .limit(&limit)
-            .order_by("fi.modified_at DESC");
+            .where_clause("a.identifier = ?1");
+
+        if invite_status.is_some() {
+            query = query.where_and("fi.invite_status = ?2")
+        }
+
+        query = query.limit(&limit).order_by("fi.modified_at DESC");
 
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
 
@@ -239,8 +246,15 @@ impl<'conn> SharedFolderEntity<'conn> {
             Ok(row.try_into()?)
         }
 
-        let rows =
-            stmt.query_and_then([account_id.to_string()], convert_row)?;
+        let rows = match invite_status {
+            Some(invite_status) => stmt.query_and_then(
+                (account_id.to_string(), invite_status as u8),
+                convert_row,
+            )?,
+            None => {
+                stmt.query_and_then([account_id.to_string()], convert_row)?
+            }
+        };
 
         let mut invites = Vec::new();
         for row in rows {

@@ -52,6 +52,7 @@ impl<'a> TryFrom<&Row<'a>> for FolderInviteRow {
     }
 }
 
+/// Status of a folder invite.
 #[derive(Debug)]
 #[repr(u8)]
 pub enum InviteStatus {
