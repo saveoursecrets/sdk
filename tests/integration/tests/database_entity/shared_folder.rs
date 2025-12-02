@@ -268,7 +268,7 @@ async fn database_entity_send_folder_invite() -> Result<()> {
         received_invite.recipient_email.as_deref()
     );
 
-    // Check the sent invites list for the sender (account1) that have been accepted
+    // Check the sent invites list for the sender (account1) that have been accepted (should be empty now)
     let accepted_invites = server
         .conn_mut_and_then(move |conn| {
             let mut entity = SharedFolderEntity::new(conn);
@@ -280,6 +280,34 @@ async fn database_entity_send_folder_invite() -> Result<()> {
         })
         .await?;
     assert!(accepted_invites.is_empty());
+
+
+    // Accept the invite (account2)
+    server
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            Ok::<_, anyhow::Error>(entity.update_folder_invite(
+                &to_account_id,
+                &from_recipient_public_key,
+                InviteStatus::Accepted,
+            )?)
+        })
+        .await?;
+    
+    /*
+    // Sender can see the accepted invite
+    let sender_accepted_invites = server
+        .conn_mut_and_then(move |conn| {
+            let mut entity = SharedFolderEntity::new(conn);
+            Ok::<_, anyhow::Error>(entity.sent_folder_invites(
+                &from_account_id,
+                None,
+                Some(InviteStatus::Accepted),
+            )?)
+        })
+        .await?;
+    assert_eq!(1, accepted_invites.len());
+    */
 
     teardown(TEST_ID).await;
 

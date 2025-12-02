@@ -38,7 +38,7 @@ impl<'a> TryFrom<&Row<'a>> for FolderInviteRow {
 }
 
 /// Status of a folder invite.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 #[repr(u8)]
 pub enum InviteStatus {
     /// Pending invite.

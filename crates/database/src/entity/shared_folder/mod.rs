@@ -267,13 +267,79 @@ impl<'conn> SharedFolderEntity<'conn> {
     pub fn update_folder_invite(
         &mut self,
         account_id: &AccountId,
-        from_recipient_public_key: String,
+        from_recipient_public_key: &str,
         invite_status: InviteStatus,
-    ) -> Result<Vec<FolderInviteRecord>> {
+    ) -> Result<()> {
         assert!(matches!(
             invite_status,
             InviteStatus::Accepted | InviteStatus::Declined
         ));
-        todo!();
+
+        let tx = self.conn.transaction()?;
+
+        let subquery = sql::Select::new()
+            .select("fi.folder_invite_id")
+            .from("folder_invites AS fi")
+            .inner_join(
+                "recipients AS from_r ON fi.from_recipient_id = from_r.recipient_id",
+            )
+            .inner_join(
+                "recipients AS to_r ON fi.to_recipient_id = to_r.recipient_id",
+            )
+            .inner_join("accounts AS a ON to_r.account_id = a.account_id")
+            .where_clause("from_r.recipient_public_key = ?3")
+            .where_and("a.identifier = ?4");
+
+        let query = sql::Update::new()
+            .update("folder_invites")
+            .set(
+                r#"
+                modified_at = ?1,
+                invite_status = ?2
+            "#,
+            )
+            .where_clause(&format!(
+                "folder_invite_id IN ({})",
+                subquery.as_string()
+            ));
+
+        {
+            let mut stmt = tx.prepare_cached(&query.as_string())?;
+            stmt.execute((
+                UtcDateTime::default().to_rfc3339()?,
+                invite_status as u8,
+                from_recipient_public_key,
+                account_id.to_string(),
+            ))?;
+        }
+
+        // Create join between recipient account and shared folder when accepted
+        if matches!(invite_status, InviteStatus::Accepted) {
+            let select_query = sql::Select::new()
+                .select("a.account_id, fi.folder_id")
+                .from("folder_invites AS fi")
+                .inner_join(
+                    "recipients AS from_r ON fi.from_recipient_id = from_r.recipient_id",
+                )
+                .inner_join(
+                    "recipients AS to_r ON fi.to_recipient_id = to_r.recipient_id",
+                )
+                .inner_join("accounts AS a ON to_r.account_id = a.account_id")
+                .where_clause("from_r.recipient_public_key = ?1")
+                .where_and("a.identifier = ?2");
+
+            let insert_query = sql::Insert::new()
+                .insert_into("account_shared_folder (account_id, folder_id)")
+                .select(select_query);
+
+            let mut stmt = tx.prepare_cached(&insert_query.as_string())?;
+            stmt.execute((
+                from_recipient_public_key,
+                account_id.to_string(),
+            ))?;
+        }
+
+        tx.commit()?;
+        Ok(())
     }
 }
