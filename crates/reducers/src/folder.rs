@@ -81,11 +81,10 @@ impl FolderReducer {
 
                 // If we are only reading until the first commit
                 // hash return early.
-                if let Some(until) = &self.until_commit {
-                    if &until.0 == record.commit().as_ref() {
+                if let Some(until) = &self.until_commit
+                    && &until.0 == record.commit().as_ref() {
                         return Ok(self);
                     }
-                }
 
                 while let Some(result) = stream.next().await {
                     let (record, event) = result?;
@@ -118,11 +117,10 @@ impl FolderReducer {
 
                     // If we are reading to a particular commit hash
                     // we are done.
-                    if let Some(until) = &self.until_commit {
-                        if &until.0 == record.commit().as_ref() {
+                    if let Some(until) = &self.until_commit
+                        && &until.0 == record.commit().as_ref() {
                             break;
                         }
-                    }
                 }
             } else {
                 return Err(sos_core::Error::CreateEventMustBeFirst.into());
