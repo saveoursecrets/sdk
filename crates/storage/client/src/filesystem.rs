@@ -290,15 +290,14 @@ impl ClientVaultStorage for ClientFileSystemStorage {
         let mut contents = vfs::read_dir(&storage).await?;
         while let Some(entry) = contents.next_entry().await? {
             let path = entry.path();
-            if let Some(extension) = path.extension() {
-                if extension == VAULT_EXT {
+            if let Some(extension) = path.extension()
+                && extension == VAULT_EXT {
                     let summary = Header::read_summary_file(path).await?;
                     if summary.flags().is_system() {
                         continue;
                     }
                     summaries.push(summary);
                 }
-            }
         }
         Ok(summaries)
     }

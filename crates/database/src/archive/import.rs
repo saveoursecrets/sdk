@@ -343,7 +343,7 @@ impl BackupImport {
             Some(account_id),
             &data.account_preferences,
         )?;
-        #[cfg(feature = "system-messages")]
+        #[cfg(feature = "preferences")]
         system_messages_entity
             .insert_system_messages(account_id, &data.system_messages)?;
 

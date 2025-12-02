@@ -417,11 +417,10 @@ pub trait ClientFolderStorage:
 
         // If the deleted vault is the currently selected
         // vault we must close it
-        if let Some(id) = &current_id {
-            if id == folder_id {
+        if let Some(id) = &current_id
+            && id == folder_id {
                 self.close_folder();
             }
-        }
 
         // Remove from our cache of managed vaults
         self.folders_mut().remove(folder_id);
@@ -1351,12 +1350,11 @@ pub trait ClientAccountStorage:
         let summary = vault.summary().clone();
 
         #[cfg(feature = "search")]
-        if exists {
-            if let Some(index) = self.search_index_mut() {
+        if exists
+            && let Some(index) = self.search_index_mut() {
                 // Clean entries from the search index
                 index.remove_folder(summary.id()).await;
             }
-        }
 
         self.write_vault(&vault, Internal).await?;
 
@@ -1375,12 +1373,11 @@ pub trait ClientAccountStorage:
         }
 
         #[cfg(feature = "search")]
-        if let Some(key) = key {
-            if let Some(index) = self.search_index_mut() {
+        if let Some(key) = key
+            && let Some(index) = self.search_index_mut() {
                 // Ensure the imported secrets are in the search index
                 index.add_vault(vault.clone(), key).await?;
             }
-        }
 
         let event = vault.into_event().await?;
 
