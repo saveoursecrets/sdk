@@ -321,34 +321,6 @@ impl<'conn> SharedFolderEntity<'conn> {
             ))?;
         }
 
-        /*
-        // Create join between recipient account and shared folder when accepted
-        if matches!(invite_status, InviteStatus::Accepted) {
-            let select_query = sql::Select::new()
-                .select("a.account_id, fi.folder_id")
-                .from("folder_invites AS fi")
-                .inner_join(
-                    "recipients AS from_r ON fi.from_recipient_id = from_r.recipient_id",
-                )
-                .inner_join(
-                    "recipients AS to_r ON fi.to_recipient_id = to_r.recipient_id",
-                )
-                .inner_join("accounts AS a ON to_r.account_id = a.account_id")
-                .where_clause("from_r.recipient_public_key = ?1")
-                .where_and("a.identifier = ?2");
-
-            let insert_query = sql::Insert::new()
-                .insert_into("shared_folders (account_id, folder_id)")
-                .select(select_query);
-
-            let mut stmt = tx.prepare_cached(&insert_query.as_string())?;
-            stmt.execute((
-                from_recipient_public_key,
-                account_id.to_string(),
-            ))?;
-        }
-        */
-
         tx.commit()?;
         Ok(())
     }
@@ -601,5 +573,25 @@ impl<'conn> SharedFolderEntity<'conn> {
             .await?;
 
         Ok(())
+    }
+
+    /// Delete a shared folder.
+    pub async fn delete_shared_folder(
+        client: &Client,
+        account_id: &AccountId,
+        folder_id: &VaultId,
+    ) -> Result<()> {
+        // 1. Validate that account_id is a registered recipient for the
+        // shared folder (recipients table).
+        //
+        // 2. If account_id corresponds to the owner/creator of the folder
+        // then delete the entire folder (which will cascade deletions)
+        //
+        // 3. Otherwise, delete the join row in shared_folders for the account
+        // and any corresponding folder invite for the folder id and recipient.
+        //
+        // Deleting the folder invite will allow the owner to invite the recipient
+        // again in the future.
+        todo!();
     }
 }
