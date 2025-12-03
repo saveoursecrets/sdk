@@ -190,6 +190,34 @@ where
         .optional()
     }
 
+
+    /// Find an recipients by public keys.
+    pub fn find_all_by_public_keys(
+        &self,
+        public_keys: &[String],
+    ) -> StdResult<Vec<RecipientRow>, SqlError> {
+        if public_keys.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Build placeholders for the IN clause
+        let placeholders = (1..=public_keys.len())
+            .map(|i| format!("?{}", i))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let query = select_columns(sql::Select::new())
+            .from("recipients")
+            .where_clause(&format!("recipient_public_key IN ({})", placeholders));
+
+        let mut stmt = self.conn.prepare(&query.as_string())?;
+        let rows = stmt.query_map(
+            async_sqlite::rusqlite::params_from_iter(public_keys.iter()),
+            |row| row.try_into()
+        )?;
+        rows.collect()
+    }
+
     /// Create the recipient entity in the database.
     pub fn insert_recipient(
         &self,

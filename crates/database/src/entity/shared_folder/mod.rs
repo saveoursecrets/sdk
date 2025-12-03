@@ -475,25 +475,23 @@ impl<'conn> SharedFolderEntity<'conn> {
         let owner_recipient_id = owner_recipient.recipient_id;
 
         // Collect and validate all recipient records
-        let mut recipient_records = Vec::new();
-        for recipient in recipients {
-            let recipient_key_str = recipient.public_key.to_string();
-            let recipient_row = client
-                .conn_and_then(move |conn| {
-                    let recipient_entity = RecipientEntity::new(&conn);
-                    recipient_entity.find_by_public_key(&recipient_key_str).map_err(async_sqlite::Error::Rusqlite)
-                })
-                .await?
-                .ok_or_else(|| {
-                    SharingError::InviteNoRecipient(recipient.public_key.to_string())
-                })?;
-            recipient_records.push(recipient_row);
+        let recipient_keys = recipients.iter().map(|r| r.public_key.to_string()).collect::<Vec<_>>();
+        let num_recipients = recipient_keys.len();
+        let recipient_records = client
+            .conn_and_then(move |conn| {
+                let recipient_entity = RecipientEntity::new(&conn);
+                recipient_entity.find_all_by_public_keys(recipient_keys.as_slice()).map_err(async_sqlite::Error::Rusqlite)
+            })
+            .await?;
+        if recipient_records.len() != num_recipients {
+            return Err(SharingError::MissingRecipients.into());
         }
 
-        // Phase 5: Prepare vault data
+        // Prepare vault data
         let folder_row = FolderRow::new_insert_from_vault(vault).await?;
 
-        // Phase 6: Transaction-based operations
+        // Insert folder, create shared folder and shared folder recipients
+        // and insert folder invites for recipients other than the owner
         client
             .conn_mut_and_then(move |conn| {
                 let tx = conn.transaction()?;
