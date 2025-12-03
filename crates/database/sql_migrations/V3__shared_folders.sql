@@ -12,7 +12,11 @@
 -- account_id in the folders table.
 CREATE TABLE IF NOT EXISTS shared_folders
 (
+    -- Shared folder id.
+    shared_folder_id    INTEGER             PRIMARY KEY NOT NULL,
+    -- Account id.
     account_id          INTEGER             NOT NULL,
+    -- Folder id.
     folder_id           INTEGER             NOT NULL,
     
     FOREIGN KEY (account_id)
@@ -21,6 +25,24 @@ CREATE TABLE IF NOT EXISTS shared_folders
       REFERENCES folders (folder_id) ON DELETE CASCADE,
 
     UNIQUE (account_id, folder_id)
+);
+
+-- Recipients with access to a shared folder.
+CREATE TABLE IF NOT EXISTS shared_folder_recipients
+(
+    -- Shared folder id.
+    shared_folder_id    INTEGER             NOT NULL,
+    -- Recipient id.
+    recipient_id        INTEGER             NOT NULL,
+    -- Whether this recipient created the shared folder.
+    is_creator          INTEGER             NOT NULL DEFAULT 0,
+    
+    FOREIGN KEY (shared_folder_id)
+      REFERENCES shared_folders (shared_folder_id) ON DELETE CASCADE,
+    FOREIGN KEY (recipient_id)
+      REFERENCES recipients (recipient_id) ON DELETE CASCADE,
+
+    UNIQUE (shared_folder_id, recipient_id)
 );
 
 -- Store folder shared access.

@@ -16,8 +16,8 @@ use sos_client_storage::{
     ClientStorage, NewFolderOptions,
 };
 use sos_core::{
-    AccountId, AccountRef, AuthenticationError, FolderRef, Paths, SecretId,
-    UtcDateTime, VaultCommit, VaultFlags, VaultId,
+    AccountId, AccountRef, AuthenticationError, FolderRef, Paths, Recipient,
+    SecretId, UtcDateTime, VaultCommit, VaultFlags, VaultId,
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode,
@@ -591,9 +591,11 @@ impl LocalAccount {
 
     /// Prepare a shared folder.
     pub async fn prepare_shared_folder(
-        &mut self,
-        mut options: NewFolderOptions,
-    ) -> Result<Vault> {
+        &self,
+        options: NewFolderOptions,
+        recipients: &[Recipient],
+        shared_access: Option<SharedAccess>,
+    ) -> Result<(Vault, AccessKey)> {
         let authenticated_user = self
             .storage
             .authenticated_user()
@@ -602,42 +604,42 @@ impl LocalAccount {
             authenticated_user.shared_private_access_key()?;
         let shared_public_key =
             authenticated_user.shared_public_access_key()?;
-        options.cipher = Some(Cipher::X25519);
-        options.shared_access =
-            Some(options.shared_access.unwrap_or_else(|| {
-                SharedAccess::WriteAccess(vec![shared_public_key.to_string()])
-            }));
 
+        let shared_access = shared_access.unwrap_or_else(|| {
+            let owner_key = shared_public_key.to_string();
+            let mut public_keys = recipients
+                .iter()
+                .map(|r| r.public_key.to_string())
+                .collect::<Vec<_>>();
+            if !public_keys.contains(&owner_key) {
+                public_keys.push(owner_key);
+            }
+            SharedAccess::WriteAccess(public_keys)
+        });
+
+        let mut flags = options.flags.unwrap_or(VaultFlags::SHARED);
+        flags.set(VaultFlags::SHARED, true);
         let builder = VaultBuilder::new()
-            .flags(options.flags.unwrap_or_default())
-            .cipher(options.cipher.unwrap_or_default())
+            .flags(flags)
+            .cipher(Cipher::X25519)
             .kdf(options.kdf.unwrap_or_default())
             .public_name(options.name);
 
-        let (recipients, read_only) =
-            if let Some(shared_access) = options.shared_access {
-                let recipients = match &shared_access {
-                    SharedAccess::WriteAccess(list) => {
-                        SharedAccess::parse_recipients(list)?
-                    }
-                    SharedAccess::ReadOnly(_) => vec![],
-                };
-                (
-                    recipients,
-                    matches!(shared_access, SharedAccess::ReadOnly(_)),
-                )
-            } else {
-                (vec![], true)
-            };
+        let recipient_public_keys =
+            recipients.iter().map(|r| r.public_key.clone()).collect();
+        let read_only = matches!(shared_access, SharedAccess::ReadOnly(_));
 
         match &shared_private_key {
-            AccessKey::Identity(id) => Ok(builder
-                .build(BuilderCredentials::Shared {
-                    owner: id,
-                    recipients,
-                    read_only,
-                })
-                .await?),
+            AccessKey::Identity(id) => Ok((
+                builder
+                    .build(BuilderCredentials::Shared {
+                        owner: id,
+                        recipients: recipient_public_keys,
+                        read_only,
+                    })
+                    .await?,
+                shared_private_key,
+            )),
             _ => unreachable!(),
         }
     }

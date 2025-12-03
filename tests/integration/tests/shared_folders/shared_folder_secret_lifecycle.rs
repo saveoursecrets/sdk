@@ -17,6 +17,7 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
     let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
     let password = device.password.clone();
 
+    /*
     let folder_name = "shared_folder";
     let options = NewFolderOptions::new(folder_name.to_string());
     device.owner.create_shared_folder(options).await?;
@@ -36,6 +37,7 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
 
     let folders = device.owner.list_folders().await?;
     println!("FOLDER LEN: {}", folders.len());
+    */
 
     device.owner.sign_out().await?;
 

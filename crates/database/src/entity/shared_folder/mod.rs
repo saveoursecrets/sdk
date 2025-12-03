@@ -3,8 +3,10 @@ use crate::entity::{
     FolderRow,
 };
 use crate::{Error, Result};
+use async_sqlite::Client;
 use async_sqlite::rusqlite::{Connection, Row};
-use sos_core::{AccountId, UtcDateTime, VaultId};
+use sos_core::{AccountId, Recipient, UtcDateTime, VaultId};
+use sos_vault::Vault;
 use sql_query_builder as sql;
 
 mod folder_invites;
@@ -437,5 +439,19 @@ impl<'conn> SharedFolderEntity<'conn> {
             shared_folders.push(SharedFolderRecord { account, folder });
         }
         Ok(shared_folders)
+    }
+
+    /// Create a shared folder.
+    pub async fn create_shared_folder(
+        client: &Client,
+        account_id: &AccountId,
+        vault: &Vault,
+        recipients: &[Recipient],
+    ) -> Result<()> {
+        // 1. Check a public key for the owner account_id exists in recipients slice
+        // 2. Check all target recipient public keys exist in the recipients table
+        // 3. Using a transaction insert folders, shared_folders and shared_folder_recipients
+        // 4. Ensure is_creator is set for the public key corresponding to account_id
+        todo!();
     }
 }

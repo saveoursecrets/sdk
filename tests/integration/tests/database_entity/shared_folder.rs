@@ -1,9 +1,9 @@
 use anyhow::Result;
 use secrecy::SecretString;
-use sos_account::{Account, FolderCreate, LocalAccount};
+use sos_account::{Account, FolderCreate};
 use sos_backend::BackendTarget;
 use sos_client_storage::NewFolderOptions;
-use sos_core::AccountId;
+use sos_core::{AccountId, Origin, Recipient};
 use sos_database::async_sqlite::Client;
 use sos_database::entity::InviteStatus;
 use sos_database::{
@@ -13,6 +13,7 @@ use sos_database::{
     migrations::migrate_client,
     open_file,
 };
+use sos_net::NetworkAccount;
 use sos_sdk::prelude::*;
 use sos_test_utils::{default_server_paths, setup, teardown, TestDirs};
 use sos_vault::SharedAccess;
@@ -117,7 +118,7 @@ async fn database_entity_manage_recipient() -> Result<()> {
     Ok(())
 }
 
-/// Test sending a folder invite to another recipient and 
+/// Test sending a folder invite to another recipient and
 /// the recipient accepts the invite.
 #[tokio::test]
 async fn database_entity_send_folder_invite_accept() -> Result<()> {
@@ -138,7 +139,7 @@ async fn database_entity_send_folder_invite_accept() -> Result<()> {
         dirs: &TestDirs,
         index: usize,
         server: Client,
-    ) -> Result<(AccountRecord, LocalAccount, Summary, SecretString)> {
+    ) -> Result<(AccountRecord, NetworkAccount, Summary, SecretString)> {
         let name = format!("{}_account_{}", TEST_ID, index);
         let paths = Paths::new_client(dirs.clients.get(index).unwrap());
         let target = BackendTarget::Database(paths, server);
@@ -188,20 +189,24 @@ async fn database_entity_send_folder_invite_accept() -> Result<()> {
     let shared_folder_rows = server
         .conn_mut_and_then(move |conn| {
             let entity = SharedFolderEntity::new(conn);
-            Ok::<_, anyhow::Error>(entity.list_shared_folders(
-                &to_account_id,
-            )?)
+            Ok::<_, anyhow::Error>(
+                entity.list_shared_folders(&to_account_id)?,
+            )
         })
         .await?;
 
-    let mut shared_folder_records = SharedFolderEntity::from_rows(shared_folder_rows).await?;
+    let mut shared_folder_records =
+        SharedFolderEntity::from_rows(shared_folder_rows).await?;
     assert_eq!(1, shared_folder_records.len());
     let record = shared_folder_records.remove(0);
     assert_eq!(FOLDER_NAME, record.folder.summary.name());
     assert!(record.folder.summary.flags().is_shared());
     assert_eq!(Cipher::X25519, *record.folder.summary.cipher());
-    assert!(matches!(record.folder.shared_access, Some(SharedAccess::WriteAccess(_))));
-    
+    assert!(matches!(
+        record.folder.shared_access,
+        Some(SharedAccess::WriteAccess(_))
+    ));
+
     // Check in-memory folders list contains the shared folder
     // for the owner we don't need to reload the folders
     let account1_folders = account1.list_folders().await?;
@@ -218,7 +223,7 @@ async fn database_entity_send_folder_invite_accept() -> Result<()> {
     Ok(())
 }
 
-/// Test sending a folder invite to another recipient and 
+/// Test sending a folder invite to another recipient and
 /// the recipient declines the invite.
 #[tokio::test]
 async fn database_entity_send_folder_invite_decline() -> Result<()> {
@@ -239,7 +244,7 @@ async fn database_entity_send_folder_invite_decline() -> Result<()> {
         dirs: &TestDirs,
         index: usize,
         server: Client,
-    ) -> Result<(AccountRecord, LocalAccount, Summary, SecretString)> {
+    ) -> Result<(AccountRecord, NetworkAccount, Summary, SecretString)> {
         let name = format!("{}_account_{}", TEST_ID, index);
         let paths = Paths::new_client(dirs.clients.get(index).unwrap());
         let target = BackendTarget::Database(paths, server);
@@ -289,12 +294,12 @@ async fn database_entity_send_folder_invite_decline() -> Result<()> {
     let shared_folder_rows = server
         .conn_mut_and_then(move |conn| {
             let entity = SharedFolderEntity::new(conn);
-            Ok::<_, anyhow::Error>(entity.list_shared_folders(
-                &to_account_id,
-            )?)
+            Ok::<_, anyhow::Error>(
+                entity.list_shared_folders(&to_account_id)?,
+            )
         })
         .await?;
-    
+
     // But we should not see any rows as the invite was declined,
     // the join table entry was not created
     assert!(shared_folder_rows.is_empty());
@@ -306,27 +311,29 @@ async fn database_entity_send_folder_invite_decline() -> Result<()> {
 
 async fn run_invite_flow(
     server: &mut Client,
-    account1: &mut LocalAccount,
-    account2: &mut LocalAccount,
+    account1: &mut NetworkAccount,
+    account2: &mut NetworkAccount,
     invite_status: InviteStatus,
 ) -> Result<((AccountId, String), (AccountId, String))> {
     // Both accounts must have enabled sharing by
     // creating recipient information
-    {
+    let recipients = {
         let recipients_info = [
             (
                 *account1.account_id(),
                 "name_one",
                 "one@example.com",
-                account1.shared_access_public_key().await?.to_string(),
+                account1.shared_access_public_key().await?,
             ),
             (
                 *account2.account_id(),
                 "name_two",
                 "two@example.com",
-                account2.shared_access_public_key().await?.to_string(),
+                account2.shared_access_public_key().await?,
             ),
         ];
+
+        let recipients = Vec::new();
 
         // Register each account as a recipient for sharing
         for (account_id, name, email, public_key) in
@@ -339,19 +346,36 @@ async fn run_invite_flow(
                         account_id,
                         name.to_string(),
                         Some(email.to_string()),
-                        public_key,
+                        public_key.to_string(),
                     )?;
                     Ok::<_, anyhow::Error>(recipient_id)
                 })
                 .await?;
-        }
-    }
 
-    // First account is the owner of the shared folder
-    let FolderCreate { folder, .. } = account1
-        .create_shared_folder(NewFolderOptions::new(FOLDER_NAME.to_string()))
+            recipients.push(Recipient {
+                name: name.to_string(),
+                email: Some(email.to_string()),
+                public_key,
+            });
+        }
+        recipients
+    };
+
+    let options = NewFolderOptions::new(FOLDER_NAME.to_string());
+    let (vault, _access_key) = account1
+        .prepare_shared_folder(options, recipients.as_slice(), None)
         .await?;
-    let shared_folder_id = *folder.id();
+    let shared_folder_id = *vault.id();
+
+    SharedFolderEntity::create_shared_folder(
+        &server,
+        account1.account_id(),
+        &vault,
+        recipients.as_slice(),
+    )
+    .await?;
+
+    todo!("create shared folder in entity test spec");
 
     // Search for recipients
     let mut found_recipients = server

@@ -12,8 +12,8 @@ use sos_backend::{BackendTarget, Folder, ServerOrigins};
 use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::{
     AccountId, AccountRef, AuthenticationError, FolderRef, Origin, Paths,
-    PublicIdentity, RemoteOrigins, SecretId, StorageError, UtcDateTime,
-    VaultCommit, VaultFlags, VaultId,
+    PublicIdentity, Recipient, RemoteOrigins, SecretId, StorageError,
+    UtcDateTime, VaultCommit, VaultFlags, VaultId,
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DevicePublicKey, TrustedDevice},
@@ -34,7 +34,7 @@ use sos_protocol::{
 use sos_remote_sync::RemoteSyncHandler;
 use sos_sync::{CreateSet, StorageEventLogs, UpdateSet};
 use sos_vault::{
-    Summary, Vault,
+    SharedAccess, Summary, Vault,
     secret::{Secret, SecretMeta, SecretRow, SecretType},
 };
 use std::{
@@ -523,11 +523,17 @@ impl NetworkAccount {
         &mut self,
         options: NewFolderOptions,
         server: &Origin,
+        recipients: &[Recipient],
+        shared_access: Option<SharedAccess>,
     ) -> Result<FolderCreate<<Self as Account>::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
-        let mut account = self.account.lock().await;
-        let vault = account.prepare_shared_folder(options).await?;
+        let vault = {
+            let account = self.account.lock().await;
+            account
+                .prepare_shared_folder(options, recipients, shared_access)
+                .await?
+        };
 
         /*
         let result = {
@@ -682,6 +688,19 @@ impl NetworkAccount {
         }
 
         Ok(())
+    }
+
+    /// Prepare the vault for a new shared folder.
+    pub async fn prepare_shared_folder(
+        &self,
+        options: NewFolderOptions,
+        recipients: &[Recipient],
+        shared_access: Option<SharedAccess>,
+    ) -> Result<(Vault, AccessKey)> {
+        let account = self.account.lock().await;
+        Ok(account
+            .prepare_shared_folder(options, recipients, shared_access)
+            .await?)
     }
 }
 

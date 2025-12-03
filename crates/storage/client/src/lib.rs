@@ -8,7 +8,7 @@ use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     events::WriteEvent,
 };
-use sos_vault::{SharedAccess, Vault};
+use sos_vault::Vault;
 
 mod database;
 mod error;
@@ -48,8 +48,6 @@ pub struct NewFolderOptions {
     pub cipher: Option<Cipher>,
     /// Key derivation function.
     pub kdf: Option<KeyDerivation>,
-    /// Access for shared folders.
-    pub shared_access: Option<SharedAccess>,
 }
 
 impl NewFolderOptions {
