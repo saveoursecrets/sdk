@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use crate::{Error, Result, SharingError};
 use async_sqlite::rusqlite::{Error as SqlError, Row};
 use sos_core::UtcDateTime;
 use std::result::Result as StdResult;
@@ -50,14 +50,14 @@ pub enum InviteStatus {
 }
 
 impl TryFrom<i64> for InviteStatus {
-    type Error = Error;
+    type Error = SharingError;
 
-    fn try_from(value: i64) -> Result<Self> {
+    fn try_from(value: i64) -> std::result::Result<Self, Self::Error> {
         Ok(match value {
             0 => Self::Pending,
             1 => Self::Accepted,
             2 => Self::Declined,
-            _ => return Err(Error::UnknownInviteStatus(value)),
+            _ => return Err(SharingError::UnknownInviteStatus(value)),
         })
     }
 }

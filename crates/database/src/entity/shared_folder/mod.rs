@@ -2,7 +2,7 @@ use crate::entity::{
     AccountEntity, AccountRecord, AccountRow, FolderEntity, FolderRecord,
     FolderRow,
 };
-use crate::{Error, Result};
+use crate::{Result, SharingError};
 use async_sqlite::Client;
 use async_sqlite::rusqlite::{Connection, Row};
 use sos_core::{AccountId, Recipient, UtcDateTime, VaultId};
@@ -105,22 +105,22 @@ impl<'conn> SharedFolderEntity<'conn> {
         let account = AccountEntity::new(&tx);
         let account = account
             .find_optional(account_id)?
-            .ok_or(Error::SharingInviteNoAccount(*account_id))?;
+            .ok_or(SharingError::InviteNoAccount(*account_id))?;
 
         let recipient = RecipientEntity::new(&tx);
         let from_recipient = recipient
             .find_optional(account.row_id)?
-            .ok_or(Error::SharingInviteRecipientNotCreated(*account_id))?;
+            .ok_or(SharingError::RecipientNotCreated(*account_id))?;
         let to_recipient = recipient
             .find_by_public_key(recipient_public_key)?
-            .ok_or(Error::SharingInviteNoRecipient(
+            .ok_or(SharingError::InviteNoRecipient(
                 recipient_public_key.to_owned(),
             ))?;
 
         let folder = FolderEntity::new(&tx);
         let folder = folder
             .find_optional(folder_id)?
-            .ok_or(Error::SharingInviteNoFolder(*folder_id))?;
+            .ok_or(SharingError::InviteNoFolder(*folder_id))?;
 
         let query = sql::Insert::new()
             .insert_into(
@@ -452,6 +452,7 @@ impl<'conn> SharedFolderEntity<'conn> {
         // 2. Check all target recipient public keys exist in the recipients table
         // 3. Using a transaction insert folders, shared_folders and shared_folder_recipients
         // 4. Ensure is_creator is set for the public key corresponding to account_id
+        // 5. Create folder invites for all recipients except the folder owner
         todo!();
     }
 }

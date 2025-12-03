@@ -37,7 +37,7 @@ pub use event_log::FileEventLog;
 
 mod error;
 pub use async_sqlite;
-pub use error::Error;
+pub use error::{Error, SharingError};
 
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
