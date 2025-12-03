@@ -4,7 +4,7 @@ use crate::entity::{
 };
 use crate::{Result, SharingError};
 use async_sqlite::Client;
-use async_sqlite::rusqlite::{Connection, Row};
+use async_sqlite::rusqlite::{Connection, Row, OptionalExtension};
 use sos_core::{AccountId, Recipient, UtcDateTime, VaultId};
 use sos_vault::Vault;
 use sql_query_builder as sql;
@@ -581,17 +581,116 @@ impl<'conn> SharedFolderEntity<'conn> {
         account_id: &AccountId,
         folder_id: &VaultId,
     ) -> Result<()> {
-        // 1. Validate that account_id is a registered recipient for the
-        // shared folder (recipients table).
-        //
-        // 2. If account_id corresponds to the owner/creator of the folder
-        // then delete the entire folder (which will cascade deletions)
-        //
-        // 3. Otherwise, delete the join row in shared_folders for the account
-        // and any corresponding folder invite for the folder id and recipient.
-        //
-        // Deleting the folder invite will allow the owner to invite the recipient
-        // again in the future.
-        todo!();
+        // Validate account exists and get recipient
+        let check_account_id = *account_id;
+        let (account_row, recipient_row) = client
+            .conn_and_then(move |conn| {
+                let account = AccountEntity::new(&conn);
+                let account_row = account
+                    .find_optional(&check_account_id)?;
+                let recipient_row = if let Some(account_row) = &account_row {
+                    let recipient = RecipientEntity::new(&conn);
+                    recipient
+                        .find_optional(account_row.row_id)?
+                } else { None };
+                Ok::<_, async_sqlite::Error>((account_row, recipient_row))
+            })
+            .await?;
+
+        let account_row = account_row
+            .ok_or(SharingError::DeleteNoAccount(*account_id))?;
+        let recipient_row = recipient_row
+            .ok_or(SharingError::RecipientNotCreated(*account_id))?;
+
+        // Validate folder exists and get shared folder join
+        let check_folder_id = *folder_id;
+        let account_row_id = account_row.row_id;
+        let recipient_id = recipient_row.recipient_id;
+
+        let (folder_row, shared_folder) = client
+            .conn_and_then(move |conn| {
+                let folder_entity = FolderEntity::new(&conn);
+                let folder_row = folder_entity
+                    .find_optional(&check_folder_id)?;
+
+                let res = if let Some(folder_row) = &folder_row {
+                    // Find shared_folder join
+                    let query = sql::Select::new()
+                        .select("shared_folder_id")
+                        .from("shared_folders")
+                        .where_clause("account_id = ?1 AND folder_id = ?2");
+
+                    let mut stmt = conn.prepare_cached(&query.as_string())?;
+                    if let Some(shared_folder_id) = stmt
+                        .query_row((account_row_id, folder_row.row_id), |row| row.get::<usize, i64>(0))
+                        .optional()? {
+
+                        // Step 3: Get creator status
+                        let query = sql::Select::new()
+                            .select("is_creator")
+                            .from("shared_folder_recipients")
+                            .where_clause("shared_folder_id = ?1 AND recipient_id = ?2");
+
+                        let mut stmt = conn.prepare_cached(&query.as_string())?;
+                        let is_creator: i64 = stmt
+                            .query_row((shared_folder_id, recipient_id), |row| row.get(0))?;
+
+                        Some((shared_folder_id, is_creator > 0))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                Ok::<_, async_sqlite::Error>((folder_row, res))
+            })
+            .await?;
+
+        let folder_row = 
+            folder_row.ok_or(SharingError::DeleteNoFolder(*folder_id))?;
+        let (shared_folder_id, is_creator) = shared_folder
+            .ok_or(SharingError::DeleteNotShared(*folder_id))?;
+
+        // Delete based on creator status
+        client
+            .conn_mut_and_then(move |conn| {
+                let tx = conn.transaction()?;
+                if is_creator {
+                    // Owner: delete entire folder (cascades to all related tables)
+                    let query = sql::Delete::new()
+                        .delete_from("folders")
+                        .where_clause("folder_id = ?1");
+
+                    let mut stmt = tx.prepare_cached(&query.as_string())?;
+                    stmt.execute([folder_row.row_id])?;
+                } else {
+                    // Non-owner: delete specific joins and invites
+
+                    // Delete from shared_folders join table
+                    // this will cascade to the shared_folder_recipients
+                    let query = sql::Delete::new()
+                        .delete_from("shared_folders")
+                        .where_clause("shared_folder_id = ?1");
+
+                    let mut stmt = tx.prepare_cached(&query.as_string())?;
+                    stmt.execute([shared_folder_id])?;
+
+                    // Delete folder invites for this recipient and folder
+                    // which would allow inviting the recipient again if necessary
+                    let query = sql::Delete::new()
+                        .delete_from("folder_invites")
+                        .where_clause("to_recipient_id = ?1 AND folder_id = ?2");
+
+                    let mut stmt = tx.prepare_cached(&query.as_string())?;
+                    stmt.execute((recipient_id, folder_row.row_id))?;
+                }
+
+                tx.commit()?;
+                Ok::<_, crate::Error>(())
+            })
+            .await?;
+
+        Ok(())
     }
 }
