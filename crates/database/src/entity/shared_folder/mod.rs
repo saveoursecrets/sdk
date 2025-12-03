@@ -384,7 +384,14 @@ impl<'conn> SharedFolderEntity<'conn> {
             .from("shared_folders AS asf")
             .inner_join("accounts AS a ON asf.account_id = a.account_id")
             .inner_join("folders AS f ON asf.folder_id = f.folder_id")
-            .where_clause("a.identifier = ?1");
+            .inner_join("recipients AS r ON a.account_id = r.account_id")
+            .inner_join(
+                "shared_folder_recipients AS sfr ON asf.shared_folder_id = sfr.shared_folder_id AND sfr.recipient_id = r.recipient_id",
+            )
+            .left_join(
+                "folder_invites AS fi ON fi.to_recipient_id = r.recipient_id AND fi.folder_id = f.folder_id",
+            )
+            .where_clause("a.identifier = ?1 AND (sfr.is_creator = 1 OR fi.invite_status = ?2)");
 
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
 
@@ -414,8 +421,10 @@ impl<'conn> SharedFolderEntity<'conn> {
             Ok((account, folder))
         }
 
-        let rows =
-            stmt.query_and_then([account_id.to_string()], convert_row)?;
+        let rows = stmt.query_and_then(
+            (account_id.to_string(), InviteStatus::Accepted as u8),
+            convert_row,
+        )?;
 
         let mut shared_folders = Vec::new();
         for row in rows {
