@@ -321,6 +321,7 @@ impl<'conn> SharedFolderEntity<'conn> {
             ))?;
         }
 
+        /*
         // Create join between recipient account and shared folder when accepted
         if matches!(invite_status, InviteStatus::Accepted) {
             let select_query = sql::Select::new()
@@ -346,6 +347,7 @@ impl<'conn> SharedFolderEntity<'conn> {
                 account_id.to_string(),
             ))?;
         }
+        */
 
         tx.commit()?;
         Ok(())
@@ -453,34 +455,48 @@ impl<'conn> SharedFolderEntity<'conn> {
         let account_row = client
             .conn_and_then(move |conn| {
                 let account = AccountEntity::new(&conn);
-                account.find_one(&account_check_id).map_err(async_sqlite::Error::Rusqlite)
+                account
+                    .find_one(&account_check_id)
+                    .map_err(async_sqlite::Error::Rusqlite)
             })
             .await?;
-            
+
         // Validate owner has recipient record
         let owner_recipient = client
             .conn_and_then(move |conn| {
                 let recipient_entity = RecipientEntity::new(&conn);
-               recipient_entity.find_optional(account_row.row_id).map_err(async_sqlite::Error::Rusqlite)
+                recipient_entity
+                    .find_optional(account_row.row_id)
+                    .map_err(async_sqlite::Error::Rusqlite)
             })
             .await?
             .ok_or(SharingError::RecipientNotCreated(*account_id))?;
 
         // Find owner in recipients slice
-        if !recipients.iter().any(|r| r.public_key.to_string() == owner_recipient.recipient_public_key) {
-            return Err(SharingError::OwnerNotInRecipients(*account_id).into());
+        if !recipients.iter().any(|r| {
+            r.public_key.to_string() == owner_recipient.recipient_public_key
+        }) {
+            return Err(
+                SharingError::OwnerNotInRecipients(*account_id).into()
+            );
         }
 
-        let owner_public_key_str = owner_recipient.recipient_public_key.clone();
+        let owner_public_key_str =
+            owner_recipient.recipient_public_key.clone();
         let owner_recipient_id = owner_recipient.recipient_id;
 
         // Collect and validate all recipient records
-        let recipient_keys = recipients.iter().map(|r| r.public_key.to_string()).collect::<Vec<_>>();
+        let recipient_keys = recipients
+            .iter()
+            .map(|r| r.public_key.to_string())
+            .collect::<Vec<_>>();
         let num_recipients = recipient_keys.len();
         let recipient_records = client
             .conn_and_then(move |conn| {
                 let recipient_entity = RecipientEntity::new(&conn);
-                recipient_entity.find_all_by_public_keys(recipient_keys.as_slice()).map_err(async_sqlite::Error::Rusqlite)
+                recipient_entity
+                    .find_all_by_public_keys(recipient_keys.as_slice())
+                    .map_err(async_sqlite::Error::Rusqlite)
             })
             .await?;
         if recipient_records.len() != num_recipients {
@@ -540,6 +556,8 @@ impl<'conn> SharedFolderEntity<'conn> {
                     if public_key == owner_public_key_str {
                         continue;
                     }
+
+                    // println!("{owner_recipient_id} {recipient_id} {folder_row_id}");
 
                     let query = sql::Insert::new()
                         .insert_into(

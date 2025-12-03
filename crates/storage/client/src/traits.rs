@@ -28,8 +28,8 @@ use sos_password::diceware::generate_passphrase;
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{
-    BuilderCredentials, ChangePassword, SecretAccess, SharedAccess, Summary,
-    Vault, VaultBuilder,
+    BuilderCredentials, ChangePassword, SecretAccess, Summary, Vault,
+    VaultBuilder,
     secret::{Secret, SecretMeta, SecretRow},
 };
 use std::{collections::HashMap, sync::Arc};

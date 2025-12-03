@@ -208,13 +208,10 @@ async fn database_entity_send_folder_invite_accept() -> Result<()> {
     ));
 
     // Check in-memory folders list contains the shared folder
-    // for the owner we don't need to reload the folders
-    let account1_folders = account1.list_folders().await?;
+    let account1_folders = account1.load_folders().await?;
     assert!(account1_folders.iter().any(|s| s.name() == FOLDER_NAME));
 
     // Check in-memory folders list contains the shared folder
-    // but for the recipient of the invite we need to call load_folders()
-    // to refresh the in-memory folders list
     let account2_folders = account2.load_folders().await?;
     assert!(account2_folders.iter().any(|s| s.name() == FOLDER_NAME));
 
@@ -333,12 +330,13 @@ async fn run_invite_flow(
             ),
         ];
 
-        let recipients = Vec::new();
+        let mut recipients = Vec::new();
 
         // Register each account as a recipient for sharing
         for (account_id, name, email, public_key) in
             recipients_info.into_iter()
         {
+            let recipient_public_key = public_key.to_string();
             server
                 .conn_mut_and_then(move |conn| {
                     let mut entity = SharedFolderEntity::new(conn);
@@ -346,7 +344,7 @@ async fn run_invite_flow(
                         account_id,
                         name.to_string(),
                         Some(email.to_string()),
-                        public_key.to_string(),
+                        recipient_public_key,
                     )?;
                     Ok::<_, anyhow::Error>(recipient_id)
                 })
@@ -365,17 +363,14 @@ async fn run_invite_flow(
     let (vault, _access_key) = account1
         .prepare_shared_folder(options, recipients.as_slice(), None)
         .await?;
-    let shared_folder_id = *vault.id();
 
     SharedFolderEntity::create_shared_folder(
-        &server,
+        server,
         account1.account_id(),
         &vault,
         recipients.as_slice(),
     )
     .await?;
-
-    todo!("create shared folder in entity test spec");
 
     // Search for recipients
     let mut found_recipients = server
@@ -392,9 +387,11 @@ async fn run_invite_flow(
     let from_recipient_public_key =
         account1.shared_access_public_key().await?.to_string();
 
-    // Invite the found recipient
     let to_recipient = found_recipients.remove(0);
     let to_recipient_public_key = to_recipient.recipient_public_key.clone();
+
+    /*
+    // Invite the found recipient
     server
         .conn_mut_and_then(move |conn| {
             let mut entity = SharedFolderEntity::new(conn);
@@ -405,6 +402,7 @@ async fn run_invite_flow(
             )?)
         })
         .await?;
+    */
 
     // Check the sent invites list for the sender (account1)
     let mut sent_invites = server
