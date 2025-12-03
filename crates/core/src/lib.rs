@@ -296,3 +296,14 @@ impl From<VaultId> for FolderRef {
         Self::Id(value)
     }
 }
+
+/// Recipient is a participant in a shared folder.
+#[derive(Debug)]
+pub struct Recipient {
+    /// Recipient name.
+    pub name: String,
+    /// Optional email.
+    pub email: Option<String>,
+    /// Public key.
+    pub public_key: age::x25519::Recipient,
+}
