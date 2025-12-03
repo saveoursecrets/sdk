@@ -335,7 +335,7 @@ impl<'conn> SharedFolderEntity<'conn> {
                 .where_and("a.identifier = ?2");
 
             let insert_query = sql::Insert::new()
-                .insert_into("account_shared_folder (account_id, folder_id)")
+                .insert_into("shared_folders (account_id, folder_id)")
                 .select(select_query);
 
             let mut stmt = tx.prepare_cached(&insert_query.as_string())?;
@@ -348,9 +348,12 @@ impl<'conn> SharedFolderEntity<'conn> {
         tx.commit()?;
         Ok(())
     }
-    
+
     #[doc(hidden)]
-    pub fn list_shared_folders(&self, account_id: &AccountId) -> Result<Vec<(AccountRow, FolderRow)>> {
+    pub fn list_shared_folders(
+        &self,
+        account_id: &AccountId,
+    ) -> Result<Vec<(AccountRow, FolderRow)>> {
         let query = sql::Select::new()
             .select(
                 r#"
@@ -374,7 +377,7 @@ impl<'conn> SharedFolderEntity<'conn> {
                 f.shared_access
             "#,
             )
-            .from("account_shared_folder AS asf")
+            .from("shared_folders AS asf")
             .inner_join("accounts AS a ON asf.account_id = a.account_id")
             .inner_join("folders AS f ON asf.folder_id = f.folder_id")
             .where_clause("a.identifier = ?1");
@@ -407,7 +410,8 @@ impl<'conn> SharedFolderEntity<'conn> {
             Ok((account, folder))
         }
 
-        let rows = stmt.query_and_then([account_id.to_string()], convert_row)?;
+        let rows =
+            stmt.query_and_then([account_id.to_string()], convert_row)?;
 
         let mut shared_folders = Vec::new();
         for row in rows {
@@ -419,16 +423,15 @@ impl<'conn> SharedFolderEntity<'conn> {
     #[doc(hidden)]
     /// Convert shared folders rows.
     pub async fn from_rows(
-        rows: Vec<(AccountRow, FolderRow)>
+        rows: Vec<(AccountRow, FolderRow)>,
     ) -> Result<Vec<SharedFolderRecord>> {
-        
-        // TODO: if FolderRecord::from_row() was sync we could use 
+        // TODO: if FolderRecord::from_row() was sync we could use
         // TODO: a much cleaner API; this would require
         // TODO: using sync versions of encode() and decode()
         // TODO: which is a big refactor so deferred for another time
 
         let mut shared_folders = Vec::new();
-        for (account_row, folder_row)in rows {
+        for (account_row, folder_row) in rows {
             let account: AccountRecord = account_row.try_into()?;
             let folder = FolderRecord::from_row(folder_row).await?;
             shared_folders.push(SharedFolderRecord { account, folder });

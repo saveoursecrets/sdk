@@ -600,7 +600,7 @@ where
                 "account_device_folder device ON folders.folder_id = device.folder_id",
             )
             .left_join(
-                "account_shared_folder shared ON folders.folder_id = shared.folder_id",
+                "shared_folders shared ON folders.folder_id = shared.folder_id",
             )
             .where_clause("(folders.account_id=?1 OR shared.account_id=?1)")
             .where_and("login.folder_id IS NULL")

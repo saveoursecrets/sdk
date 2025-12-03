@@ -10,7 +10,7 @@
 --
 -- The owner account_id can be determined by looking at the 
 -- account_id in the folders table.
-CREATE TABLE IF NOT EXISTS account_shared_folder
+CREATE TABLE IF NOT EXISTS shared_folders
 (
     account_id          INTEGER             NOT NULL,
     folder_id           INTEGER             NOT NULL,
