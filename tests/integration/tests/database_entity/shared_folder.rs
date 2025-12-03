@@ -297,8 +297,7 @@ async fn database_entity_send_folder_invite_decline() -> Result<()> {
         })
         .await?;
 
-    // But we should not see any rows as the invite was declined,
-    // the join table entry was not created
+    // But we should not see any rows as the invite was declined
     assert!(shared_folder_rows.is_empty());
 
     teardown(TEST_ID).await;
