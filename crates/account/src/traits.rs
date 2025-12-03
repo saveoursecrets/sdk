@@ -516,12 +516,6 @@ pub trait Account {
         options: NewFolderOptions,
     ) -> std::result::Result<FolderCreate<Self::NetworkResult>, Self::Error>;
 
-    /// Create a shared folder.
-    async fn create_shared_folder(
-        &mut self,
-        options: NewFolderOptions,
-    ) -> std::result::Result<FolderCreate<Self::NetworkResult>, Self::Error>;
-
     /// Rename a folder.
     async fn rename_folder(
         &mut self,

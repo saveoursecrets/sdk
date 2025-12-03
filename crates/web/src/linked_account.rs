@@ -806,26 +806,6 @@ impl Account for LinkedAccount {
         Ok(result)
     }
 
-    async fn create_shared_folder(
-        &mut self,
-        options: NewFolderOptions,
-    ) -> Result<FolderCreate<Self::NetworkResult>> {
-        let _ = self.sync_lock.lock().await;
-        let result = {
-            let mut account = self.account.lock().await;
-            account.create_shared_folder(options).await?
-        };
-
-        let result = FolderCreate {
-            folder: result.folder,
-            event: result.event,
-            commit_state: result.commit_state,
-            sync_result: self.sync().await,
-        };
-
-        Ok(result)
-    }
-
     async fn rename_folder(
         &mut self,
         folder_id: &VaultId,

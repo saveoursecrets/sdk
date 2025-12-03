@@ -588,6 +588,59 @@ impl LocalAccount {
 
         Ok(result)
     }
+
+    /// Prepare a shared folder.
+    pub async fn prepare_shared_folder(
+        &mut self,
+        mut options: NewFolderOptions,
+    ) -> Result<Vault> {
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
+        let shared_private_key =
+            authenticated_user.shared_private_access_key()?;
+        let shared_public_key =
+            authenticated_user.shared_public_access_key()?;
+        options.cipher = Some(Cipher::X25519);
+        options.shared_access =
+            Some(options.shared_access.unwrap_or_else(|| {
+                SharedAccess::WriteAccess(vec![shared_public_key.to_string()])
+            }));
+
+        let builder = VaultBuilder::new()
+            .flags(options.flags.unwrap_or_default())
+            .cipher(options.cipher.unwrap_or_default())
+            .kdf(options.kdf.unwrap_or_default())
+            .public_name(options.name);
+
+        let (recipients, read_only) =
+            if let Some(shared_access) = options.shared_access {
+                let recipients = match &shared_access {
+                    SharedAccess::WriteAccess(list) => {
+                        SharedAccess::parse_recipients(list)?
+                    }
+                    SharedAccess::ReadOnly(_) => vec![],
+                };
+                (
+                    recipients,
+                    matches!(shared_access, SharedAccess::ReadOnly(_)),
+                )
+            } else {
+                (vec![], true)
+            };
+
+        match &shared_private_key {
+            AccessKey::Identity(id) => Ok(builder
+                .build(BuilderCredentials::Shared {
+                    owner: id,
+                    recipients,
+                    read_only,
+                })
+                .await?),
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl From<&LocalAccount> for AccountRef {
@@ -1733,27 +1786,6 @@ impl Account for LocalAccount {
             commit_state,
             sync_result: (),
         })
-    }
-
-    async fn create_shared_folder(
-        &mut self,
-        mut options: NewFolderOptions,
-    ) -> Result<FolderCreate<Self::NetworkResult>> {
-        let authenticated_user = self
-            .storage
-            .authenticated_user()
-            .ok_or(AuthenticationError::NotAuthenticated)?;
-        let shared_private_key =
-            authenticated_user.shared_private_access_key()?;
-        let shared_public_key =
-            authenticated_user.shared_public_access_key()?;
-        options.key = Some(shared_private_key);
-        options.cipher = Some(Cipher::X25519);
-        options.shared_access =
-            Some(options.shared_access.unwrap_or_else(|| {
-                SharedAccess::WriteAccess(vec![shared_public_key.to_string()])
-            }));
-        self.create_folder(options).await
     }
 
     async fn rename_folder(

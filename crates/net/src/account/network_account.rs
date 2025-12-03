@@ -517,6 +517,36 @@ impl NetworkAccount {
             handle.shutdown().await;
         }
     }
+
+    /// Create a shared folder.
+    pub async fn create_shared_folder(
+        &mut self,
+        options: NewFolderOptions,
+        server: &Origin,
+    ) -> Result<FolderCreate<<Self as Account>::NetworkResult>> {
+        let _ = self.sync_lock.lock().await;
+
+        let mut account = self.account.lock().await;
+        let vault = account.prepare_shared_folder(options).await?;
+
+        /*
+        let result = {
+            let mut account = self.account.lock().await;
+            account.create_shared_folder(options).await?
+        };
+
+        let result = FolderCreate {
+            folder: result.folder,
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_result: self.sync().await,
+        };
+
+        Ok(result)
+        */
+
+        todo!();
+    }
 }
 
 impl From<&NetworkAccount> for AccountRef {
@@ -1537,7 +1567,7 @@ impl Account for NetworkAccount {
 
         let result = {
             let mut account = self.account.lock().await;
-            
+
             account.update_file(secret_id, meta, path, options).await?
         };
 
@@ -1565,26 +1595,6 @@ impl Account for NetworkAccount {
         let result = {
             let mut account = self.account.lock().await;
             account.create_folder(options).await?
-        };
-
-        let result = FolderCreate {
-            folder: result.folder,
-            event: result.event,
-            commit_state: result.commit_state,
-            sync_result: self.sync().await,
-        };
-
-        Ok(result)
-    }
-
-    async fn create_shared_folder(
-        &mut self,
-        options: NewFolderOptions,
-    ) -> Result<FolderCreate<Self::NetworkResult>> {
-        let _ = self.sync_lock.lock().await;
-        let result = {
-            let mut account = self.account.lock().await;
-            account.create_shared_folder(options).await?
         };
 
         let result = FolderCreate {
