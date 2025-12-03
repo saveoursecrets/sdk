@@ -448,11 +448,133 @@ impl<'conn> SharedFolderEntity<'conn> {
         vault: &Vault,
         recipients: &[Recipient],
     ) -> Result<()> {
-        // 1. Check a public key for the owner account_id exists in recipients slice
-        // 2. Check all target recipient public keys exist in the recipients table
-        // 3. Using a transaction insert folders, shared_folders and shared_folder_recipients
-        // 4. Ensure is_creator is set for the public key corresponding to account_id
-        // 5. Create folder invites for all recipients except the folder owner
-        todo!();
+        // Validate owner account exists
+        let account_check_id = *account_id;
+        let account_row = client
+            .conn_and_then(move |conn| {
+                let account = AccountEntity::new(&conn);
+                account.find_one(&account_check_id).map_err(async_sqlite::Error::Rusqlite)
+            })
+            .await?;
+            
+        // Validate owner has recipient record
+        let owner_recipient = client
+            .conn_and_then(move |conn| {
+                let recipient_entity = RecipientEntity::new(&conn);
+               recipient_entity.find_optional(account_row.row_id).map_err(async_sqlite::Error::Rusqlite)
+            })
+            .await?
+            .ok_or(SharingError::RecipientNotCreated(*account_id))?;
+
+        // Find owner in recipients slice
+        if !recipients.iter().any(|r| r.public_key.to_string() == owner_recipient.recipient_public_key) {
+            return Err(SharingError::OwnerNotInRecipients(*account_id).into());
+        }
+
+        let owner_public_key_str = owner_recipient.recipient_public_key.clone();
+        let owner_recipient_id = owner_recipient.recipient_id;
+
+        // Collect and validate all recipient records
+        let mut recipient_records = Vec::new();
+        for recipient in recipients {
+            let recipient_key_str = recipient.public_key.to_string();
+            let recipient_row = client
+                .conn_and_then(move |conn| {
+                    let recipient_entity = RecipientEntity::new(&conn);
+                    recipient_entity.find_by_public_key(&recipient_key_str).map_err(async_sqlite::Error::Rusqlite)
+                })
+                .await?
+                .ok_or_else(|| {
+                    SharingError::InviteNoRecipient(recipient.public_key.to_string())
+                })?;
+            recipient_records.push(recipient_row);
+        }
+
+        // Phase 5: Prepare vault data
+        let folder_row = FolderRow::new_insert_from_vault(vault).await?;
+
+        // Phase 6: Transaction-based operations
+        client
+            .conn_mut_and_then(move |conn| {
+                let tx = conn.transaction()?;
+
+                // Insert folder
+                let folder_entity = FolderEntity::new(&tx);
+                let folder_row_id =
+                    folder_entity.insert_folder(account_row.row_id, &folder_row)?;
+
+                // Insert shared_folder join for each recipient
+                let mut shared_folder_ids = std::collections::HashMap::new();
+                for row in &recipient_records
+                {
+                    let query = sql::Insert::new()
+                        .insert_into("shared_folders (account_id, folder_id)")
+                        .values("(?1, ?2)");
+
+                    let mut stmt = tx.prepare_cached(&query.as_string())?;
+                    stmt.execute((row.account_id, folder_row_id))?;
+                    let shared_folder_id = tx.last_insert_rowid();
+
+                    shared_folder_ids.insert(
+                        row.recipient_public_key.clone(),
+                        (shared_folder_id, row.recipient_id),
+                    );
+                }
+
+                // Insert shared_folder_recipients
+                for (public_key, (shared_folder_id, recipient_id)) in
+                    &shared_folder_ids
+                {
+                    let is_creator =
+                        if public_key == &owner_public_key_str { 1 } else { 0 };
+
+                    let query = sql::Insert::new()
+                        .insert_into("shared_folder_recipients (shared_folder_id, recipient_id, is_creator)")
+                        .values("(?1, ?2, ?3)");
+
+                    let mut stmt = tx.prepare_cached(&query.as_string())?;
+                    stmt.execute((shared_folder_id, recipient_id, is_creator))?;
+                }
+
+                // Create invites for all recipients except owner
+                for (public_key, (_, recipient_id)) in shared_folder_ids {
+                    // Skip owner
+                    if public_key == owner_public_key_str {
+                        continue;
+                    }
+
+                    let query = sql::Insert::new()
+                        .insert_into(
+                            r#"
+                            folder_invites
+                            (
+                                created_at,
+                                modified_at,
+                                from_recipient_id,
+                                to_recipient_id,
+                                folder_id
+                            )
+                        "#,
+                        )
+                        .values("(?1, ?2, ?3, ?4, ?5)");
+
+                    let params = (
+                        UtcDateTime::default().to_rfc3339()?,
+                        UtcDateTime::default().to_rfc3339()?,
+                        owner_recipient_id,
+                        recipient_id,
+                        folder_row_id,
+                    );
+
+                    let mut stmt = tx.prepare_cached(&query.as_string())?;
+                    stmt.execute(params)?;
+                }
+
+                tx.commit()?;
+                Ok::<_, crate::Error>(())
+            })
+            .await?;
+
+        Ok(())
     }
 }
