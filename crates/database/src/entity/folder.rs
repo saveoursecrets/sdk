@@ -106,6 +106,31 @@ impl FolderRow {
         })
     }
 
+    /// Create a folder row from a vault.
+    pub async fn new_insert_from_vault(vault: &Vault) -> Result<Self> {
+        let meta = if let Some(meta) = vault.header().meta() {
+            Some(encode(meta).await?)
+        } else {
+            None
+        };
+        let salt = vault.salt().cloned();
+        let seed = vault.seed().map(|s| s.as_ref().to_vec());
+
+        let shared_access = if !vault.shared_access().is_empty() {
+            Some(encode(vault.shared_access()).await?)
+        } else {
+            None
+        };
+
+        FolderRow::new_insert_parts(
+            vault.summary(),
+            salt,
+            meta,
+            seed,
+            shared_access,
+        )
+    }
+
     /// Create a new folder row to update.
     pub async fn new_update(vault: &Vault) -> Result<Self> {
         let summary = vault.summary();
@@ -396,27 +421,7 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
     ) -> Result<(i64, HashMap<SecretId, i64>)> {
         let folder_id = *vault.id();
 
-        let meta = if let Some(meta) = vault.header().meta() {
-            Some(encode(meta).await?)
-        } else {
-            None
-        };
-        let salt = vault.salt().cloned();
-        let seed = vault.seed().map(|s| s.as_ref().to_vec());
-
-        let shared_access = if !vault.shared_access().is_empty() {
-            Some(encode(vault.shared_access()).await?)
-        } else {
-            None
-        };
-
-        let folder_row = FolderRow::new_insert_parts(
-            vault.summary(),
-            salt,
-            meta,
-            seed,
-            shared_access,
-        )?;
+        let folder_row = FolderRow::new_insert_from_vault(vault).await?;
 
         let mut secret_rows = Vec::new();
         for (secret_id, commit) in vault.iter() {
