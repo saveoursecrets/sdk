@@ -15,6 +15,8 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::result::Result as StdResult;
 
+use crate::entity::shared_folder::InviteStatus;
+
 fn folder_select_columns(sql: sql::Select) -> sql::Select {
     sql.select(
         r#"
@@ -607,7 +609,16 @@ where
             .left_join(
                 "shared_folders shared ON folders.folder_id = shared.folder_id",
             )
-            .where_clause("(folders.account_id=?1 OR shared.account_id=?1)")
+            .left_join(
+                "recipients r ON shared.account_id = r.account_id",
+            )
+            .left_join(
+                "shared_folder_recipients sfr ON shared.shared_folder_id = sfr.shared_folder_id AND sfr.recipient_id = r.recipient_id",
+            )
+            .left_join(
+                "folder_invites fi ON fi.to_recipient_id = r.recipient_id AND fi.folder_id = folders.folder_id",
+            )
+            .where_clause("(folders.account_id = ?1 OR (shared.account_id = ?1 AND (sfr.is_creator = 1 OR fi.invite_status = ?2)))")
             .where_and("login.folder_id IS NULL")
             .where_and("device.folder_id IS NULL");
 
@@ -617,7 +628,7 @@ where
             Ok(row.try_into()?)
         }
 
-        let rows = stmt.query_and_then([account_id], convert_row)?;
+        let rows = stmt.query_and_then((account_id, InviteStatus::Accepted as u8), convert_row)?;
         let mut folders = Vec::new();
         for row in rows {
             folders.push(row?);
