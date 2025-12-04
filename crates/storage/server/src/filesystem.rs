@@ -471,6 +471,10 @@ impl ServerAccountStorage for ServerFileStorage {
         unimplemented!();
     }
 
+    async fn get_recipient(&mut self) -> Result<Option<Recipient>> {
+        unimplemented!();
+    }
+
     async fn create_shared_folder(
         &mut self,
         _vault: &[u8],

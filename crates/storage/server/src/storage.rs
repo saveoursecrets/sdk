@@ -400,6 +400,13 @@ impl ServerAccountStorage for ServerStorage {
         }
     }
 
+    async fn get_recipient(&mut self) -> Result<Option<Recipient>> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.get_recipient().await,
+            ServerStorage::Database(db) => db.get_recipient().await,
+        }
+    }
+
     async fn create_shared_folder(
         &mut self,
         vault: &[u8],

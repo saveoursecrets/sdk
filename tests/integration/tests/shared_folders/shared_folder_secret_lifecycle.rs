@@ -47,6 +47,12 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
         )
         .await?;
 
+    // Check fetching recipient information from the server.
+    let server_recipient1 = account1.owner.find_recipient(&origin).await?;
+    let server_recipient2 = account2.owner.find_recipient(&origin).await?;
+    assert_eq!(Some(recipient1.clone()), server_recipient1);
+    assert_eq!(Some(recipient2.clone()), server_recipient2);
+
     let recipients = vec![recipient1, recipient2];
     let folder_name = "shared_folder";
     let options = NewFolderOptions::new(folder_name.to_string());

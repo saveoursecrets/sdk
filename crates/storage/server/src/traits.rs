@@ -111,6 +111,9 @@ pub trait ServerAccountStorage {
     /// Set account recipient information.
     async fn set_recipient(&mut self, recipient: Recipient) -> Result<()>;
 
+    /// Get account recipient information.
+    async fn get_recipient(&mut self) -> Result<Option<Recipient>>;
+
     /// Create a shared folder.
     async fn create_shared_folder(
         &mut self,

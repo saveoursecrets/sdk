@@ -2,7 +2,7 @@ use super::{BODY_LIMIT, Caller, parse_account_id};
 use crate::{ServerBackend, ServerState, handlers::authenticate_endpoint};
 use axum::{
     body::{Body, to_bytes},
-    extract::Extension,
+    extract::{Extension, OriginalUri},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
@@ -72,6 +72,62 @@ pub(crate) async fn set_recipient(
     }
 }
 
+/// Get account recipient information.
+#[utoipa::path(
+    get,
+    path = "/sharing/recipient",
+    security(
+        ("bearer_token" = [])
+    ),
+    request_body(
+        content_type = "application/octet-stream",
+        content = Vec<u8>,
+    ),
+    responses(
+        (
+            status = StatusCode::UNAUTHORIZED,
+            description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account identifier is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            description = "Recipient information was fetched.",
+        ),
+    ),
+)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn get_recipient(
+    Extension(state): Extension<ServerState>,
+    Extension(backend): Extension<ServerBackend>,
+    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+    OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
+    match authenticate_endpoint(
+        account_id,
+        bearer,
+        uri.as_bytes(),
+        None,
+        Arc::clone(&state),
+        Arc::clone(&backend),
+    )
+    .await
+    {
+        Ok(caller) => {
+            match handlers::get_recipient(state, backend, caller).await {
+                Ok(response) => response.into_response(),
+                Err(error) => error.into_response(),
+            }
+        }
+        Err(error) => error.into_response(),
+    }
+}
+
 /// Create a shared folder.
 #[utoipa::path(
     post,
@@ -138,8 +194,8 @@ mod handlers {
     use axum::body::Bytes;
     use http::header::{self, HeaderMap, HeaderValue};
     use sos_protocol::{
-        SetRecipientRequest, SetRecipientResponse, SharedFolderRequest,
-        SharedFolderResponse, WireEncodeDecode,
+        GetRecipientResponse, SetRecipientRequest, SetRecipientResponse,
+        SharedFolderRequest, SharedFolderResponse, WireEncodeDecode,
         constants::MIME_TYPE_PROTOBUF,
     };
     use sos_server_storage::ServerAccountStorage;
@@ -170,6 +226,38 @@ mod handlers {
 
         // Empty response packet for now
         let packet = SetRecipientResponse {};
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
+        );
+
+        Ok((headers, packet.encode().await?))
+    }
+
+    pub(super) async fn get_recipient(
+        _state: ServerState,
+        backend: ServerBackend,
+        caller: Caller,
+    ) -> Result<(HeaderMap, Vec<u8>)> {
+        let account = {
+            let reader = backend.read().await;
+            let accounts = reader.accounts();
+            let reader = accounts.read().await;
+            let account = reader
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
+            Arc::clone(account)
+        };
+
+        let recipient = {
+            let mut account = account.write().await;
+            account.get_recipient().await?
+        };
+
+        // Empty response packet for now
+        let packet = GetRecipientResponse { recipient };
 
         let mut headers = HeaderMap::new();
         headers.insert(

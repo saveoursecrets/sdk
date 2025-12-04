@@ -2,7 +2,7 @@ use crate::{Error, Result};
 use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
 };
-use sos_core::UtcDateTime;
+use sos_core::{Recipient, UtcDateTime};
 use sql_query_builder as sql;
 use std::{ops::Deref, result::Result as StdResult};
 
@@ -110,6 +110,21 @@ pub struct RecipientRecord {
     pub revoked: bool,
 }
 
+impl TryFrom<RecipientRecord> for Recipient {
+    type Error = Error;
+
+    fn try_from(value: RecipientRecord) -> Result<Self> {
+        Ok(Recipient {
+            name: value.recipient_name,
+            email: value.recipient_email,
+            public_key: value
+                .recipient_public_key
+                .parse()
+                .map_err(|e| Error::AgeX25519Parse(e))?,
+        })
+    }
+}
+
 impl TryFrom<RecipientRow> for RecipientRecord {
     type Error = Error;
 
@@ -190,7 +205,6 @@ where
         .optional()
     }
 
-
     /// Find an recipients by public keys.
     pub fn find_all_by_public_keys(
         &self,
@@ -208,12 +222,15 @@ where
 
         let query = select_columns(sql::Select::new())
             .from("recipients")
-            .where_clause(&format!("recipient_public_key IN ({})", placeholders));
+            .where_clause(&format!(
+                "recipient_public_key IN ({})",
+                placeholders
+            ));
 
         let mut stmt = self.conn.prepare(&query.as_string())?;
         let rows = stmt.query_map(
             async_sqlite::rusqlite::params_from_iter(public_keys.iter()),
-            |row| row.try_into()
+            |row| row.try_into(),
         )?;
         rows.collect()
     }

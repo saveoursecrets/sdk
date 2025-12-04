@@ -325,7 +325,10 @@ impl Server {
                         .post(account::event_diff)
                         .patch(account::event_patch),
                 )
-                .route("/sharing/recipient", put(sharing::set_recipient))
+                .route(
+                    "/sharing/recipient",
+                    get(sharing::get_recipient).put(sharing::set_recipient),
+                )
                 .route("/sharing/folder", post(sharing::create_folder));
 
             {

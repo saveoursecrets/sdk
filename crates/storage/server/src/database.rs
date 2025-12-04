@@ -594,6 +594,21 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         Ok(())
     }
 
+    async fn get_recipient(&mut self) -> Result<Option<Recipient>> {
+        let account_id = self.account_id;
+        let record = self
+            .client
+            .conn_mut_and_then(move |conn| {
+                let mut entity = SharedFolderEntity::new(conn);
+                entity.find_recipient(account_id)
+            })
+            .await?;
+        Ok(match record {
+            Some(record) => Some(record.try_into()?),
+            None => None,
+        })
+    }
+
     async fn create_shared_folder(
         &mut self,
         vault: &[u8],

@@ -540,8 +540,8 @@ impl NetworkAccount {
         Ok(recipient)
     }
 
-    /// Get recipient information from a server.
-    pub async fn get_recipient(
+    /// Fetch recipient information from a server for this account.
+    pub async fn find_recipient(
         &self,
         server: &Origin,
     ) -> Result<Option<Recipient>> {

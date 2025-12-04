@@ -491,17 +491,17 @@ impl SyncClient for HttpClient {
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
     async fn get_recipient(
         &self,
-        request: GetRecipientRequest,
+        _request: GetRecipientRequest,
     ) -> Result<GetRecipientResponse> {
-        let body = request.encode().await?;
         let url = self.build_url(SHARING_RECIPIENT)?;
         tracing::debug!(url = %url, "http::get_recipient");
-        let request = self
-            .client
-            .post(url)
-            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF);
-        let request = self.request_headers(request, &body).await?;
-        let response = request.body(body).send().await?;
+
+        let sign_url = url.path().to_owned();
+        let request = self.client.get(url);
+        let request =
+            self.request_headers(request, sign_url.as_bytes()).await?;
+
+        let response = request.send().await?;
         let status = response.status();
         tracing::debug!(status = %status, "http::get_recipient");
         let response = self.check_response(response).await?;
