@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package shared_folder;
+
+import "protobuf/common.proto";
+
+message WireSharedFolderRequest {
+  // Encoded vault.
+  bytes vault = 1;
+  // Collection of recipients.
+  repeated common.WireRecipient recipients = 2;
+}
+
+message WireSharedFolderResponse {}

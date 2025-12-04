@@ -26,6 +26,10 @@ pub enum Error {
     #[error("relay packet end of file")]
     EndOfFile,
 
+    /// Failed to parse AGE X25519 public key.
+    #[error("unable to parse AGE X25519 public key: {0}")]
+    AgeX25519Parse(&'static str),
+
     /// Error generated when a conflict is detected.
     #[error(transparent)]
     Conflict(#[from] ConflictError),

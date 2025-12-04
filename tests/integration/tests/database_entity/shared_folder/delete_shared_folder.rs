@@ -168,7 +168,7 @@ async fn db_entity_shared_folder_delete_participant() -> Result<()> {
         .await?;
     assert!(receiver_shared_folder_rows.is_empty());
 
-    // Owner no longer sees the shared folder
+    // Owner can still see the shared folder
     let owner_shared_folder_rows = server
         .conn_mut_and_then(move |conn| {
             let entity = SharedFolderEntity::new(conn);
@@ -179,11 +179,11 @@ async fn db_entity_shared_folder_delete_participant() -> Result<()> {
         .await?;
     assert_eq!(1, owner_shared_folder_rows.len());
 
-    // Check in-memory folders list contains the shared folder
+    // Check in-memory folders list contains the shared folder (owner)
     let account1_folders = account1.load_folders().await?;
     assert!(account1_folders.iter().any(|s| s.name() == FOLDER_NAME));
 
-    // Check in-memory folders list does not contain the shared folder
+    // Check in-memory folders list does not contain the shared folder (participant)
     let account2_folders = account2.load_folders().await?;
     assert!(!account2_folders.iter().any(|s| s.name() == FOLDER_NAME));
 

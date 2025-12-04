@@ -5734,6 +5734,7 @@ dependencies = [
 name = "sos-protocol"
 version = "0.17.5"
 dependencies = [
+ "age",
  "async-trait",
  "binary-stream",
  "bs58",

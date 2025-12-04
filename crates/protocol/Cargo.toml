@@ -60,6 +60,7 @@ binary-stream.workspace = true
 typeshare.workspace = true
 sha2.workspace = true
 tokio = { version = "1", features = ["rt",  "macros"] }
+age.workspace = true
 
 # network-client
 tokio-tungstenite = { workspace = true, optional = true }

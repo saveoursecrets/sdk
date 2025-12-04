@@ -80,3 +80,11 @@ message WireCheckedPatch {
   }
 }
 
+message WireRecipient {
+  // Name of the recipient.
+  string name = 1;
+  // Email of the recipient.
+  optional string email = 2;
+  // Recipient public key.
+  string public_key = 3;
+}

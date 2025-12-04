@@ -17,6 +17,7 @@ use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DevicePublicKey, TrustedDevice},
+    encode,
     events::{
         AccountEvent, DeviceEvent, EventLog, EventLogType, EventRecord,
         ReadEvent, WriteEvent,
@@ -27,8 +28,8 @@ use sos_login::{
     device::{DeviceManager, DeviceSigner},
 };
 use sos_protocol::{
-    AccountSync, DiffRequest, RemoteResult, RemoteSync, SyncClient,
-    SyncOptions, SyncResult, is_offline,
+    AccountSync, DiffRequest, RemoteResult, RemoteSync, SharedFolderRequest,
+    SyncClient, SyncOptions, SyncResult, is_offline,
     network_client::{HttpClientOptions, NetworkConfig},
 };
 use sos_remote_sync::RemoteSyncHandler;
@@ -528,28 +529,41 @@ impl NetworkAccount {
     ) -> Result<FolderCreate<<Self as Account>::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
-        let vault = {
+        // Create the vault to send to the server
+        let (vault, access_key) = {
             let account = self.account.lock().await;
             account
                 .prepare_shared_folder(options, recipients, shared_access)
                 .await?
         };
 
-        /*
-        let result = {
-            let mut account = self.account.lock().await;
-            account.create_shared_folder(options).await?
+        let bridge = self.remote_bridge(server).await?;
+        let request = SharedFolderRequest {
+            vault: encode(&vault).await?,
+            recipients: recipients.to_vec(),
         };
 
+        // Try to create the shared folder on the server
+        bridge.client.create_shared_folder(request).await?;
+
+        // Owner saves the folder access key
+        self.save_folder_password(vault.id(), access_key).await?;
+
+        // Sync should include the folder from the server
+        let sync_result = self.sync().await;
+
+        println!("create_shared_folder::sync_result:: {:#?}", sync_result);
+
+        /*
         let result = FolderCreate {
             folder: result.folder,
             event: result.event,
             commit_state: result.commit_state,
             sync_result: self.sync().await,
         };
-
-        Ok(result)
         */
+
+        // Ok(result)
 
         todo!();
     }

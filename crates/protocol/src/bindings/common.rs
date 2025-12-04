@@ -3,7 +3,7 @@ include!(concat!(env!("OUT_DIR"), "/common.rs"));
 use crate::{Error, ProtoBinding, Result, decode_uuid, encode_uuid};
 use rs_merkle::{MerkleProof, algorithms::Sha256};
 use sos_core::{
-    SecretPath, UtcDateTime,
+    Recipient, SecretPath, UtcDateTime,
     commit::{CommitHash, CommitProof, CommitState},
     events::{EventLogType, EventRecord, patch::CheckedPatch},
 };
@@ -274,6 +274,35 @@ impl From<SecretPath> for WireSecretPath {
         WireSecretPath {
             folder_id: encode_uuid(&value.0),
             secret_id: encode_uuid(&value.1),
+        }
+    }
+}
+
+impl ProtoBinding for Recipient {
+    type Inner = WireRecipient;
+}
+
+impl TryFrom<WireRecipient> for Recipient {
+    type Error = Error;
+
+    fn try_from(value: WireRecipient) -> Result<Self> {
+        Ok(Recipient {
+            name: value.name,
+            email: value.email,
+            public_key: value
+                .public_key
+                .parse::<age::x25519::Recipient>()
+                .map_err(|e| Error::AgeX25519Parse(e))?,
+        })
+    }
+}
+
+impl From<Recipient> for WireRecipient {
+    fn from(value: Recipient) -> Self {
+        WireRecipient {
+            name: value.name,
+            email: value.email,
+            public_key: value.public_key.to_string(),
         }
     }
 }

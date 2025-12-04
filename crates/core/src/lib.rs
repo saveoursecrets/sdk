@@ -298,7 +298,7 @@ impl From<VaultId> for FolderRef {
 }
 
 /// Recipient is a participant in a shared folder.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Recipient {
     /// Recipient name.
     pub name: String,

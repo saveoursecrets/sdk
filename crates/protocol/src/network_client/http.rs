@@ -10,6 +10,8 @@ use crate::{
         },
     },
 };
+#[cfg(feature = "files")]
+use crate::{SharedFolderRequest, SharedFolderResponse};
 use async_trait::async_trait;
 use http::StatusCode;
 use reqwest::{
@@ -461,6 +463,14 @@ impl SyncClient for HttpClient {
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
         Ok(PatchResponse::decode(buffer).await?)
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
+    async fn create_shared_folder(
+        &self,
+        request: SharedFolderRequest,
+    ) -> Result<SharedFolderResponse> {
+        todo!();
     }
 }
 

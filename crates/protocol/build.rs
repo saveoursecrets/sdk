@@ -17,6 +17,7 @@ fn main() {
             "src/protobuf/patch.proto",
             "src/protobuf/relay.proto",
             "src/protobuf/scan.proto",
+            "src/protobuf/shared_folder.proto",
             "src/protobuf/sync.proto",
         ],
         &["src"],

@@ -1,6 +1,6 @@
 use crate::{
     DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
-    ScanResponse, SyncOptions,
+    ScanResponse, SharedFolderRequest, SharedFolderResponse, SyncOptions,
 };
 use async_trait::async_trait;
 use sos_core::Origin;
@@ -208,4 +208,10 @@ pub trait SyncClient {
         &self,
         request: PatchRequest,
     ) -> Result<PatchResponse, Self::Error>;
+
+    /// Create a shared folder.
+    async fn create_shared_folder(
+        &self,
+        request: SharedFolderRequest,
+    ) -> Result<SharedFolderResponse, Self::Error>;
 }
