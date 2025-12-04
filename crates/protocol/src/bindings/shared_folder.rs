@@ -32,7 +32,7 @@ impl From<SetRecipientRequest> for WireSetRecipientRequest {
     }
 }
 
-/// Response from a patch request.
+/// Response from a request to set recipient information.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SetRecipientResponse {}
 
@@ -50,6 +50,60 @@ impl TryFrom<WireSetRecipientResponse> for SetRecipientResponse {
 
 impl From<SetRecipientResponse> for WireSetRecipientResponse {
     fn from(_value: SetRecipientResponse) -> WireSetRecipientResponse {
+        Self {}
+    }
+}
+
+/// Response with recipient information.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GetRecipientResponse {
+    /// Recipient information.
+    pub recipient: Option<Recipient>,
+}
+
+impl ProtoBinding for GetRecipientResponse {
+    type Inner = WireGetRecipientResponse;
+}
+
+impl TryFrom<WireGetRecipientResponse> for GetRecipientResponse {
+    type Error = Error;
+
+    fn try_from(value: WireGetRecipientResponse) -> Result<Self> {
+        let recipient = if let Some(recipient) = value.recipient {
+            Some(recipient.try_into()?)
+        } else {
+            None
+        };
+        Ok(Self { recipient })
+    }
+}
+
+impl From<GetRecipientResponse> for WireGetRecipientResponse {
+    fn from(value: GetRecipientResponse) -> WireGetRecipientResponse {
+        Self {
+            recipient: value.recipient.map(|r| r.into()),
+        }
+    }
+}
+
+/// Request to get recipient information.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GetRecipientRequest {}
+
+impl ProtoBinding for GetRecipientRequest {
+    type Inner = WireGetRecipientRequest;
+}
+
+impl TryFrom<WireGetRecipientRequest> for GetRecipientRequest {
+    type Error = Error;
+
+    fn try_from(_value: WireGetRecipientRequest) -> Result<Self> {
+        Ok(Self {})
+    }
+}
+
+impl From<GetRecipientRequest> for WireGetRecipientRequest {
+    fn from(_value: GetRecipientRequest) -> WireGetRecipientRequest {
         Self {}
     }
 }

@@ -1,7 +1,8 @@
 use crate::{
-    DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
-    ScanResponse, SetRecipientRequest, SetRecipientResponse,
-    SharedFolderRequest, SharedFolderResponse, SyncOptions,
+    DiffRequest, DiffResponse, GetRecipientRequest, GetRecipientResponse,
+    PatchRequest, PatchResponse, ScanRequest, ScanResponse,
+    SetRecipientRequest, SetRecipientResponse, SharedFolderRequest,
+    SharedFolderResponse, SyncOptions,
 };
 use async_trait::async_trait;
 use sos_core::Origin;
@@ -215,6 +216,12 @@ pub trait SyncClient {
         &self,
         request: SetRecipientRequest,
     ) -> Result<SetRecipientResponse, Self::Error>;
+
+    /// Get recipient information for the account.
+    async fn get_recipient(
+        &self,
+        request: GetRecipientRequest,
+    ) -> Result<GetRecipientResponse, Self::Error>;
 
     /// Create a shared folder.
     async fn create_shared_folder(

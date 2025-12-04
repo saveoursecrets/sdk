@@ -22,6 +22,6 @@ pub use relay::{
 };
 pub use scan::{ScanRequest, ScanResponse};
 pub use shared_folder::{
-    SetRecipientRequest, SetRecipientResponse, SharedFolderRequest,
-    SharedFolderResponse,
+    GetRecipientRequest, GetRecipientResponse, SetRecipientRequest,
+    SetRecipientResponse, SharedFolderRequest, SharedFolderResponse,
 };

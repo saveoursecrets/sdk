@@ -1,12 +1,13 @@
 //! HTTP client implementation.
 use crate::{
-    DiffRequest, DiffResponse, Error, NetworkError, PatchRequest,
-    PatchResponse, Result, ScanRequest, ScanResponse, SetRecipientRequest,
-    SetRecipientResponse, SyncClient, WireEncodeDecode,
+    DiffRequest, DiffResponse, Error, GetRecipientRequest,
+    GetRecipientResponse, NetworkError, PatchRequest, PatchResponse, Result,
+    ScanRequest, ScanResponse, SetRecipientRequest, SetRecipientResponse,
+    SyncClient, WireEncodeDecode,
     constants::{
         MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
         routes::v1::{
-            SHARING_CREATE_FOLDER, SHARING_SET_RECIPIENT, SYNC_ACCOUNT,
+            SHARING_CREATE_FOLDER, SHARING_RECIPIENT, SYNC_ACCOUNT,
             SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
         },
     },
@@ -472,7 +473,7 @@ impl SyncClient for HttpClient {
         request: SetRecipientRequest,
     ) -> Result<SetRecipientResponse> {
         let body = request.encode().await?;
-        let url = self.build_url(SHARING_SET_RECIPIENT)?;
+        let url = self.build_url(SHARING_RECIPIENT)?;
         tracing::debug!(url = %url, "http::set_recipient");
         let request = self
             .client
@@ -485,6 +486,27 @@ impl SyncClient for HttpClient {
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
         Ok(SetRecipientResponse::decode(buffer).await?)
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
+    async fn get_recipient(
+        &self,
+        request: GetRecipientRequest,
+    ) -> Result<GetRecipientResponse> {
+        let body = request.encode().await?;
+        let url = self.build_url(SHARING_RECIPIENT)?;
+        tracing::debug!(url = %url, "http::get_recipient");
+        let request = self
+            .client
+            .post(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF);
+        let request = self.request_headers(request, &body).await?;
+        let response = request.body(body).send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::get_recipient");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(GetRecipientResponse::decode(buffer).await?)
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]

@@ -28,8 +28,9 @@ use sos_login::{
     device::{DeviceManager, DeviceSigner},
 };
 use sos_protocol::{
-    AccountSync, DiffRequest, RemoteResult, RemoteSync, SetRecipientRequest,
-    SharedFolderRequest, SyncClient, SyncOptions, SyncResult, is_offline,
+    AccountSync, DiffRequest, GetRecipientRequest, RemoteResult, RemoteSync,
+    SetRecipientRequest, SharedFolderRequest, SyncClient, SyncOptions,
+    SyncResult, is_offline,
     network_client::{HttpClientOptions, NetworkConfig},
 };
 use sos_remote_sync::RemoteSyncHandler;
@@ -537,6 +538,17 @@ impl NetworkAccount {
         };
         bridge.client.set_recipient(request).await?;
         Ok(recipient)
+    }
+
+    /// Get recipient information from a server.
+    pub async fn get_recipient(
+        &self,
+        server: &Origin,
+    ) -> Result<Option<Recipient>> {
+        let bridge = self.remote_bridge(server).await?;
+        let request = GetRecipientRequest {};
+        let response = bridge.client.get_recipient(request).await?;
+        Ok(response.recipient)
     }
 
     /// Create a shared folder.
