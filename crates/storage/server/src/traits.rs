@@ -6,7 +6,7 @@ use sos_backend::FolderEventLog;
 use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
     events::patch::FolderDiff,
-    AccountId, Paths, VaultFlags, VaultId,
+    AccountId, Paths, Recipient, VaultFlags, VaultId,
 };
 use sos_sync::CreateSet;
 use sos_vault::{Summary, Vault};
@@ -107,4 +107,7 @@ pub trait ServerAccountStorage {
 
     /// Delete this account.
     async fn delete_account(&mut self) -> Result<()>;
+
+    /// Set account recipient information.
+    async fn set_recipient(&mut self, recipient: Recipient) -> Result<()>;
 }

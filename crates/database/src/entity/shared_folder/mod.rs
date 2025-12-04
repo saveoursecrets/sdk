@@ -4,7 +4,7 @@ use crate::entity::{
 };
 use crate::{Result, SharingError};
 use async_sqlite::Client;
-use async_sqlite::rusqlite::{Connection, Row, OptionalExtension};
+use async_sqlite::rusqlite::{Connection, OptionalExtension, Row};
 use sos_core::{AccountId, Recipient, UtcDateTime, VaultId};
 use sos_vault::Vault;
 use sql_query_builder as sql;
@@ -40,10 +40,12 @@ impl<'conn> SharedFolderEntity<'conn> {
     pub fn upsert_recipient(
         &mut self,
         account_id: AccountId,
-        recipient_name: String,
-        recipient_email: Option<String>,
-        recipient_public_key: String,
+        recipient: Recipient,
     ) -> Result<i64> {
+        let recipient_name = recipient.name;
+        let recipient_email = recipient.email;
+        let recipient_public_key = recipient.public_key.to_string();
+
         let tx = self.conn.transaction()?;
 
         let account = AccountEntity::new(&tx);
@@ -586,19 +588,19 @@ impl<'conn> SharedFolderEntity<'conn> {
         let (account_row, recipient_row) = client
             .conn_and_then(move |conn| {
                 let account = AccountEntity::new(&conn);
-                let account_row = account
-                    .find_optional(&check_account_id)?;
+                let account_row = account.find_optional(&check_account_id)?;
                 let recipient_row = if let Some(account_row) = &account_row {
                     let recipient = RecipientEntity::new(&conn);
-                    recipient
-                        .find_optional(account_row.row_id)?
-                } else { None };
+                    recipient.find_optional(account_row.row_id)?
+                } else {
+                    None
+                };
                 Ok::<_, async_sqlite::Error>((account_row, recipient_row))
             })
             .await?;
 
-        let account_row = account_row
-            .ok_or(SharingError::DeleteNoAccount(*account_id))?;
+        let account_row =
+            account_row.ok_or(SharingError::DeleteNoAccount(*account_id))?;
         let recipient_row = recipient_row
             .ok_or(SharingError::RecipientNotCreated(*account_id))?;
 
@@ -610,8 +612,8 @@ impl<'conn> SharedFolderEntity<'conn> {
         let (folder_row, shared_folder) = client
             .conn_and_then(move |conn| {
                 let folder_entity = FolderEntity::new(&conn);
-                let folder_row = folder_entity
-                    .find_optional(&check_folder_id)?;
+                let folder_row =
+                    folder_entity.find_optional(&check_folder_id)?;
 
                 let res = if let Some(folder_row) = &folder_row {
                     // Find shared_folder join
@@ -622,18 +624,26 @@ impl<'conn> SharedFolderEntity<'conn> {
 
                     let mut stmt = conn.prepare_cached(&query.as_string())?;
                     if let Some(shared_folder_id) = stmt
-                        .query_row((account_row_id, folder_row.row_id), |row| row.get::<usize, i64>(0))
-                        .optional()? {
-
+                        .query_row(
+                            (account_row_id, folder_row.row_id),
+                            |row| row.get::<usize, i64>(0),
+                        )
+                        .optional()?
+                    {
                         // Step 3: Get creator status
                         let query = sql::Select::new()
                             .select("is_creator")
                             .from("shared_folder_recipients")
-                            .where_clause("shared_folder_id = ?1 AND recipient_id = ?2");
+                            .where_clause(
+                                "shared_folder_id = ?1 AND recipient_id = ?2",
+                            );
 
-                        let mut stmt = conn.prepare_cached(&query.as_string())?;
-                        let is_creator: i64 = stmt
-                            .query_row((shared_folder_id, recipient_id), |row| row.get(0))?;
+                        let mut stmt =
+                            conn.prepare_cached(&query.as_string())?;
+                        let is_creator: i64 = stmt.query_row(
+                            (shared_folder_id, recipient_id),
+                            |row| row.get(0),
+                        )?;
 
                         Some((shared_folder_id, is_creator > 0))
                     } else {
@@ -647,10 +657,10 @@ impl<'conn> SharedFolderEntity<'conn> {
             })
             .await?;
 
-        let folder_row = 
+        let folder_row =
             folder_row.ok_or(SharingError::DeleteNoFolder(*folder_id))?;
-        let (shared_folder_id, is_creator) = shared_folder
-            .ok_or(SharingError::DeleteNotShared(*folder_id))?;
+        let (shared_folder_id, is_creator) =
+            shared_folder.ok_or(SharingError::DeleteNotShared(*folder_id))?;
 
         // Delete based on creator status
         client
@@ -680,7 +690,9 @@ impl<'conn> SharedFolderEntity<'conn> {
                     // which would allow inviting the recipient again if necessary
                     let query = sql::Delete::new()
                         .delete_from("folder_invites")
-                        .where_clause("to_recipient_id = ?1 AND folder_id = ?2");
+                        .where_clause(
+                            "to_recipient_id = ?1 AND folder_id = ?2",
+                        );
 
                     let mut stmt = tx.prepare_cached(&query.as_string())?;
                     stmt.execute((recipient_id, folder_row.row_id))?;

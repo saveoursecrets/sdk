@@ -1,6 +1,7 @@
 use anyhow::Result;
 use sos_account::Account;
 use sos_backend::BackendTarget;
+use sos_core::Recipient;
 use sos_database::{
     entity::{RecipientRecord, SharedFolderEntity},
     migrations::migrate_client,
@@ -32,18 +33,20 @@ async fn db_entity_shared_folder_manage_recipient() -> Result<()> {
     let account_id = *account.account_id();
     let recipient_name = "Example";
     let recipient_email = "user@example.com";
-    let recipient_public_key = "<mock public key>";
+    let recipient_public_key = account.shared_access_public_key().await?;
+
+    let recipient = Recipient {
+        name: recipient_name.to_owned(),
+        email: Some(recipient_email.to_owned()),
+        public_key: recipient_public_key.clone(),
+    };
 
     // Initial insert on creating recipient information
     let recipient_id = client
         .conn_mut_and_then(move |conn| {
             let mut entity = SharedFolderEntity::new(conn);
-            let recipient_id = entity.upsert_recipient(
-                account_id,
-                recipient_name.to_string(),
-                Some(recipient_email.to_string()),
-                recipient_public_key.to_string(),
-            )?;
+            let recipient_id =
+                entity.upsert_recipient(account_id, recipient)?;
             Ok::<_, anyhow::Error>(recipient_id)
         })
         .await?;
@@ -63,22 +66,26 @@ async fn db_entity_shared_folder_manage_recipient() -> Result<()> {
         Some(recipient_email),
         recipient_record.recipient_email.as_deref()
     );
-    assert_eq!(recipient_public_key, &recipient_record.recipient_public_key);
+    assert_eq!(
+        recipient_public_key.to_string(),
+        recipient_record.recipient_public_key
+    );
 
     let new_recipient_name = "Example";
     let new_recipient_email = "new-user@example.com";
-    let new_recipient_public_key = "<new mock public key>";
+
+    let recipient = Recipient {
+        name: new_recipient_name.to_owned(),
+        email: Some(new_recipient_email.to_owned()),
+        public_key: recipient_public_key.clone(),
+    };
 
     // Update recipient information for an account
     let new_recipient_id = client
         .conn_mut_and_then(move |conn| {
             let mut entity = SharedFolderEntity::new(conn);
-            let recipient_id = entity.upsert_recipient(
-                account_id,
-                new_recipient_name.to_string(),
-                Some(new_recipient_email.to_string()),
-                new_recipient_public_key.to_string(),
-            )?;
+            let recipient_id =
+                entity.upsert_recipient(account_id, recipient)?;
             Ok::<_, anyhow::Error>(recipient_id)
         })
         .await?;
@@ -98,10 +105,6 @@ async fn db_entity_shared_folder_manage_recipient() -> Result<()> {
     assert_eq!(
         Some(new_recipient_email),
         recipient_record.recipient_email.as_deref()
-    );
-    assert_eq!(
-        new_recipient_public_key,
-        &recipient_record.recipient_public_key
     );
 
     teardown(TEST_ID).await;

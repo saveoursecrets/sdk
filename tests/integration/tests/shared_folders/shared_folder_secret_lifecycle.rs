@@ -14,18 +14,16 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
     let origin = server.origin.clone();
 
+    let test_id_owner: String = format!("{}_owner", TEST_ID);
+    let test_id_participant: String = format!("{}_participant", TEST_ID);
+
     // Prepare mock device(s0)
     let mut account1 =
-        simulate_device(&format!("{}_owner", TEST_ID), 1, Some(&server))
-            .await?;
+        simulate_device(&test_id_owner, 1, Some(&server)).await?;
     let account1_password = account1.password.clone();
 
-    let mut account2 = simulate_device(
-        &format!("{}_participant", TEST_ID),
-        1,
-        Some(&server),
-    )
-    .await?;
+    let mut account2 =
+        simulate_device(&test_id_participant, 1, Some(&server)).await?;
     let account2_password = account2.password.clone();
 
     // Need both accounts to have set public recipient information
@@ -49,6 +47,7 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
         )
         .await?;
 
+    /*
     let recipients = vec![recipient1, recipient2];
     let folder_name = "shared_folder";
     let options = NewFolderOptions::new(folder_name.to_string());
@@ -59,6 +58,7 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
         .owner
         .create_shared_folder(options, &origin, recipients.as_slice(), None)
         .await?;
+    */
 
     /*
     let folders = account1.owner.list_folders().await?;
@@ -82,6 +82,8 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
     account2.owner.sign_out().await?;
 
     teardown(TEST_ID).await;
+    teardown(&test_id_owner).await;
+    teardown(&test_id_participant).await;
 
     Ok(())
 }

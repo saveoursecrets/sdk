@@ -14,12 +14,12 @@ use sos_core::{
         patch::{FolderDiff, FolderPatch},
         AccountEvent, EventLog,
     },
-    AccountId, Paths, VaultFlags, VaultId,
+    AccountId, Paths, Recipient, VaultFlags, VaultId,
 };
-use sos_database::async_sqlite::Client;
 use sos_database::entity::{
     AccountEntity, AccountRow, FolderEntity, FolderRecord, FolderRow,
 };
+use sos_database::{async_sqlite::Client, entity::SharedFolderEntity};
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{EncryptedEntry, Summary, Vault};
@@ -580,6 +580,17 @@ impl ServerAccountStorage for ServerDatabaseStorage {
             vfs::remove_dir_all(&blobs_dir).await?;
         }
 
+        Ok(())
+    }
+
+    async fn set_recipient(&mut self, recipient: Recipient) -> Result<()> {
+        let account_id = self.account_id;
+        self.client
+            .conn_mut_and_then(move |conn| {
+                let mut entity = SharedFolderEntity::new(conn);
+                entity.upsert_recipient(account_id, recipient)
+            })
+            .await?;
         Ok(())
     }
 }

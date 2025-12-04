@@ -94,16 +94,16 @@ async fn create_recipients_and_shared_folder_with_invite_status(
         for (account_id, name, email, public_key) in
             recipients_info.into_iter()
         {
-            let recipient_public_key = public_key.to_string();
+            let recipient = Recipient {
+                name: name.to_owned(),
+                email: Some(email.to_owned()),
+                public_key: public_key.clone(),
+            };
             server
                 .conn_mut_and_then(move |conn| {
                     let mut entity = SharedFolderEntity::new(conn);
-                    let recipient_id = entity.upsert_recipient(
-                        account_id,
-                        name.to_string(),
-                        Some(email.to_string()),
-                        recipient_public_key,
-                    )?;
+                    let recipient_id =
+                        entity.upsert_recipient(account_id, recipient)?;
                     Ok::<_, anyhow::Error>(recipient_id)
                 })
                 .await?;

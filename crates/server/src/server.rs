@@ -1,7 +1,7 @@
 use crate::{
     Backend, Result, ServerConfig, SslConfig, StorageConfig,
     config::{self, TlsConfig},
-    handlers::{account, api, home, websocket::WebSocketAccount},
+    handlers::{account, api, home, sharing, websocket::WebSocketAccount},
 };
 use axum::{
     Router,
@@ -324,7 +324,9 @@ impl Server {
                     get(account::event_scan)
                         .post(account::event_diff)
                         .patch(account::event_patch),
-                );
+                )
+                .route("/sharing/recipient", put(sharing::set_recipient))
+                .route("/sharing/folder", post(sharing::create_folder));
 
             {
                 use super::handlers::files::{self, file_operation_lock};

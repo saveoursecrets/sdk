@@ -19,6 +19,7 @@ use sos_protocol::constants::X_SOS_ACCOUNT_ID;
 
 pub mod account;
 pub mod files;
+pub mod sharing;
 
 #[cfg(feature = "pairing")]
 pub(crate) mod relay;

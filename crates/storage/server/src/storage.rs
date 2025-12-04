@@ -14,7 +14,7 @@ use sos_core::{
         patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
         EventLog, WriteEvent,
     },
-    AccountId, Paths, VaultFlags, VaultId,
+    AccountId, Paths, Recipient, VaultFlags, VaultId,
 };
 use sos_database::entity::AccountEntity;
 use sos_sync::{
@@ -388,6 +388,15 @@ impl ServerAccountStorage for ServerStorage {
         match self {
             ServerStorage::FileSystem(fs) => fs.delete_account().await,
             ServerStorage::Database(db) => db.delete_account().await,
+        }
+    }
+
+    async fn set_recipient(&mut self, recipient: Recipient) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => {
+                fs.set_recipient(recipient).await
+            }
+            ServerStorage::Database(db) => db.set_recipient(recipient).await,
         }
     }
 }

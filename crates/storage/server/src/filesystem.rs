@@ -15,7 +15,7 @@ use sos_core::{
         patch::{FolderDiff, FolderPatch},
         AccountEvent, EventLog,
     },
-    AccountId, Paths, VaultFlags, VaultId,
+    AccountId, Paths, Recipient, VaultFlags, VaultId,
 };
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, StorageEventLogs};
@@ -465,6 +465,10 @@ impl ServerAccountStorage for ServerFileStorage {
         }
         vfs::remove_file(&identity_event).await?;
         Ok(())
+    }
+
+    async fn set_recipient(&mut self, _recipient: Recipient) -> Result<()> {
+        unimplemented!();
     }
 }
 
