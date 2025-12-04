@@ -72,9 +72,9 @@ pub(crate) async fn set_recipient(
     }
 }
 
-/// Upsert account recipient information.
+/// Create a shared folder.
 #[utoipa::path(
-    put,
+    post,
     path = "/sharing/folder",
     security(
         ("bearer_token" = [])
