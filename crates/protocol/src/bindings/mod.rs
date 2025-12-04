@@ -21,4 +21,7 @@ pub use relay::{
     RelayHeader, RelayPacket, RelayPayload, pairing_message,
 };
 pub use scan::{ScanRequest, ScanResponse};
-pub use shared_folder::{SharedFolderRequest, SharedFolderResponse};
+pub use shared_folder::{
+    SetRecipientRequest, SetRecipientResponse, SharedFolderRequest,
+    SharedFolderResponse,
+};

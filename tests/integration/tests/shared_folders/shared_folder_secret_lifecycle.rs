@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sos_account::Account;
+use sos_account::{Account, FolderCreate};
 use sos_client_storage::NewFolderOptions;
 use sos_test_utils::{simulate_device, spawn, teardown};
 
@@ -12,34 +12,74 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
+    let origin = server.origin.clone();
 
-    // Prepare mock device
-    let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
-    let password = device.password.clone();
+    // Prepare mock device(s0)
+    let mut account1 =
+        simulate_device(&format!("{}_owner", TEST_ID), 1, Some(&server))
+            .await?;
+    let account1_password = account1.password.clone();
 
-    /*
+    let mut account2 = simulate_device(
+        &format!("{}_participant", TEST_ID),
+        1,
+        Some(&server),
+    )
+    .await?;
+    let account2_password = account2.password.clone();
+
+    // Need both accounts to have set public recipient information
+    // for PKI and discovery
+    let account1_info = ("name_one", "one@example.com");
+    let account2_info = ("name_two", "two@example.com");
+    let recipient1 = account1
+        .owner
+        .set_recipient(
+            &origin,
+            account1_info.0.to_string(),
+            Some(account1_info.1.to_string()),
+        )
+        .await?;
+    let recipient2 = account2
+        .owner
+        .set_recipient(
+            &origin,
+            account2_info.0.to_string(),
+            Some(account2_info.1.to_string()),
+        )
+        .await?;
+
+    let recipients = vec![recipient1, recipient2];
     let folder_name = "shared_folder";
     let options = NewFolderOptions::new(folder_name.to_string());
-    device.owner.create_shared_folder(options).await?;
+    let FolderCreate {
+        folder: shared_folder,
+        ..
+    } = account1
+        .owner
+        .create_shared_folder(options, &origin, recipients.as_slice(), None)
+        .await?;
 
-    let folders = device.owner.list_folders().await?;
+    /*
+    let folders = account1.owner.list_folders().await?;
     println!("FOLDER LEN: {}", folders.len());
     let shared_folder =
         folders.iter().find(|f| f.name() == folder_name).unwrap();
 
     super::assert_shared_folder_lifecycle(
-        &mut device.owner,
+        &mut account1.owner,
         shared_folder.id(),
         password,
         TEST_ID,
     )
     .await?;
 
-    let folders = device.owner.list_folders().await?;
+    let folders = account1.owner.list_folders().await?;
     println!("FOLDER LEN: {}", folders.len());
     */
 
-    device.owner.sign_out().await?;
+    account1.owner.sign_out().await?;
+    account2.owner.sign_out().await?;
 
     teardown(TEST_ID).await;
 

@@ -34,6 +34,12 @@ pub mod routes {
 
         /// Route for syncing account events.
         pub const SYNC_ACCOUNT_EVENTS: &str = "/api/v1/sync/account/events";
+
+        /// Route for setting recipient information.
+        pub const SHARING_SET_RECIPIENT: &str = "/api/v1/sharing/recipient";
+
+        /// Route for creating a shared folder.
+        pub const SHARING_CREATE_FOLDER: &str = "/api/v1/sharing/folder";
     }
 }
 

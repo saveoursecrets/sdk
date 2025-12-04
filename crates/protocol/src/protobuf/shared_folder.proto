@@ -4,6 +4,13 @@ package shared_folder;
 
 import "protobuf/common.proto";
 
+message WireSetRecipientRequest {
+  /// Recipient information.
+  common.WireRecipient recipient = 1;
+}
+
+message WireSetRecipientResponse {}
+
 message WireSharedFolderRequest {
   // Encoded vault.
   bytes vault = 1;
@@ -12,3 +19,4 @@ message WireSharedFolderRequest {
 }
 
 message WireSharedFolderResponse {}
+

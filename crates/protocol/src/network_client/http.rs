@@ -1,12 +1,13 @@
 //! HTTP client implementation.
 use crate::{
     DiffRequest, DiffResponse, Error, NetworkError, PatchRequest,
-    PatchResponse, Result, ScanRequest, ScanResponse, SyncClient,
-    WireEncodeDecode,
+    PatchResponse, Result, ScanRequest, ScanResponse, SetRecipientRequest,
+    SetRecipientResponse, SyncClient, WireEncodeDecode,
     constants::{
         MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
         routes::v1::{
-            SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
+            SHARING_CREATE_FOLDER, SHARING_SET_RECIPIENT, SYNC_ACCOUNT,
+            SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
         },
     },
 };
@@ -466,11 +467,45 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
+    async fn set_recipient(
+        &self,
+        request: SetRecipientRequest,
+    ) -> Result<SetRecipientResponse> {
+        let body = request.encode().await?;
+        let url = self.build_url(SHARING_SET_RECIPIENT)?;
+        tracing::debug!(url = %url, "http::set_recipient");
+        let request = self
+            .client
+            .put(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF);
+        let request = self.request_headers(request, &body).await?;
+        let response = request.body(body).send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::set_recipient");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(SetRecipientResponse::decode(buffer).await?)
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
     async fn create_shared_folder(
         &self,
         request: SharedFolderRequest,
     ) -> Result<SharedFolderResponse> {
-        todo!();
+        let body = request.encode().await?;
+        let url = self.build_url(SHARING_CREATE_FOLDER)?;
+        tracing::debug!(url = %url, "http::create_shared_folder");
+        let request = self
+            .client
+            .post(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF);
+        let request = self.request_headers(request, &body).await?;
+        let response = request.body(body).send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::create_shared_folder");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(SharedFolderResponse::decode(buffer).await?)
     }
 }
 

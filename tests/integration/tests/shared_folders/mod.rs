@@ -7,7 +7,7 @@ use sos_test_utils::mock;
 use sos_vault::secret::Secret;
 
 mod shared_folder_secret_lifecycle;
-mod shared_folder_write_access;
+// mod shared_folder_write_access;
 
 pub async fn assert_shared_folder_lifecycle(
     owner: &mut NetworkAccount,

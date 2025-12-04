@@ -28,8 +28,8 @@ use sos_login::{
     device::{DeviceManager, DeviceSigner},
 };
 use sos_protocol::{
-    AccountSync, DiffRequest, RemoteResult, RemoteSync, SharedFolderRequest,
-    SyncClient, SyncOptions, SyncResult, is_offline,
+    AccountSync, DiffRequest, RemoteResult, RemoteSync, SetRecipientRequest,
+    SharedFolderRequest, SyncClient, SyncOptions, SyncResult, is_offline,
     network_client::{HttpClientOptions, NetworkConfig},
 };
 use sos_remote_sync::RemoteSyncHandler;
@@ -519,6 +519,26 @@ impl NetworkAccount {
         }
     }
 
+    /// Set recipient information on a server.
+    pub async fn set_recipient(
+        &self,
+        server: &Origin,
+        name: String,
+        email: Option<String>,
+    ) -> Result<Recipient> {
+        let recipient = Recipient {
+            name,
+            email,
+            public_key: self.shared_access_public_key().await?,
+        };
+        let bridge = self.remote_bridge(server).await?;
+        let request = SetRecipientRequest {
+            recipient: recipient.clone(),
+        };
+        bridge.client.set_recipient(request).await?;
+        Ok(recipient)
+    }
+
     /// Create a shared folder.
     pub async fn create_shared_folder(
         &mut self,
@@ -537,35 +557,29 @@ impl NetworkAccount {
                 .await?
         };
 
+        let buffer = encode(&vault).await?;
+
         let bridge = self.remote_bridge(server).await?;
         let request = SharedFolderRequest {
-            vault: encode(&vault).await?,
+            vault: buffer.clone(),
             recipients: recipients.to_vec(),
         };
 
         // Try to create the shared folder on the server
         bridge.client.create_shared_folder(request).await?;
 
-        // Owner saves the folder access key
-        self.save_folder_password(vault.id(), access_key).await?;
+        let result = self
+            .import_folder_buffer(&buffer, access_key, false)
+            .await?;
 
-        // Sync should include the folder from the server
-        let sync_result = self.sync().await;
-
-        println!("create_shared_folder::sync_result:: {:#?}", sync_result);
-
-        /*
         let result = FolderCreate {
             folder: result.folder,
             event: result.event,
             commit_state: result.commit_state,
             sync_result: self.sync().await,
         };
-        */
 
-        // Ok(result)
-
-        todo!();
+        Ok(result)
     }
 }
 

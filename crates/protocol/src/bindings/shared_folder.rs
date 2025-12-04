@@ -3,6 +3,57 @@ include!(concat!(env!("OUT_DIR"), "/shared_folder.rs"));
 use crate::{Error, ProtoBinding, Result};
 use sos_core::Recipient;
 
+/// Request to create or update recipient information.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetRecipientRequest {
+    /// Recipient information.
+    pub recipient: Recipient,
+}
+
+impl ProtoBinding for SetRecipientRequest {
+    type Inner = WireSetRecipientRequest;
+}
+
+impl TryFrom<WireSetRecipientRequest> for SetRecipientRequest {
+    type Error = Error;
+
+    fn try_from(value: WireSetRecipientRequest) -> Result<Self> {
+        Ok(Self {
+            recipient: value.recipient.unwrap().try_into()?,
+        })
+    }
+}
+
+impl From<SetRecipientRequest> for WireSetRecipientRequest {
+    fn from(value: SetRecipientRequest) -> WireSetRecipientRequest {
+        Self {
+            recipient: Some(value.recipient.into()),
+        }
+    }
+}
+
+/// Response from a patch request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetRecipientResponse {}
+
+impl ProtoBinding for SetRecipientResponse {
+    type Inner = WireSetRecipientResponse;
+}
+
+impl TryFrom<WireSetRecipientResponse> for SetRecipientResponse {
+    type Error = Error;
+
+    fn try_from(_value: WireSetRecipientResponse) -> Result<Self> {
+        Ok(Self {})
+    }
+}
+
+impl From<SetRecipientResponse> for WireSetRecipientResponse {
+    fn from(_value: SetRecipientResponse) -> WireSetRecipientResponse {
+        Self {}
+    }
+}
+
 /// Request to create a shared folder on a remote.
 ///
 /// Used during auto merge to force push a combined collection
@@ -47,7 +98,7 @@ impl From<SharedFolderRequest> for WireSharedFolderRequest {
     }
 }
 
-/// Response from a patch request.
+/// Response from a create shared folder request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SharedFolderResponse {}
 
@@ -58,13 +109,13 @@ impl ProtoBinding for SharedFolderResponse {
 impl TryFrom<WireSharedFolderResponse> for SharedFolderResponse {
     type Error = Error;
 
-    fn try_from(value: WireSharedFolderResponse) -> Result<Self> {
+    fn try_from(_value: WireSharedFolderResponse) -> Result<Self> {
         Ok(Self {})
     }
 }
 
 impl From<SharedFolderResponse> for WireSharedFolderResponse {
-    fn from(value: SharedFolderResponse) -> WireSharedFolderResponse {
+    fn from(_value: SharedFolderResponse) -> WireSharedFolderResponse {
         Self {}
     }
 }
