@@ -2,7 +2,7 @@ use super::{BODY_LIMIT, Caller, parse_account_id};
 use crate::{ServerBackend, ServerState, handlers::authenticate_endpoint};
 use axum::{
     body::{Body, to_bytes},
-    extract::{Extension, OriginalUri},
+    extract::Extension,
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
@@ -138,7 +138,8 @@ mod handlers {
     use axum::body::Bytes;
     use http::header::{self, HeaderMap, HeaderValue};
     use sos_protocol::{
-        SetRecipientRequest, SetRecipientResponse, WireEncodeDecode,
+        SetRecipientRequest, SetRecipientResponse, SharedFolderRequest,
+        SharedFolderResponse, WireEncodeDecode,
         constants::MIME_TYPE_PROTOBUF,
     };
     use sos_server_storage::ServerAccountStorage;
@@ -185,6 +186,38 @@ mod handlers {
         caller: Caller,
         bytes: Bytes,
     ) -> Result<(HeaderMap, Vec<u8>)> {
-        todo!("create_folder");
+        let account = {
+            let reader = backend.read().await;
+            let accounts = reader.accounts();
+            let reader = accounts.read().await;
+            let account = reader
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
+            Arc::clone(account)
+        };
+
+        let packet = SharedFolderRequest::decode(bytes).await?;
+
+        {
+            let mut account = account.write().await;
+            account
+                .create_shared_folder(
+                    &packet.vault,
+                    packet.recipients.as_slice(),
+                )
+                .await?;
+            // account.set_recipient(packet.recipient).await?;
+        }
+
+        // Empty response packet for now
+        let packet = SharedFolderResponse {};
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
+        );
+
+        Ok((headers, packet.encode().await?))
     }
 }

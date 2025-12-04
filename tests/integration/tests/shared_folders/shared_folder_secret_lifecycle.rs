@@ -47,7 +47,6 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
         )
         .await?;
 
-    /*
     let recipients = vec![recipient1, recipient2];
     let folder_name = "shared_folder";
     let options = NewFolderOptions::new(folder_name.to_string());
@@ -58,7 +57,6 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
         .owner
         .create_shared_folder(options, &origin, recipients.as_slice(), None)
         .await?;
-    */
 
     /*
     let folders = account1.owner.list_folders().await?;

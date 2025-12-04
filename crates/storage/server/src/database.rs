@@ -593,6 +593,23 @@ impl ServerAccountStorage for ServerDatabaseStorage {
             .await?;
         Ok(())
     }
+
+    async fn create_shared_folder(
+        &mut self,
+        vault: &[u8],
+        recipients: &[Recipient],
+    ) -> Result<()> {
+        let account_id = self.account_id;
+        let vault: Vault = decode(vault).await?;
+        SharedFolderEntity::create_shared_folder(
+            &self.client,
+            &account_id,
+            &vault,
+            recipients,
+        )
+        .await?;
+        Ok(())
+    }
 }
 
 #[async_trait]

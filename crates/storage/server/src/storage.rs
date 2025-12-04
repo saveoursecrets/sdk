@@ -399,6 +399,21 @@ impl ServerAccountStorage for ServerStorage {
             ServerStorage::Database(db) => db.set_recipient(recipient).await,
         }
     }
+
+    async fn create_shared_folder(
+        &mut self,
+        vault: &[u8],
+        recipients: &[Recipient],
+    ) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => {
+                fs.create_shared_folder(vault, recipients).await
+            }
+            ServerStorage::Database(db) => {
+                db.create_shared_folder(vault, recipients).await
+            }
+        }
+    }
 }
 
 #[async_trait]
