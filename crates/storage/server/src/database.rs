@@ -694,6 +694,14 @@ impl ServerAccountStorage for ServerDatabaseStorage {
                 )
             })
             .await?;
+
+        // Must reload the folders when an invite
+        // is accepted so clients can immediately fetch
+        // the folder events
+        if let InviteStatus::Accepted = invite_status {
+            self.load_folders().await?;
+        }
+
         Ok(())
     }
 }

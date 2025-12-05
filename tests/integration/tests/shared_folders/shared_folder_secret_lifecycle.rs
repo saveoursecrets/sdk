@@ -85,15 +85,17 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
     assert!(folders.iter().any(|f| f.name() == folder_name));
 
     // Ensure the owner can manage secrets in the folder
-    super::assert_shared_folder_lifecycle(
+    let secret_ids = super::assert_shared_folder_lifecycle(
         &mut account1.owner,
         shared_folder.id(),
         account1_password,
-        TEST_ID,
+        &test_id_owner,
     )
     .await?;
 
-    // Accept the folder invite
+    // Accept the folder invite which will
+    // prepare the local copy of the shared
+    // folder
     account2
         .owner
         .accept_folder_invite(
@@ -103,11 +105,41 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
         )
         .await?;
 
-    /*
-    let sync_result = account2.owner.sync().await;
-    println!("{sync_result:?}");
     let folders = account2.owner.load_folders().await?;
-    println!("{folders:?}");
+    assert!(folders.iter().any(|f| f.name() == shared_folder.name()));
+    // println!("{folders:?}");
+
+    // Check the participant in the shared folder
+    // can read the existing secrets
+    for secret_id in &secret_ids {
+        let (row, _) = account2
+            .owner
+            .read_secret(secret_id, Some(shared_folder.id()))
+            .await?;
+        println!("{row:?}");
+    }
+
+    // Ensure the participant can manage secrets in the folder
+    let new_secret_ids = super::assert_shared_folder_lifecycle(
+        &mut account2.owner,
+        shared_folder.id(),
+        account2_password,
+        &test_id_participant,
+    )
+    .await?;
+
+    /*
+    let sync_result = account1.owner.sync().await;
+    println!("{sync_result:?}");
+    assert!(sync_result.first_error().is_none());
+
+    for secret_id in &new_secret_ids {
+        let (row, _) = account1
+            .owner
+            .read_secret(secret_id, Some(shared_folder.id()))
+            .await?;
+        println!("{row:?}");
+    }
     */
 
     account1.owner.sign_out().await?;

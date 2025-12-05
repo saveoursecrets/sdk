@@ -647,7 +647,7 @@ impl NetworkAccount {
 
     /// Accept a folder invite.
     pub async fn accept_folder_invite(
-        &self,
+        &mut self,
         server: &Origin,
         from_public_key: age::x25519::Recipient,
         folder_id: VaultId,
@@ -658,7 +658,16 @@ impl NetworkAccount {
             from_public_key,
             folder_id,
         )
-        .await
+        .await?;
+
+        let folder_key = {
+            let account = self.account.lock().await;
+            account.shared_private_access_key().await?
+        };
+        self.save_folder_password(&folder_id, folder_key).await?;
+
+        self.recover_remote_folder(server, &folder_id).await?;
+        Ok(())
     }
 
     /// Decline a folder invite.

@@ -643,6 +643,15 @@ impl LocalAccount {
             _ => unreachable!(),
         }
     }
+
+    #[doc(hidden)]
+    pub async fn shared_private_access_key(&self) -> Result<AccessKey> {
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
+        Ok(authenticated_user.shared_private_access_key()?)
+    }
 }
 
 impl From<&LocalAccount> for AccountRef {

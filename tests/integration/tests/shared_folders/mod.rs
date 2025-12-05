@@ -1,7 +1,7 @@
 use anyhow::Result;
 use secrecy::{ExposeSecret, SecretString};
 use sos_account::{Account, SecretChange};
-use sos_core::{crypto::AccessKey, VaultId};
+use sos_core::{crypto::AccessKey, SecretId, VaultId};
 use sos_net::NetworkAccount;
 use sos_test_utils::mock;
 use sos_vault::secret::Secret;
@@ -14,12 +14,13 @@ pub async fn assert_shared_folder_lifecycle(
     folder_id: &VaultId,
     password: SecretString,
     test_id: &str,
-) -> Result<()> {
+) -> Result<Vec<SecretId>> {
     let (meta, secret) = mock::note(test_id, test_id);
     let SecretChange { id: secret_id, .. } =
         owner.create_secret(meta, secret, folder_id.into()).await?;
 
     let (row, _) = owner.read_secret(&secret_id, Some(folder_id)).await?;
+    let output_secret_id = secret_id;
 
     assert!(matches!(row.secret(), Secret::Note { .. }));
 
@@ -62,5 +63,5 @@ pub async fn assert_shared_folder_lifecycle(
     // Check secret deletion
     owner.delete_secret(&secret_id, folder_id.into()).await?;
 
-    Ok(())
+    Ok(vec![output_secret_id])
 }
