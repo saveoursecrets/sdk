@@ -24,5 +24,6 @@ pub use scan::{ScanRequest, ScanResponse};
 pub use shared_folder::{
     GetFolderInvitesRequest, GetFolderInvitesResponse, GetRecipientRequest,
     GetRecipientResponse, SetRecipientRequest, SetRecipientResponse,
-    SharedFolderRequest, SharedFolderResponse,
+    SharedFolderRequest, SharedFolderResponse, UpdateFolderInviteRequest,
+    UpdateFolderInviteResponse,
 };

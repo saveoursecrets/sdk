@@ -3,7 +3,8 @@ use crate::{
     GetFolderInvitesResponse, GetRecipientRequest, GetRecipientResponse,
     PatchRequest, PatchResponse, ScanRequest, ScanResponse,
     SetRecipientRequest, SetRecipientResponse, SharedFolderRequest,
-    SharedFolderResponse, SyncOptions,
+    SharedFolderResponse, SyncOptions, UpdateFolderInviteRequest,
+    UpdateFolderInviteResponse,
 };
 use async_trait::async_trait;
 use sos_core::Origin;
@@ -242,11 +243,9 @@ pub trait SyncClient {
         request: GetFolderInvitesRequest,
     ) -> Result<GetFolderInvitesResponse, Self::Error>;
 
-    /*
     /// Update a received folder invite.
     async fn update_folder_invite(
         &self,
         request: UpdateFolderInviteRequest,
     ) -> Result<UpdateFolderInviteResponse, Self::Error>;
-    */
 }

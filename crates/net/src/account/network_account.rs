@@ -30,7 +30,8 @@ use sos_login::{
 use sos_protocol::{
     AccountSync, DiffRequest, GetFolderInvitesRequest, GetRecipientRequest,
     RemoteResult, RemoteSync, SetRecipientRequest, SharedFolderRequest,
-    SyncClient, SyncOptions, SyncResult, is_offline,
+    SyncClient, SyncOptions, SyncResult, UpdateFolderInviteRequest,
+    is_offline,
     network_client::{HttpClientOptions, NetworkConfig},
 };
 use sos_remote_sync::RemoteSyncHandler;
@@ -624,6 +625,56 @@ impl NetworkAccount {
         };
         let response = bridge.client.received_folder_invites(request).await?;
         Ok(response.folder_invites)
+    }
+
+    /// Update a folder invite.
+    async fn update_folder_invite(
+        &self,
+        server: &Origin,
+        invite_status: InviteStatus,
+        from_public_key: age::x25519::Recipient,
+        folder_id: VaultId,
+    ) -> Result<()> {
+        let bridge = self.remote_bridge(server).await?;
+        let request = UpdateFolderInviteRequest {
+            invite_status,
+            from_public_key,
+            folder_id,
+        };
+        bridge.client.update_folder_invite(request).await?;
+        Ok(())
+    }
+
+    /// Accept a folder invite.
+    pub async fn accept_folder_invite(
+        &self,
+        server: &Origin,
+        from_public_key: age::x25519::Recipient,
+        folder_id: VaultId,
+    ) -> Result<()> {
+        self.update_folder_invite(
+            server,
+            InviteStatus::Accepted,
+            from_public_key,
+            folder_id,
+        )
+        .await
+    }
+
+    /// Decline a folder invite.
+    pub async fn decline_folder_invite(
+        &self,
+        server: &Origin,
+        from_public_key: age::x25519::Recipient,
+        folder_id: VaultId,
+    ) -> Result<()> {
+        self.update_folder_invite(
+            server,
+            InviteStatus::Declined,
+            from_public_key,
+            folder_id,
+        )
+        .await
     }
 }
 

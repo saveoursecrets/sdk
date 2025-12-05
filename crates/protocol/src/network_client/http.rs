@@ -4,13 +4,13 @@ use crate::{
     GetFolderInvitesResponse, GetRecipientRequest, GetRecipientResponse,
     NetworkError, PatchRequest, PatchResponse, Result, ScanRequest,
     ScanResponse, SetRecipientRequest, SetRecipientResponse, SyncClient,
-    WireEncodeDecode,
+    UpdateFolderInviteRequest, UpdateFolderInviteResponse, WireEncodeDecode,
     constants::{
         MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
         routes::v1::{
             SHARING_CREATE_FOLDER, SHARING_RECEIVED_INVITES,
-            SHARING_RECIPIENT, SHARING_SENT_INVITES, SYNC_ACCOUNT,
-            SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
+            SHARING_RECIPIENT, SHARING_SENT_INVITES, SHARING_UPDATE_INVITE,
+            SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
         },
     },
     query::MoveFileQuery,
@@ -573,6 +573,27 @@ impl SyncClient for HttpClient {
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
         Ok(GetFolderInvitesResponse::decode(buffer).await?)
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
+    async fn update_folder_invite(
+        &self,
+        request: UpdateFolderInviteRequest,
+    ) -> Result<UpdateFolderInviteResponse> {
+        let body = request.encode().await?;
+        let url = self.build_url(SHARING_UPDATE_INVITE)?;
+        tracing::debug!(url = %url, "http::update_folder_invite");
+        let request = self
+            .client
+            .put(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF);
+        let request = self.request_headers(request, &body).await?;
+        let response = request.body(body).send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::update_folder_invite");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(UpdateFolderInviteResponse::decode(buffer).await?)
     }
 }
 

@@ -48,6 +48,10 @@ pub mod routes {
         /// Route for listing received invites.
         pub const SHARING_RECEIVED_INVITES: &str =
             "/api/v1/sharing/folder/invites/inbox";
+
+        /// Route for updating folder invite.
+        pub const SHARING_UPDATE_INVITE: &str =
+            "/api/v1/sharing/folder/invites";
     }
 }
 

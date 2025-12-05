@@ -4,7 +4,7 @@ use crate::{
     Error, ProtoBinding, Result, bindings::common::WireInviteStatus,
 };
 use serde::{Deserialize, Serialize};
-use sos_core::{FolderInvite, InviteStatus, Recipient};
+use sos_core::{FolderInvite, InviteStatus, Recipient, VaultId};
 
 /// Request to create or update recipient information.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -250,5 +250,71 @@ impl From<GetFolderInvitesResponse> for WireGetFolderInvitesResponse {
                 .map(|f| f.into())
                 .collect(),
         }
+    }
+}
+
+/// Request to update a folder invite with a new status.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UpdateFolderInviteRequest {
+    /// New update status.
+    pub invite_status: InviteStatus,
+    /// Public key of the recipient that sent the invite.
+    pub from_public_key: age::x25519::Recipient,
+    /// Folder identifier.
+    pub folder_id: VaultId,
+}
+
+impl ProtoBinding for UpdateFolderInviteRequest {
+    type Inner = WireUpdateFolderInviteRequest;
+}
+
+impl TryFrom<WireUpdateFolderInviteRequest> for UpdateFolderInviteRequest {
+    type Error = Error;
+
+    fn try_from(value: WireUpdateFolderInviteRequest) -> Result<Self> {
+        Ok(Self {
+            invite_status: value.invite_status.try_into()?,
+            from_public_key: value
+                .from_public_key
+                .parse()
+                .map_err(Error::AgeX25519Parse)?,
+            folder_id: value.folder_id.parse()?,
+        })
+    }
+}
+
+impl From<UpdateFolderInviteRequest> for WireUpdateFolderInviteRequest {
+    fn from(
+        value: UpdateFolderInviteRequest,
+    ) -> WireUpdateFolderInviteRequest {
+        Self {
+            invite_status: WireInviteStatus::from(value.invite_status) as i32,
+            from_public_key: value.from_public_key.to_string(),
+            folder_id: value.folder_id.to_string(),
+        }
+    }
+}
+
+/// Response from a request to get folder invites.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UpdateFolderInviteResponse {}
+
+impl ProtoBinding for UpdateFolderInviteResponse {
+    type Inner = WireUpdateFolderInviteResponse;
+}
+
+impl TryFrom<WireUpdateFolderInviteResponse> for UpdateFolderInviteResponse {
+    type Error = Error;
+
+    fn try_from(_value: WireUpdateFolderInviteResponse) -> Result<Self> {
+        Ok(Self {})
+    }
+}
+
+impl From<UpdateFolderInviteResponse> for WireUpdateFolderInviteResponse {
+    fn from(
+        _value: UpdateFolderInviteResponse,
+    ) -> WireUpdateFolderInviteResponse {
+        Self {}
     }
 }

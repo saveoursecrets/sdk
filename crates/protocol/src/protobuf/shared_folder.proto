@@ -40,5 +40,7 @@ message WireUpdateFolderInviteRequest {
   common.WireInviteStatus invite_status = 1;
   /// Public key of the recipient that sent the invite.
   string from_public_key = 2;
+  /// Folder identifier.
+  string folder_id = 3;
 }
 message WireUpdateFolderInviteResponse {}
