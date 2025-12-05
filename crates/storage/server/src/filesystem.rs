@@ -499,6 +499,15 @@ impl ServerAccountStorage for ServerFileStorage {
     ) -> Result<Vec<FolderInvite>> {
         unimplemented!();
     }
+
+    async fn update_folder_invite(
+        &mut self,
+        invite_status: InviteStatus,
+        from_public_key: String,
+        folder_id: VaultId,
+    ) -> Result<()> {
+        unimplemented!();
+    }
 }
 
 #[async_trait]

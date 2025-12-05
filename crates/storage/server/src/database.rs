@@ -675,6 +675,27 @@ impl ServerAccountStorage for ServerDatabaseStorage {
     ) -> Result<Vec<FolderInvite>> {
         self.list_folder_invites(false, invite_status, limit).await
     }
+
+    async fn update_folder_invite(
+        &mut self,
+        invite_status: InviteStatus,
+        from_public_key: String,
+        folder_id: VaultId,
+    ) -> Result<()> {
+        let account_id = self.account_id;
+        self.client
+            .conn_mut_and_then(move |conn| {
+                let mut entity = SharedFolderEntity::new(conn);
+                entity.update_folder_invite(
+                    &account_id,
+                    invite_status,
+                    &from_public_key,
+                    &folder_id,
+                )
+            })
+            .await?;
+        Ok(())
+    }
 }
 
 #[async_trait]

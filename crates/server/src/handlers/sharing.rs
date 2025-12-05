@@ -311,6 +311,68 @@ pub(crate) async fn received_folder_invites(
     }
 }
 
+/// Update a folder invite.
+#[utoipa::path(
+    put,
+    path = "/sharing/folder/invites",
+    security(
+        ("bearer_token" = [])
+    ),
+    request_body(
+        content_type = "application/octet-stream",
+        content = Vec<u8>,
+    ),
+    responses(
+        (
+            status = StatusCode::UNAUTHORIZED,
+            description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account identifier is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            description = "Folder invite was updated.",
+        ),
+    ),
+)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn update_folder_invite(
+    Extension(state): Extension<ServerState>,
+    Extension(backend): Extension<ServerBackend>,
+    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+    headers: HeaderMap,
+    body: Body,
+) -> impl IntoResponse {
+    let account_id = parse_account_id(&headers);
+    match to_bytes(body, BODY_LIMIT).await {
+        Ok(bytes) => match authenticate_endpoint(
+            account_id,
+            bearer,
+            &bytes,
+            None,
+            Arc::clone(&state),
+            Arc::clone(&backend),
+        )
+        .await
+        {
+            Ok(caller) => {
+                match handlers::update_folder_invite(
+                    state, backend, caller, bytes,
+                )
+                .await
+                {
+                    Ok(result) => result.into_response(),
+                    Err(error) => error.into_response(),
+                }
+            }
+            Err(error) => error.into_response(),
+        },
+        Err(_) => StatusCode::BAD_REQUEST.into_response(),
+    }
+}
+
 mod handlers {
     use super::Caller;
     use crate::{Error, Result, ServerBackend, ServerState};
@@ -319,7 +381,8 @@ mod handlers {
     use sos_protocol::{
         GetFolderInvitesRequest, GetFolderInvitesResponse,
         GetRecipientResponse, SetRecipientRequest, SetRecipientResponse,
-        SharedFolderRequest, SharedFolderResponse, WireEncodeDecode,
+        SharedFolderRequest, SharedFolderResponse, UpdateFolderInviteRequest,
+        UpdateFolderInviteResponse, WireEncodeDecode,
         constants::MIME_TYPE_PROTOBUF,
     };
     use sos_server_storage::ServerAccountStorage;
@@ -489,6 +552,42 @@ mod handlers {
                 .await?
         };
         let packet = GetFolderInvitesResponse { folder_invites };
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
+        );
+
+        Ok((headers, packet.encode().await?))
+    }
+
+    pub(super) async fn update_folder_invite(
+        _state: ServerState,
+        backend: ServerBackend,
+        caller: Caller,
+        bytes: Bytes,
+    ) -> Result<(HeaderMap, Vec<u8>)> {
+        let account = {
+            let reader = backend.read().await;
+            let accounts = reader.accounts();
+            let reader = accounts.read().await;
+            let account = reader
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
+            Arc::clone(account)
+        };
+
+        let params = UpdateFolderInviteRequest::decode(bytes).await?;
+        let mut account = account.write().await;
+        account
+            .update_folder_invite(
+                params.invite_status,
+                params.from_public_key.to_string(),
+                params.folder_id,
+            )
+            .await?;
+        let packet = UpdateFolderInviteResponse {};
 
         let mut headers = HeaderMap::new();
         headers.insert(

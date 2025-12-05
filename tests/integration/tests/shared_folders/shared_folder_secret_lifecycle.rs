@@ -2,6 +2,7 @@ use anyhow::Result;
 use sos_account::{Account, FolderCreate};
 use sos_client_storage::NewFolderOptions;
 use sos_core::InviteStatus;
+use sos_protocol::AccountSync;
 use sos_test_utils::{simulate_device, spawn, teardown};
 
 /// Tests creating a shared folder and having the owner
@@ -92,7 +93,22 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
     )
     .await?;
 
-    // let folders = account1.owner.list_folders().await?;
+    // Accept the folder invite
+    account2
+        .owner
+        .accept_folder_invite(
+            &origin,
+            folder_invite.recipient_public_key,
+            folder_invite.folder_id,
+        )
+        .await?;
+
+    /*
+    let sync_result = account2.owner.sync().await;
+    println!("{sync_result:?}");
+    let folders = account2.owner.load_folders().await?;
+    println!("{folders:?}");
+    */
 
     account1.owner.sign_out().await?;
     account2.owner.sign_out().await?;

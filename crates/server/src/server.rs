@@ -337,6 +337,10 @@ impl Server {
                 .route(
                     "/sharing/folder/invites/inbox",
                     get(sharing::received_folder_invites),
+                )
+                .route(
+                    "/sharing/folder/invites",
+                    put(sharing::update_folder_invite),
                 );
 
             {

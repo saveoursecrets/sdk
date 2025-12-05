@@ -452,6 +452,32 @@ impl ServerAccountStorage for ServerStorage {
             }
         }
     }
+
+    async fn update_folder_invite(
+        &mut self,
+        invite_status: InviteStatus,
+        from_public_key: String,
+        folder_id: VaultId,
+    ) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => {
+                fs.update_folder_invite(
+                    invite_status,
+                    from_public_key,
+                    folder_id,
+                )
+                .await
+            }
+            ServerStorage::Database(db) => {
+                db.update_folder_invite(
+                    invite_status,
+                    from_public_key,
+                    folder_id,
+                )
+                .await
+            }
+        }
+    }
 }
 
 #[async_trait]

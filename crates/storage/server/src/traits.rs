@@ -135,4 +135,12 @@ pub trait ServerAccountStorage {
         invite_status: Option<InviteStatus>,
         limit: Option<usize>,
     ) -> Result<Vec<FolderInvite>>;
+
+    /// Update a folder invite for this account.
+    async fn update_folder_invite(
+        &mut self,
+        invite_status: InviteStatus,
+        from_public_key: String,
+        folder_id: VaultId,
+    ) -> Result<()>;
 }
