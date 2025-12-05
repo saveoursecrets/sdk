@@ -1,6 +1,7 @@
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
 use sos_client_storage::NewFolderOptions;
+use sos_core::InviteStatus;
 use sos_test_utils::{simulate_device, spawn, teardown};
 
 /// Tests creating a shared folder and having the owner
@@ -64,23 +65,34 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
         .create_shared_folder(options, &origin, recipients.as_slice(), None)
         .await?;
 
-    /*
-    let folders = account1.owner.list_folders().await?;
-    println!("FOLDER LEN: {}", folders.len());
-    let shared_folder =
-        folders.iter().find(|f| f.name() == folder_name).unwrap();
+    let sent_invites = account1
+        .owner
+        .sent_folder_invites(&origin, Some(InviteStatus::Pending), None)
+        .await?;
+    assert!(!sent_invites.is_empty());
 
+    let mut received_invites = account2
+        .owner
+        .received_folder_invites(&origin, Some(InviteStatus::Pending), None)
+        .await?;
+    assert!(!received_invites.is_empty());
+
+    let folder_invite = received_invites.remove(0);
+    assert_eq!(shared_folder.id(), &folder_invite.folder_id);
+
+    let folders = account1.owner.list_folders().await?;
+    assert!(folders.iter().any(|f| f.name() == folder_name));
+
+    // Ensure the owner can manage secrets in the folder
     super::assert_shared_folder_lifecycle(
         &mut account1.owner,
         shared_folder.id(),
-        password,
+        account1_password,
         TEST_ID,
     )
     .await?;
 
-    let folders = account1.owner.list_folders().await?;
-    println!("FOLDER LEN: {}", folders.len());
-    */
+    // let folders = account1.owner.list_folders().await?;
 
     account1.owner.sign_out().await?;
     account2.owner.sign_out().await?;

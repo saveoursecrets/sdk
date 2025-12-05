@@ -181,9 +181,9 @@ impl From<SharedFolderResponse> for WireSharedFolderResponse {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GetFolderInvitesRequest {
     /// Invite status.
-    pub invite_status: InviteStatus,
+    pub invite_status: Option<InviteStatus>,
     /// Limit the number of rows.
-    pub limit: Option<u32>,
+    pub limit: Option<usize>,
 }
 
 impl ProtoBinding for GetFolderInvitesRequest {
@@ -194,9 +194,14 @@ impl TryFrom<WireGetFolderInvitesRequest> for GetFolderInvitesRequest {
     type Error = Error;
 
     fn try_from(value: WireGetFolderInvitesRequest) -> Result<Self> {
+        let invite_status = if let Some(invite_status) = value.invite_status {
+            Some(invite_status.try_into()?)
+        } else {
+            None
+        };
         Ok(Self {
-            invite_status: value.invite_status.try_into()?,
-            limit: value.limit,
+            invite_status,
+            limit: value.limit.map(|l| l as usize),
         })
     }
 }
@@ -204,8 +209,10 @@ impl TryFrom<WireGetFolderInvitesRequest> for GetFolderInvitesRequest {
 impl From<GetFolderInvitesRequest> for WireGetFolderInvitesRequest {
     fn from(value: GetFolderInvitesRequest) -> WireGetFolderInvitesRequest {
         Self {
-            invite_status: WireInviteStatus::from(value.invite_status) as i32,
-            limit: value.limit,
+            invite_status: value
+                .invite_status
+                .map(|s| WireInviteStatus::from(s) as i32),
+            limit: value.limit.map(|l| l as u32),
         }
     }
 }
@@ -235,10 +242,13 @@ impl TryFrom<WireGetFolderInvitesResponse> for GetFolderInvitesResponse {
 }
 
 impl From<GetFolderInvitesResponse> for WireGetFolderInvitesResponse {
-    fn from(
-        _value: GetFolderInvitesResponse,
-    ) -> WireGetFolderInvitesResponse {
-        todo!();
-        // Self {}
+    fn from(value: GetFolderInvitesResponse) -> WireGetFolderInvitesResponse {
+        Self {
+            folder_invites: value
+                .folder_invites
+                .into_iter()
+                .map(|f| f.into())
+                .collect(),
+        }
     }
 }

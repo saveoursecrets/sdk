@@ -44,7 +44,7 @@ impl TryFrom<i32> for InviteStatus {
     type Error = Error;
 
     fn try_from(value: i32) -> Result<Self> {
-        Ok((value as i64).try_into()?)
+        (value as i64).try_into()
     }
 }
 

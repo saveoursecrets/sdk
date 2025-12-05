@@ -32,6 +32,7 @@ mod diff;
 mod error;
 #[cfg(feature = "network-client")]
 pub mod network_client;
+pub mod query;
 mod traits;
 
 #[cfg(any(

@@ -2,7 +2,7 @@ use super::{BODY_LIMIT, Caller, parse_account_id};
 use crate::{ServerBackend, ServerState, handlers::authenticate_endpoint};
 use axum::{
     body::{Body, to_bytes},
-    extract::{Extension, OriginalUri},
+    extract::{Extension, OriginalUri, Query},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
@@ -10,6 +10,7 @@ use axum_extra::{
     headers::{Authorization, authorization::Bearer},
     typed_header::TypedHeader,
 };
+use sos_protocol::GetFolderInvitesRequest;
 use std::sync::Arc;
 
 /// Upsert account recipient information.
@@ -188,12 +189,135 @@ pub(crate) async fn create_folder(
     }
 }
 
+/// Get sent folder invites.
+#[utoipa::path(
+    get,
+    path = "/sharing/folder/invites/sent",
+    security(
+        ("bearer_token" = [])
+    ),
+    request_body(
+        content_type = "application/octet-stream",
+        content = Vec<u8>,
+    ),
+    responses(
+        (
+            status = StatusCode::UNAUTHORIZED,
+            description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account identifier is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            description = "List of folder invites.",
+        ),
+    ),
+)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn sent_folder_invites(
+    Extension(state): Extension<ServerState>,
+    Extension(backend): Extension<ServerBackend>,
+    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+    Query(params): Query<GetFolderInvitesRequest>,
+    OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
+    match authenticate_endpoint(
+        account_id,
+        bearer,
+        uri.as_bytes(),
+        None,
+        Arc::clone(&state),
+        Arc::clone(&backend),
+    )
+    .await
+    {
+        Ok(caller) => {
+            match handlers::sent_folder_invites(
+                state, backend, caller, params,
+            )
+            .await
+            {
+                Ok(response) => response.into_response(),
+                Err(error) => error.into_response(),
+            }
+        }
+        Err(error) => error.into_response(),
+    }
+}
+
+/// Get received folder invites.
+#[utoipa::path(
+    get,
+    path = "/sharing/folder/invites/inbox",
+    security(
+        ("bearer_token" = [])
+    ),
+    request_body(
+        content_type = "application/octet-stream",
+        content = Vec<u8>,
+    ),
+    responses(
+        (
+            status = StatusCode::UNAUTHORIZED,
+            description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account identifier is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            description = "List of folder invites.",
+        ),
+    ),
+)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn received_folder_invites(
+    Extension(state): Extension<ServerState>,
+    Extension(backend): Extension<ServerBackend>,
+    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+    Query(params): Query<GetFolderInvitesRequest>,
+    OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
+    match authenticate_endpoint(
+        account_id,
+        bearer,
+        uri.as_bytes(),
+        None,
+        Arc::clone(&state),
+        Arc::clone(&backend),
+    )
+    .await
+    {
+        Ok(caller) => {
+            match handlers::received_folder_invites(
+                state, backend, caller, params,
+            )
+            .await
+            {
+                Ok(response) => response.into_response(),
+                Err(error) => error.into_response(),
+            }
+        }
+        Err(error) => error.into_response(),
+    }
+}
+
 mod handlers {
     use super::Caller;
     use crate::{Error, Result, ServerBackend, ServerState};
     use axum::body::Bytes;
     use http::header::{self, HeaderMap, HeaderValue};
     use sos_protocol::{
+        GetFolderInvitesRequest, GetFolderInvitesResponse,
         GetRecipientResponse, SetRecipientRequest, SetRecipientResponse,
         SharedFolderRequest, SharedFolderResponse, WireEncodeDecode,
         constants::MIME_TYPE_PROTOBUF,
@@ -299,6 +423,72 @@ mod handlers {
 
         // Empty response packet for now
         let packet = SharedFolderResponse {};
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
+        );
+
+        Ok((headers, packet.encode().await?))
+    }
+
+    pub(super) async fn sent_folder_invites(
+        _state: ServerState,
+        backend: ServerBackend,
+        caller: Caller,
+        params: GetFolderInvitesRequest,
+    ) -> Result<(HeaderMap, Vec<u8>)> {
+        let account = {
+            let reader = backend.read().await;
+            let accounts = reader.accounts();
+            let reader = accounts.read().await;
+            let account = reader
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
+            Arc::clone(account)
+        };
+
+        let folder_invites = {
+            let mut account = account.write().await;
+            account
+                .sent_folder_invites(params.invite_status, params.limit)
+                .await?
+        };
+        let packet = GetFolderInvitesResponse { folder_invites };
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
+        );
+
+        Ok((headers, packet.encode().await?))
+    }
+
+    pub(super) async fn received_folder_invites(
+        _state: ServerState,
+        backend: ServerBackend,
+        caller: Caller,
+        params: GetFolderInvitesRequest,
+    ) -> Result<(HeaderMap, Vec<u8>)> {
+        let account = {
+            let reader = backend.read().await;
+            let accounts = reader.accounts();
+            let reader = accounts.read().await;
+            let account = reader
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
+            Arc::clone(account)
+        };
+
+        let folder_invites = {
+            let mut account = account.write().await;
+            account
+                .received_folder_invites(params.invite_status, params.limit)
+                .await?
+        };
+        let packet = GetFolderInvitesResponse { folder_invites };
 
         let mut headers = HeaderMap::new();
         headers.insert(

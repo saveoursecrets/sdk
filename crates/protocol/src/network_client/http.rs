@@ -13,6 +13,7 @@ use crate::{
             SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
         },
     },
+    query::MoveFileQuery,
 };
 #[cfg(feature = "files")]
 use crate::{SharedFolderRequest, SharedFolderResponse};
@@ -540,10 +541,8 @@ impl SyncClient for HttpClient {
         let url = self.build_url(SHARING_SENT_INVITES)?;
         tracing::debug!(url = %url, "http::sent_folder_invites");
 
-        todo!("encode request into URL query string");
-
         let sign_url = url.path().to_owned();
-        let request = self.client.get(url);
+        let request = self.client.get(url).query(&request);
         let request =
             self.request_headers(request, sign_url.as_bytes()).await?;
 
@@ -563,10 +562,8 @@ impl SyncClient for HttpClient {
         let url = self.build_url(SHARING_RECEIVED_INVITES)?;
         tracing::debug!(url = %url, "http::received_folder_invites");
 
-        todo!("encode request into URL query string");
-
         let sign_url = url.path().to_owned();
-        let request = self.client.get(url);
+        let request = self.client.get(url).query(&request);
         let request =
             self.request_headers(request, sign_url.as_bytes()).await?;
 
@@ -823,17 +820,18 @@ impl FileSyncClient for HttpClient {
         to: &ExternalFile,
     ) -> Result<http::StatusCode> {
         let url_path = format!("api/v1/sync/file/{}", from);
-        let mut url = self.build_url(&url_path)?;
+        let url = self.build_url(&url_path)?;
 
-        url.query_pairs_mut()
-            .append_pair("vault_id", &to.vault_id().to_string())
-            .append_pair("secret_id", &to.secret_id().to_string())
-            .append_pair("name", &to.file_name().to_string());
+        let query = MoveFileQuery {
+            vault_id: *to.vault_id(),
+            secret_id: *to.secret_id(),
+            name: *to.file_name(),
+        };
 
         tracing::debug!(from = %from, to = %to, url = %url, "http::move_file");
 
         let sign_url = url.path().to_owned();
-        let request = self.client.post(url);
+        let request = self.client.post(url).query(&query);
         let request =
             self.request_headers(request, sign_url.as_bytes()).await?;
         let response = request.send().await?;

@@ -329,7 +329,15 @@ impl Server {
                     "/sharing/recipient",
                     get(sharing::get_recipient).put(sharing::set_recipient),
                 )
-                .route("/sharing/folder", post(sharing::create_folder));
+                .route("/sharing/folder", post(sharing::create_folder))
+                .route(
+                    "/sharing/folder/invites/sent",
+                    get(sharing::sent_folder_invites),
+                )
+                .route(
+                    "/sharing/folder/invites/inbox",
+                    get(sharing::received_folder_invites),
+                );
 
             {
                 use super::handlers::files::{self, file_operation_lock};

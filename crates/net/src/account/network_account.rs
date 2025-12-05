@@ -28,9 +28,9 @@ use sos_login::{
     device::{DeviceManager, DeviceSigner},
 };
 use sos_protocol::{
-    AccountSync, DiffRequest, GetRecipientRequest, RemoteResult, RemoteSync,
-    SetRecipientRequest, SharedFolderRequest, SyncClient, SyncOptions,
-    SyncResult, is_offline,
+    AccountSync, DiffRequest, GetFolderInvitesRequest, GetRecipientRequest,
+    RemoteResult, RemoteSync, SetRecipientRequest, SharedFolderRequest,
+    SyncClient, SyncOptions, SyncResult, is_offline,
     network_client::{HttpClientOptions, NetworkConfig},
 };
 use sos_remote_sync::RemoteSyncHandler;
@@ -595,23 +595,35 @@ impl NetworkAccount {
     }
 
     /// List sent folder invites on a server for this account.
-    pub async fn list_sent_folder_invites(
+    pub async fn sent_folder_invites(
         &self,
         server: &Origin,
         invite_status: Option<InviteStatus>,
         limit: Option<usize>,
     ) -> Result<Vec<FolderInvite>> {
-        todo!();
+        let bridge = self.remote_bridge(server).await?;
+        let request = GetFolderInvitesRequest {
+            invite_status,
+            limit,
+        };
+        let response = bridge.client.sent_folder_invites(request).await?;
+        Ok(response.folder_invites)
     }
 
     /// List received folder invites on a server for this account.
-    pub async fn list_received_folder_invites(
+    pub async fn received_folder_invites(
         &self,
         server: &Origin,
         invite_status: Option<InviteStatus>,
         limit: Option<usize>,
     ) -> Result<Vec<FolderInvite>> {
-        todo!();
+        let bridge = self.remote_bridge(server).await?;
+        let request = GetFolderInvitesRequest {
+            invite_status,
+            limit,
+        };
+        let response = bridge.client.received_folder_invites(request).await?;
+        Ok(response.folder_invites)
     }
 }
 

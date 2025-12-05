@@ -14,21 +14,13 @@ use axum_extra::{
     headers::{Authorization, authorization::Bearer},
     typed_header::TypedHeader,
 };
-use serde::Deserialize;
 use sos_core::{
     ExternalFile, ExternalFileName, SecretId, SecretPath, VaultId,
 };
+use sos_protocol::query::MoveFileQuery;
 use std::sync::Arc;
 
 //use axum_macros::debug_handler;
-
-/// Query string for moving a file.
-#[derive(Debug, Deserialize)]
-pub struct MoveFileQuery {
-    pub vault_id: VaultId,
-    pub secret_id: SecretId,
-    pub name: ExternalFileName,
-}
 
 /// Upload a file.
 #[utoipa::path(
