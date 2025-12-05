@@ -301,8 +301,10 @@ impl<'conn> SharedFolderEntity<'conn> {
                 "recipients AS to_r ON fi.to_recipient_id = to_r.recipient_id",
             )
             .inner_join("accounts AS a ON to_r.account_id = a.account_id")
+            .inner_join("folders AS f ON fi.folder_id = f.folder_id")
             .where_clause("from_r.recipient_public_key = ?3")
-            .where_and("a.identifier = ?4");
+            .where_and("a.identifier = ?4")
+            .where_and("f.identifier = ?5");
 
         let query = sql::Update::new()
             .update("folder_invites")
@@ -324,6 +326,7 @@ impl<'conn> SharedFolderEntity<'conn> {
                 invite_status as u8,
                 from_recipient_public_key,
                 account_id.to_string(),
+                folder_id.to_string(),
             ))?;
         }
 
