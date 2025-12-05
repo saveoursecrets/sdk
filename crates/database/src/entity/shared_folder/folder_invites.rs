@@ -1,6 +1,6 @@
 use crate::{Error, Result};
 use async_sqlite::rusqlite::{Error as SqlError, Row};
-use sos_core::{InviteStatus, UtcDateTime};
+use sos_core::{InviteStatus, UtcDateTime, VaultId};
 use std::result::Result as StdResult;
 
 /// Represents an invite to a shared folder.
@@ -10,8 +10,9 @@ pub(super) struct FolderInviteRow {
     modified_at: String,
     from_recipient_id: i64,
     to_recipient_id: i64,
-    folder_id: i64,
+    folder_row_id: i64,
     invite_status: i64,
+    folder_identifier: String,
     folder_name: String,
     recipient_name: String,
     recipient_email: Option<String>,
@@ -27,12 +28,13 @@ impl<'a> TryFrom<&Row<'a>> for FolderInviteRow {
             modified_at: row.get(2)?,
             from_recipient_id: row.get(3)?,
             to_recipient_id: row.get(4)?,
-            folder_id: row.get(5)?,
+            folder_row_id: row.get(5)?,
             invite_status: row.get(6)?,
-            folder_name: row.get(7)?,
-            recipient_name: row.get(8)?,
-            recipient_email: row.get(9)?,
-            recipient_public_key: row.get(10)?,
+            folder_identifier: row.get(7)?,
+            folder_name: row.get(8)?,
+            recipient_name: row.get(9)?,
+            recipient_email: row.get(10)?,
+            recipient_public_key: row.get(11)?,
         })
     }
 }
@@ -51,11 +53,13 @@ pub struct FolderInviteRecord {
     /// To recipient id.
     #[allow(dead_code)]
     pub(super) to_recipient_id: i64,
-    /// Folder id.
+    /// Folder row id.
     #[allow(dead_code)]
-    pub(super) folder_id: i64,
+    pub(super) folder_row_id: i64,
     /// Invite status.
     pub invite_status: InviteStatus,
+    /// Folder identifier.
+    pub folder_id: VaultId,
     /// Folder name.
     pub folder_name: String,
     /// Recipient name (from/to depending on context).
@@ -76,8 +80,9 @@ impl TryFrom<FolderInviteRow> for FolderInviteRecord {
             modified_at: UtcDateTime::parse_rfc3339(&value.modified_at)?,
             from_recipient_id: value.from_recipient_id,
             to_recipient_id: value.to_recipient_id,
-            folder_id: value.folder_id,
+            folder_row_id: value.folder_row_id,
             invite_status: value.invite_status.try_into()?,
+            folder_id: value.folder_identifier.parse()?,
             folder_name: value.folder_name,
             recipient_name: value.recipient_name,
             recipient_email: value.recipient_email,

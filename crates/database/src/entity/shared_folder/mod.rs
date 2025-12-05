@@ -200,6 +200,7 @@ impl<'conn> SharedFolderEntity<'conn> {
                   fi.to_recipient_id,
                   fi.folder_id,
                   fi.invite_status,
+                  f.identifier,
                   f.name,
                   r.recipient_name,
                   r.recipient_email,
