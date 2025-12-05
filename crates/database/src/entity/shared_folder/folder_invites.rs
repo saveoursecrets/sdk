@@ -1,6 +1,6 @@
-use crate::{Error, Result, SharingError};
+use crate::{Error, Result};
 use async_sqlite::rusqlite::{Error as SqlError, Row};
-use sos_core::UtcDateTime;
+use sos_core::{InviteStatus, UtcDateTime};
 use std::result::Result as StdResult;
 
 /// Represents an invite to a shared folder.
@@ -33,31 +33,6 @@ impl<'a> TryFrom<&Row<'a>> for FolderInviteRow {
             recipient_name: row.get(8)?,
             recipient_email: row.get(9)?,
             recipient_public_key: row.get(10)?,
-        })
-    }
-}
-
-/// Status of a folder invite.
-#[derive(Debug, Copy, Clone)]
-#[repr(u8)]
-pub enum InviteStatus {
-    /// Pending invite.
-    Pending = 0,
-    /// Accepted invite.
-    Accepted = 1,
-    /// Declined invite.
-    Declined = 2,
-}
-
-impl TryFrom<i64> for InviteStatus {
-    type Error = SharingError;
-
-    fn try_from(value: i64) -> std::result::Result<Self, Self::Error> {
-        Ok(match value {
-            0 => Self::Pending,
-            1 => Self::Accepted,
-            2 => Self::Declined,
-            _ => return Err(SharingError::UnknownInviteStatus(value)),
         })
     }
 }

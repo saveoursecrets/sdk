@@ -5,14 +5,14 @@ use crate::entity::{
 use crate::{Result, SharingError};
 use async_sqlite::Client;
 use async_sqlite::rusqlite::{Connection, OptionalExtension, Row};
-use sos_core::{AccountId, Recipient, UtcDateTime, VaultId};
+use sos_core::{AccountId, InviteStatus, Recipient, UtcDateTime, VaultId};
 use sos_vault::Vault;
 use sql_query_builder as sql;
 
 mod folder_invites;
 mod recipient;
 
-pub use folder_invites::{FolderInviteRecord, InviteStatus};
+pub use folder_invites::FolderInviteRecord;
 use recipient::RecipientRow;
 pub use recipient::{RecipientEntity, RecipientRecord};
 

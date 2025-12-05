@@ -2,8 +2,8 @@ use anyhow::Result;
 use secrecy::SecretString;
 use sos_account::Account;
 use sos_backend::BackendTarget;
+use sos_core::InviteStatus;
 use sos_database::async_sqlite::Client;
-use sos_database::entity::InviteStatus;
 use sos_database::{
     entity::{AccountRecord, SharedFolderEntity},
     migrations::migrate_client,

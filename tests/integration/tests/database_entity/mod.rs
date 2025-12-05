@@ -3,12 +3,13 @@ use secrecy::SecretString;
 use sos_account::Account;
 use sos_backend::BackendTarget;
 use sos_client_storage::NewFolderOptions;
-use sos_core::{crypto::AccessKey, AccountId, Recipient, VaultId};
+use sos_core::{
+    crypto::AccessKey, AccountId, InviteStatus, Recipient, VaultId,
+};
 use sos_database::{
     async_sqlite::Client,
     entity::{
-        AccountEntity, AccountRecord, InviteStatus, RecipientEntity,
-        SharedFolderEntity,
+        AccountEntity, AccountRecord, RecipientEntity, SharedFolderEntity,
     },
 };
 use sos_net::{NetworkAccount, NetworkAccountOptions};

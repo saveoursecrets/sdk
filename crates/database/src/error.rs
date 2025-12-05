@@ -25,10 +25,6 @@ pub enum SharingError {
     #[error("cannot create a folder invite with missing folder: {0}")]
     InviteNoFolder(VaultId),
 
-    /// Encountered an unknown folder invite status.
-    #[error("unknown folder invite status code: {0}")]
-    UnknownInviteStatus(i64),
-
     /// Account owner not found in recipients list.
     #[error("account {0} not found in recipients list")]
     OwnerNotInRecipients(AccountId),

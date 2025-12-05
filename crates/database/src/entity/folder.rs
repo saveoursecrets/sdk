@@ -6,16 +6,14 @@ use async_sqlite::rusqlite::{
 };
 use sos_core::crypto::Seed;
 use sos_core::{
-    SecretId, UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
-    commit::CommitHash, crypto::AeadPack, decode, encode,
+    InviteStatus, SecretId, UtcDateTime, VaultCommit, VaultEntry, VaultFlags,
+    VaultId, commit::CommitHash, crypto::AeadPack, decode, encode,
 };
 use sos_vault::{SharedAccess, Summary, Vault};
 use sql_query_builder as sql;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::result::Result as StdResult;
-
-use crate::entity::shared_folder::InviteStatus;
 
 fn folder_select_columns(sql: sql::Select) -> sql::Select {
     sql.select(
@@ -628,7 +626,10 @@ where
             Ok(row.try_into()?)
         }
 
-        let rows = stmt.query_and_then((account_id, InviteStatus::Accepted as u8), convert_row)?;
+        let rows = stmt.query_and_then(
+            (account_id, InviteStatus::Accepted as u8),
+            convert_row,
+        )?;
         let mut folders = Vec::new();
         for row in rows {
             folders.push(row?);
