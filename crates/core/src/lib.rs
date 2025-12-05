@@ -30,7 +30,7 @@ pub use identity::{AccountRef, PublicIdentity};
 pub use origin::{Origin, RemoteOrigins};
 pub use paths::Paths;
 pub use rs_merkle as merkle;
-pub use sharing::{InviteStatus, Recipient};
+pub use sharing::{FolderInvite, InviteStatus, Recipient};
 
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;

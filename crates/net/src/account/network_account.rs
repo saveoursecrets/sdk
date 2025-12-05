@@ -11,9 +11,9 @@ use sos_account::{
 use sos_backend::{BackendTarget, Folder, ServerOrigins};
 use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::{
-    AccountId, AccountRef, AuthenticationError, FolderRef, InviteStatus,
-    Origin, Paths, PublicIdentity, Recipient, RemoteOrigins, SecretId,
-    StorageError, UtcDateTime, VaultCommit, VaultFlags, VaultId,
+    AccountId, AccountRef, AuthenticationError, FolderInvite, FolderRef,
+    InviteStatus, Origin, Paths, PublicIdentity, Recipient, RemoteOrigins,
+    SecretId, StorageError, UtcDateTime, VaultCommit, VaultFlags, VaultId,
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DevicePublicKey, TrustedDevice},
@@ -600,7 +600,7 @@ impl NetworkAccount {
         server: &Origin,
         invite_status: Option<InviteStatus>,
         limit: Option<usize>,
-    ) -> Result<()> {
+    ) -> Result<Vec<FolderInvite>> {
         todo!();
     }
 
@@ -610,7 +610,7 @@ impl NetworkAccount {
         server: &Origin,
         invite_status: Option<InviteStatus>,
         limit: Option<usize>,
-    ) -> Result<()> {
+    ) -> Result<Vec<FolderInvite>> {
         todo!();
     }
 }

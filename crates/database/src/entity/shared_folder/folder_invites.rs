@@ -1,6 +1,6 @@
 use crate::{Error, Result};
 use async_sqlite::rusqlite::{Error as SqlError, Row};
-use sos_core::{InviteStatus, UtcDateTime, VaultId};
+use sos_core::{FolderInvite, InviteStatus, UtcDateTime, VaultId};
 use std::result::Result as StdResult;
 
 /// Represents an invite to a shared folder.
@@ -87,6 +87,26 @@ impl TryFrom<FolderInviteRow> for FolderInviteRecord {
             recipient_name: value.recipient_name,
             recipient_email: value.recipient_email,
             recipient_public_key: value.recipient_public_key,
+        })
+    }
+}
+
+impl TryFrom<FolderInviteRecord> for FolderInvite {
+    type Error = Error;
+
+    fn try_from(value: FolderInviteRecord) -> Result<Self> {
+        Ok(Self {
+            created_at: value.created_at,
+            modified_at: value.modified_at,
+            invite_status: value.invite_status,
+            folder_id: value.folder_id,
+            folder_name: value.folder_name,
+            recipient_name: value.recipient_name,
+            recipient_email: value.recipient_email,
+            recipient_public_key: value
+                .recipient_public_key
+                .parse()
+                .map_err(Error::AgeX25519Parse)?,
         })
     }
 }

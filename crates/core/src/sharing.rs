@@ -1,5 +1,5 @@
 //! Types for public key infrastructure (PKI) and folder sharing.
-use crate::{Error, Result};
+use crate::{Error, Result, UtcDateTime, VaultId};
 
 /// Recipient is a participant in a shared folder.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,4 +35,25 @@ impl TryFrom<i64> for InviteStatus {
             _ => return Err(Error::UnknownInviteStatus(value)),
         })
     }
+}
+
+/// Invite to share a folder.
+#[derive(Debug)]
+pub struct FolderInvite {
+    /// Created date and time.
+    pub created_at: UtcDateTime,
+    /// Modified date and time.
+    pub modified_at: UtcDateTime,
+    /// Invite status.
+    pub invite_status: InviteStatus,
+    /// Folder identifier.
+    pub folder_id: VaultId,
+    /// Folder name.
+    pub folder_name: String,
+    /// Recipient name (from/to depending on context).
+    pub recipient_name: String,
+    /// Recipient email (from/to depending on context).
+    pub recipient_email: Option<String>,
+    /// Recipient public key (from/to depending on context).
+    pub recipient_public_key: age::x25519::Recipient,
 }
