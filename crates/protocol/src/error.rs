@@ -102,6 +102,10 @@ pub enum Error {
     #[error(transparent)]
     Network(#[from] NetworkError),
 
+    /// Error parsing a UUID.
+    #[error(transparent)]
+    Uuid(#[from] uuid::Error),
+
     /// Error generated joining a task.
     #[error(transparent)]
     Join(#[from] tokio::task::JoinError),

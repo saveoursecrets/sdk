@@ -40,6 +40,14 @@ pub mod routes {
 
         /// Route for creating a shared folder.
         pub const SHARING_CREATE_FOLDER: &str = "/api/v1/sharing/folder";
+
+        /// Route for listing sent invites.
+        pub const SHARING_SENT_INVITES: &str =
+            "/api/v1/sharing/folder/invites/sent";
+
+        /// Route for listing received invites.
+        pub const SHARING_RECEIVED_INVITES: &str =
+            "/api/v1/sharing/folder/invites/inbox";
     }
 }
 

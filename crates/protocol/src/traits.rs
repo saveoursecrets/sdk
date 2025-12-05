@@ -1,5 +1,6 @@
 use crate::{
-    DiffRequest, DiffResponse, GetRecipientRequest, GetRecipientResponse,
+    DiffRequest, DiffResponse, GetFolderInvitesRequest,
+    GetFolderInvitesResponse, GetRecipientRequest, GetRecipientResponse,
     PatchRequest, PatchResponse, ScanRequest, ScanResponse,
     SetRecipientRequest, SetRecipientResponse, SharedFolderRequest,
     SharedFolderResponse, SyncOptions,
@@ -228,4 +229,16 @@ pub trait SyncClient {
         &self,
         request: SharedFolderRequest,
     ) -> Result<SharedFolderResponse, Self::Error>;
+
+    /// List sent folder invites.
+    async fn sent_folder_invites(
+        &self,
+        request: GetFolderInvitesRequest,
+    ) -> Result<GetFolderInvitesResponse, Self::Error>;
+
+    /// List recived folder invites.
+    async fn received_folder_invites(
+        &self,
+        request: GetFolderInvitesRequest,
+    ) -> Result<GetFolderInvitesResponse, Self::Error>;
 }

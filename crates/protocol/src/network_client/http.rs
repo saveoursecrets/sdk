@@ -1,13 +1,15 @@
 //! HTTP client implementation.
 use crate::{
-    DiffRequest, DiffResponse, Error, GetRecipientRequest,
-    GetRecipientResponse, NetworkError, PatchRequest, PatchResponse, Result,
-    ScanRequest, ScanResponse, SetRecipientRequest, SetRecipientResponse,
-    SyncClient, WireEncodeDecode,
+    DiffRequest, DiffResponse, Error, GetFolderInvitesRequest,
+    GetFolderInvitesResponse, GetRecipientRequest, GetRecipientResponse,
+    NetworkError, PatchRequest, PatchResponse, Result, ScanRequest,
+    ScanResponse, SetRecipientRequest, SetRecipientResponse, SyncClient,
+    WireEncodeDecode,
     constants::{
         MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
         routes::v1::{
-            SHARING_CREATE_FOLDER, SHARING_RECIPIENT, SYNC_ACCOUNT,
+            SHARING_CREATE_FOLDER, SHARING_RECEIVED_INVITES,
+            SHARING_RECIPIENT, SHARING_SENT_INVITES, SYNC_ACCOUNT,
             SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
         },
     },
@@ -528,6 +530,52 @@ impl SyncClient for HttpClient {
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
         Ok(SharedFolderResponse::decode(buffer).await?)
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
+    async fn sent_folder_invites(
+        &self,
+        request: GetFolderInvitesRequest,
+    ) -> Result<GetFolderInvitesResponse> {
+        let url = self.build_url(SHARING_SENT_INVITES)?;
+        tracing::debug!(url = %url, "http::sent_folder_invites");
+
+        todo!("encode request into URL query string");
+
+        let sign_url = url.path().to_owned();
+        let request = self.client.get(url);
+        let request =
+            self.request_headers(request, sign_url.as_bytes()).await?;
+
+        let response = request.send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::sent_folder_invites");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(GetFolderInvitesResponse::decode(buffer).await?)
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
+    async fn received_folder_invites(
+        &self,
+        request: GetFolderInvitesRequest,
+    ) -> Result<GetFolderInvitesResponse> {
+        let url = self.build_url(SHARING_RECEIVED_INVITES)?;
+        tracing::debug!(url = %url, "http::received_folder_invites");
+
+        todo!("encode request into URL query string");
+
+        let sign_url = url.path().to_owned();
+        let request = self.client.get(url);
+        let request =
+            self.request_headers(request, sign_url.as_bytes()).await?;
+
+        let response = request.send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::received_folder_invites");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(GetFolderInvitesResponse::decode(buffer).await?)
     }
 }
 

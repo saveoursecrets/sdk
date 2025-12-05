@@ -1,5 +1,6 @@
 //! Types for public key infrastructure (PKI) and folder sharing.
 use crate::{Error, Result, UtcDateTime, VaultId};
+use serde::{Deserialize, Serialize};
 
 /// Recipient is a participant in a shared folder.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -13,7 +14,7 @@ pub struct Recipient {
 }
 
 /// Status of a folder invite.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum InviteStatus {
     /// Pending invite.
@@ -24,6 +25,7 @@ pub enum InviteStatus {
     Declined = 2,
 }
 
+// For database INTEGER type.
 impl TryFrom<i64> for InviteStatus {
     type Error = Error;
 
@@ -37,8 +39,17 @@ impl TryFrom<i64> for InviteStatus {
     }
 }
 
+// For protobuf enum type.
+impl TryFrom<i32> for InviteStatus {
+    type Error = Error;
+
+    fn try_from(value: i32) -> Result<Self> {
+        Ok((value as i64).try_into()?)
+    }
+}
+
 /// Invite to share a folder.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FolderInvite {
     /// Created date and time.
     pub created_at: UtcDateTime,

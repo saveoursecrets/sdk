@@ -17,10 +17,20 @@ message WireGetRecipientResponse {
 }
 
 message WireSharedFolderRequest {
-  // Encoded vault.
+  /// Encoded vault.
   bytes vault = 1;
   // Collection of recipients.
   repeated common.WireRecipient recipients = 2;
 }
 message WireSharedFolderResponse {}
 
+message WireGetFolderInvitesRequest {
+  /// Status of the invite.
+  common.WireInviteStatus invite_status = 1;
+  /// Limit the number of rows.
+  optional uint32 limit = 2;
+}
+message WireGetFolderInvitesResponse {
+  /// Folder invites.
+  repeated common.WireFolderInvite folder_invites = 1;
+}

@@ -1,7 +1,10 @@
 include!(concat!(env!("OUT_DIR"), "/shared_folder.rs"));
 
-use crate::{Error, ProtoBinding, Result};
-use sos_core::Recipient;
+use crate::{
+    Error, ProtoBinding, Result, bindings::common::WireInviteStatus,
+};
+use serde::{Deserialize, Serialize};
+use sos_core::{FolderInvite, InviteStatus, Recipient};
 
 /// Request to create or update recipient information.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -171,5 +174,71 @@ impl TryFrom<WireSharedFolderResponse> for SharedFolderResponse {
 impl From<SharedFolderResponse> for WireSharedFolderResponse {
     fn from(_value: SharedFolderResponse) -> WireSharedFolderResponse {
         Self {}
+    }
+}
+
+/// Request to get folder invites.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GetFolderInvitesRequest {
+    /// Invite status.
+    pub invite_status: InviteStatus,
+    /// Limit the number of rows.
+    pub limit: Option<u32>,
+}
+
+impl ProtoBinding for GetFolderInvitesRequest {
+    type Inner = WireGetFolderInvitesRequest;
+}
+
+impl TryFrom<WireGetFolderInvitesRequest> for GetFolderInvitesRequest {
+    type Error = Error;
+
+    fn try_from(value: WireGetFolderInvitesRequest) -> Result<Self> {
+        Ok(Self {
+            invite_status: value.invite_status.try_into()?,
+            limit: value.limit,
+        })
+    }
+}
+
+impl From<GetFolderInvitesRequest> for WireGetFolderInvitesRequest {
+    fn from(value: GetFolderInvitesRequest) -> WireGetFolderInvitesRequest {
+        Self {
+            invite_status: WireInviteStatus::from(value.invite_status) as i32,
+            limit: value.limit,
+        }
+    }
+}
+
+/// Response from a request to get folder invites.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GetFolderInvitesResponse {
+    /// Folder invites.
+    pub folder_invites: Vec<FolderInvite>,
+}
+
+impl ProtoBinding for GetFolderInvitesResponse {
+    type Inner = WireGetFolderInvitesResponse;
+}
+
+impl TryFrom<WireGetFolderInvitesResponse> for GetFolderInvitesResponse {
+    type Error = Error;
+
+    fn try_from(value: WireGetFolderInvitesResponse) -> Result<Self> {
+        let mut folder_invites =
+            Vec::with_capacity(value.folder_invites.len());
+        for invite in value.folder_invites {
+            folder_invites.push(invite.try_into()?);
+        }
+        Ok(Self { folder_invites })
+    }
+}
+
+impl From<GetFolderInvitesResponse> for WireGetFolderInvitesResponse {
+    fn from(
+        _value: GetFolderInvitesResponse,
+    ) -> WireGetFolderInvitesResponse {
+        todo!();
+        // Self {}
     }
 }
