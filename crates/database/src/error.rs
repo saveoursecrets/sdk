@@ -25,6 +25,10 @@ pub enum SharingError {
     #[error("cannot create a folder invite with missing folder: {0}")]
     InviteNoFolder(VaultId),
 
+    /// Attempt to update a folder invite to pending.
+    #[error("pending invite status is not allowed")]
+    PendingInviteStatusNotAllowed,
+
     /// Account owner not found in recipients list.
     #[error("account {0} not found in recipients list")]
     OwnerNotInRecipients(AccountId),

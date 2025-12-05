@@ -34,3 +34,11 @@ message WireGetFolderInvitesResponse {
   /// Folder invites.
   repeated common.WireFolderInvite folder_invites = 1;
 }
+
+message WireUpdateFolderInviteRequest {
+  /// Status of the invite.
+  common.WireInviteStatus invite_status = 1;
+  /// Public key of the recipient that sent the invite.
+  string from_public_key = 2;
+}
+message WireUpdateFolderInviteResponse {}

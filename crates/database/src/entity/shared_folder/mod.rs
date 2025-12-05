@@ -278,13 +278,16 @@ impl<'conn> SharedFolderEntity<'conn> {
     pub fn update_folder_invite(
         &mut self,
         account_id: &AccountId,
-        from_recipient_public_key: &str,
         invite_status: InviteStatus,
+        from_recipient_public_key: &str,
+        folder_id: &VaultId,
     ) -> Result<()> {
-        assert!(matches!(
+        if !matches!(
             invite_status,
             InviteStatus::Accepted | InviteStatus::Declined
-        ));
+        ) {
+            return Err(SharingError::PendingInviteStatusNotAllowed.into());
+        }
 
         let tx = self.conn.transaction()?;
 

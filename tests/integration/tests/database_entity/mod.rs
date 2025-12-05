@@ -220,13 +220,15 @@ async fn create_recipients_and_shared_folder_with_invite_status(
     // Accept or decline the invite (account2)
     if let Some(invite_status) = invite_status {
         let from_public_key = from_recipient_public_key.clone();
+        let invite_folder_id = *folder_id;
         server
             .conn_mut_and_then(move |conn| {
                 let mut entity = SharedFolderEntity::new(conn);
                 Ok::<_, anyhow::Error>(entity.update_folder_invite(
                     &to_account_id,
-                    &from_public_key,
                     invite_status,
+                    &from_public_key,
+                    &invite_folder_id,
                 )?)
             })
             .await?;

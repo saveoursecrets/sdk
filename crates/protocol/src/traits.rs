@@ -236,9 +236,17 @@ pub trait SyncClient {
         request: GetFolderInvitesRequest,
     ) -> Result<GetFolderInvitesResponse, Self::Error>;
 
-    /// List recived folder invites.
+    /// List received folder invites.
     async fn received_folder_invites(
         &self,
         request: GetFolderInvitesRequest,
     ) -> Result<GetFolderInvitesResponse, Self::Error>;
+
+    /*
+    /// Update a received folder invite.
+    async fn update_folder_invite(
+        &self,
+        request: UpdateFolderInviteRequest,
+    ) -> Result<UpdateFolderInviteResponse, Self::Error>;
+    */
 }
