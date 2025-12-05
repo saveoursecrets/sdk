@@ -128,7 +128,6 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
     )
     .await?;
 
-    /*
     let sync_result = account1.owner.sync().await;
     println!("{sync_result:?}");
     assert!(sync_result.first_error().is_none());
@@ -140,7 +139,6 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
             .await?;
         println!("{row:?}");
     }
-    */
 
     account1.owner.sign_out().await?;
     account2.owner.sign_out().await?;
