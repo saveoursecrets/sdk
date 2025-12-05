@@ -292,7 +292,7 @@ impl TryFrom<WireRecipient> for Recipient {
             public_key: value
                 .public_key
                 .parse::<age::x25519::Recipient>()
-                .map_err(|e| Error::AgeX25519Parse(e))?,
+                .map_err(Error::AgeX25519Parse)?,
         })
     }
 }

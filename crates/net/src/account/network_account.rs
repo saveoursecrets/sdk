@@ -11,9 +11,9 @@ use sos_account::{
 use sos_backend::{BackendTarget, Folder, ServerOrigins};
 use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::{
-    AccountId, AccountRef, AuthenticationError, FolderRef, Origin, Paths,
-    PublicIdentity, Recipient, RemoteOrigins, SecretId, StorageError,
-    UtcDateTime, VaultCommit, VaultFlags, VaultId,
+    AccountId, AccountRef, AuthenticationError, FolderRef, InviteStatus,
+    Origin, Paths, PublicIdentity, Recipient, RemoteOrigins, SecretId,
+    StorageError, UtcDateTime, VaultCommit, VaultFlags, VaultId,
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DevicePublicKey, TrustedDevice},
@@ -592,6 +592,26 @@ impl NetworkAccount {
         };
 
         Ok(result)
+    }
+
+    /// List sent folder invites on a server for this account.
+    pub async fn list_sent_folder_invites(
+        &self,
+        server: &Origin,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<()> {
+        todo!();
+    }
+
+    /// List received folder invites on a server for this account.
+    pub async fn list_received_folder_invites(
+        &self,
+        server: &Origin,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<()> {
+        todo!();
     }
 }
 

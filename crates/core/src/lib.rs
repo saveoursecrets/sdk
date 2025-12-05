@@ -17,6 +17,7 @@ pub mod file_identity;
 mod identity;
 mod origin;
 mod paths;
+mod sharing;
 
 pub use account::AccountId;
 // pub use crypto::*;
@@ -29,6 +30,7 @@ pub use identity::{AccountRef, PublicIdentity};
 pub use origin::{Origin, RemoteOrigins};
 pub use paths::Paths;
 pub use rs_merkle as merkle;
+pub use sharing::{InviteStatus, Recipient};
 
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
@@ -294,41 +296,5 @@ impl FromStr for FolderRef {
 impl From<VaultId> for FolderRef {
     fn from(value: VaultId) -> Self {
         Self::Id(value)
-    }
-}
-
-/// Recipient is a participant in a shared folder.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Recipient {
-    /// Recipient name.
-    pub name: String,
-    /// Optional email.
-    pub email: Option<String>,
-    /// Public key.
-    pub public_key: age::x25519::Recipient,
-}
-
-/// Status of a folder invite.
-#[derive(Debug, Copy, Clone)]
-#[repr(u8)]
-pub enum InviteStatus {
-    /// Pending invite.
-    Pending = 0,
-    /// Accepted invite.
-    Accepted = 1,
-    /// Declined invite.
-    Declined = 2,
-}
-
-impl TryFrom<i64> for InviteStatus {
-    type Error = Error;
-
-    fn try_from(value: i64) -> Result<Self> {
-        Ok(match value {
-            0 => Self::Pending,
-            1 => Self::Accepted,
-            2 => Self::Declined,
-            _ => return Err(Error::UnknownInviteStatus(value)),
-        })
     }
 }

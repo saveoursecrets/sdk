@@ -120,7 +120,7 @@ impl TryFrom<RecipientRecord> for Recipient {
             public_key: value
                 .recipient_public_key
                 .parse()
-                .map_err(|e| Error::AgeX25519Parse(e))?,
+                .map_err(Error::AgeX25519Parse)?,
         })
     }
 }
