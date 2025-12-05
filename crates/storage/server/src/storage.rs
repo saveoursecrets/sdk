@@ -14,7 +14,8 @@ use sos_core::{
         patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
         EventLog, WriteEvent,
     },
-    AccountId, Paths, Recipient, VaultFlags, VaultId,
+    AccountId, FolderInvite, InviteStatus, Paths, Recipient, VaultFlags,
+    VaultId,
 };
 use sos_database::entity::AccountEntity;
 use sos_sync::{
@@ -418,6 +419,36 @@ impl ServerAccountStorage for ServerStorage {
             }
             ServerStorage::Database(db) => {
                 db.create_shared_folder(vault, recipients).await
+            }
+        }
+    }
+
+    async fn sent_folder_invites(
+        &mut self,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>> {
+        match self {
+            ServerStorage::FileSystem(fs) => {
+                fs.sent_folder_invites(invite_status, limit).await
+            }
+            ServerStorage::Database(db) => {
+                db.sent_folder_invites(invite_status, limit).await
+            }
+        }
+    }
+
+    async fn received_folder_invites(
+        &mut self,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>> {
+        match self {
+            ServerStorage::FileSystem(fs) => {
+                fs.received_folder_invites(invite_status, limit).await
+            }
+            ServerStorage::Database(db) => {
+                db.received_folder_invites(invite_status, limit).await
             }
         }
     }

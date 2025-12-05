@@ -14,7 +14,8 @@ use sos_core::{
         patch::{FolderDiff, FolderPatch},
         AccountEvent, EventLog,
     },
-    AccountId, Paths, Recipient, VaultFlags, VaultId,
+    AccountId, FolderInvite, InviteStatus, Paths, Recipient, VaultFlags,
+    VaultId,
 };
 use sos_database::entity::{
     AccountEntity, AccountRow, FolderEntity, FolderRecord, FolderRow,
@@ -239,6 +240,39 @@ impl ServerDatabaseStorage {
             })
             .await
             .map_err(sos_database::Error::from)?)
+    }
+
+    async fn list_folder_invites(
+        &mut self,
+        sent: bool,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>> {
+        let account_id = self.account_id;
+        let records = self
+            .client
+            .conn_mut_and_then(move |conn| {
+                let mut entity = SharedFolderEntity::new(conn);
+                if sent {
+                    entity.sent_folder_invites(
+                        &account_id,
+                        invite_status,
+                        limit,
+                    )
+                } else {
+                    entity.received_folder_invites(
+                        &account_id,
+                        invite_status,
+                        limit,
+                    )
+                }
+            })
+            .await?;
+        let mut invites = Vec::with_capacity(records.len());
+        for record in records {
+            invites.push(record.try_into()?);
+        }
+        Ok(invites)
     }
 }
 
@@ -624,6 +658,22 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         )
         .await?;
         Ok(())
+    }
+
+    async fn sent_folder_invites(
+        &mut self,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>> {
+        self.list_folder_invites(true, invite_status, limit).await
+    }
+
+    async fn received_folder_invites(
+        &mut self,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>> {
+        self.list_folder_invites(false, invite_status, limit).await
     }
 }
 

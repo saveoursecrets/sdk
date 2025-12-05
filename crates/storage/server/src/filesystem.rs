@@ -15,7 +15,8 @@ use sos_core::{
         patch::{FolderDiff, FolderPatch},
         AccountEvent, EventLog,
     },
-    AccountId, Paths, Recipient, VaultFlags, VaultId,
+    AccountId, FolderInvite, InviteStatus, Paths, Recipient, VaultFlags,
+    VaultId,
 };
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, StorageEventLogs};
@@ -480,6 +481,22 @@ impl ServerAccountStorage for ServerFileStorage {
         _vault: &[u8],
         _recipients: &[Recipient],
     ) -> Result<()> {
+        unimplemented!();
+    }
+
+    async fn sent_folder_invites(
+        &mut self,
+        _invite_status: Option<InviteStatus>,
+        _limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>> {
+        unimplemented!();
+    }
+
+    async fn received_folder_invites(
+        &mut self,
+        _invite_status: Option<InviteStatus>,
+        _limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>> {
         unimplemented!();
     }
 }

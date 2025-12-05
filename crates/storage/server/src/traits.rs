@@ -6,7 +6,8 @@ use sos_backend::FolderEventLog;
 use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
     events::patch::FolderDiff,
-    AccountId, Paths, Recipient, VaultFlags, VaultId,
+    AccountId, FolderInvite, InviteStatus, Paths, Recipient, VaultFlags,
+    VaultId,
 };
 use sos_sync::CreateSet;
 use sos_vault::{Summary, Vault};
@@ -120,4 +121,18 @@ pub trait ServerAccountStorage {
         vault: &[u8],
         recipients: &[Recipient],
     ) -> Result<()>;
+
+    /// List sent folder invites for this account.
+    async fn sent_folder_invites(
+        &mut self,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>>;
+
+    /// List received folder invites for this account.
+    async fn received_folder_invites(
+        &mut self,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>>;
 }

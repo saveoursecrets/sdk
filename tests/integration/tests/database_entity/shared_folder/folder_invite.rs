@@ -67,8 +67,8 @@ async fn db_entity_shared_folder_accept_invite() -> Result<()> {
             let mut entity = SharedFolderEntity::new(conn);
             Ok::<_, anyhow::Error>(entity.sent_folder_invites(
                 &from_account_id,
-                None,
                 Some(InviteStatus::Accepted),
+                None,
             )?)
         })
         .await?;
@@ -80,8 +80,8 @@ async fn db_entity_shared_folder_accept_invite() -> Result<()> {
             let mut entity = SharedFolderEntity::new(conn);
             Ok::<_, anyhow::Error>(entity.received_folder_invites(
                 &to_account_id,
-                None,
                 Some(InviteStatus::Accepted),
+                None,
             )?)
         })
         .await?;
@@ -170,8 +170,8 @@ async fn db_entity_shared_folder_decline_invite() -> Result<()> {
             let mut entity = SharedFolderEntity::new(conn);
             Ok::<_, anyhow::Error>(entity.sent_folder_invites(
                 &from_account_id,
-                None,
                 Some(InviteStatus::Declined),
+                None,
             )?)
         })
         .await?;
@@ -183,8 +183,8 @@ async fn db_entity_shared_folder_decline_invite() -> Result<()> {
             let mut entity = SharedFolderEntity::new(conn);
             Ok::<_, anyhow::Error>(entity.received_folder_invites(
                 &to_account_id,
-                None,
                 Some(InviteStatus::Declined),
+                None,
             )?)
         })
         .await?;

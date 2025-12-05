@@ -210,8 +210,8 @@ async fn create_recipients_and_shared_folder_with_invite_status(
             let mut entity = SharedFolderEntity::new(conn);
             Ok::<_, anyhow::Error>(entity.sent_folder_invites(
                 &from_account_id,
-                None,
                 Some(InviteStatus::Accepted),
+                None,
             )?)
         })
         .await?;

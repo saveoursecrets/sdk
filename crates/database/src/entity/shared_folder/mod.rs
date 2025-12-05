@@ -163,29 +163,29 @@ impl<'conn> SharedFolderEntity<'conn> {
     pub fn received_folder_invites(
         &mut self,
         account_id: &AccountId,
-        limit: Option<usize>,
         invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
     ) -> Result<Vec<FolderInviteRecord>> {
-        self.list_folder_invites(account_id, limit, false, invite_status)
+        self.list_folder_invites(account_id, false, invite_status, limit)
     }
 
     /// Folder invites sent from this account.
     pub fn sent_folder_invites(
         &mut self,
         account_id: &AccountId,
-        limit: Option<usize>,
         invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
     ) -> Result<Vec<FolderInviteRecord>> {
-        self.list_folder_invites(account_id, limit, true, invite_status)
+        self.list_folder_invites(account_id, true, invite_status, limit)
     }
 
     /// Folder invites sent from this account.
     fn list_folder_invites(
         &mut self,
         account_id: &AccountId,
-        limit: Option<usize>,
-        from_recipient: bool,
+        sent: bool,
         invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
     ) -> Result<Vec<FolderInviteRecord>> {
         let limit =
             limit.map(|l| l.to_string()).unwrap_or(String::from("10"));
@@ -209,7 +209,7 @@ impl<'conn> SharedFolderEntity<'conn> {
             )
             .from("folder_invites AS fi");
 
-        if from_recipient {
+        if sent {
             // For sent invites, join to_recipient to get their info
             query = query
                 .inner_join(
