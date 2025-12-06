@@ -1,7 +1,7 @@
 use crate::Error;
 use async_sqlite::rusqlite::{Connection, Error as SqlError, Row};
 use sos_audit::AuditEvent;
-use sos_core::{events::EventKind, AccountId, UtcDateTime};
+use sos_core::{AccountId, UtcDateTime, events::EventKind};
 use sql_query_builder as sql;
 use std::ops::Deref;
 

@@ -9,8 +9,8 @@ use sos_core::{
 };
 use sos_login::DelegatedAccess;
 use sos_vault::{
-    secret::SecretRow, BuilderCredentials, SecretAccess, Summary, Vault,
-    VaultBuilder,
+    BuilderCredentials, SecretAccess, Summary, Vault, VaultBuilder,
+    secret::SecretRow,
 };
 
 /// Comparison between an existing cipher and a

@@ -1,9 +1,9 @@
-#![deny(missing_docs)]
-#![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Export and import unencrypted data for the [Save Our Secrets](https://saveoursecrets.com) SDK.
 //!
 //! Used to move between different apps.
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use async_trait::async_trait;
 use sos_core::crypto::AccessKey;

@@ -7,17 +7,17 @@ use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sos_core::{
+    AuthenticationError, SecretId, UtcDateTime, VaultCommit, VaultEntry,
+    VaultFlags, VaultId,
     commit::CommitHash,
     constants::{DEFAULT_VAULT_NAME, URN_NID, VAULT_IDENTITY, VAULT_NSS},
     crypto::{
         AccessKey, AeadPack, Cipher, Deriver, KeyDerivation, PrivateKey, Seed,
     },
     decode, encode,
-    encoding::{encoding_options, VERSION},
+    encoding::{VERSION, encoding_options},
     events::{ReadEvent, WriteEvent},
     file_identity::FileIdentity,
-    AuthenticationError, SecretId, UtcDateTime, VaultCommit, VaultEntry,
-    VaultFlags, VaultId,
 };
 use sos_vfs::File;
 use std::io::Cursor;
@@ -399,6 +399,11 @@ impl Header {
         self.auth.seed = seed;
     }
 
+    /// Set shared access permissions.
+    pub fn set_shared_access(&mut self, shared_access: SharedAccess) {
+        self.shared_access = shared_access;
+    }
+
     /// Read the content offset for a vault file verifying
     /// the identity bytes first.
     pub async fn read_content_offset<P: AsRef<Path>>(path: P) -> Result<u64> {
@@ -519,7 +524,8 @@ impl SharedAccess {
         }
     }
 
-    fn parse_recipients(access: &Vec<String>) -> Result<Vec<Recipient>> {
+    /// Parse recipeients list.
+    pub fn parse_recipients(access: &Vec<String>) -> Result<Vec<Recipient>> {
         let mut recipients = Vec::new();
         for recipient in access {
             let recipient = recipient.parse().map_err(|s: &str| {
@@ -918,7 +924,7 @@ impl Vault {
         self.contents
             .data
             .iter()
-            .map(|(k, v)| (k, &v.1 .0))
+            .map(|(k, v)| (k, &v.1.0))
             .collect::<HashMap<_, _>>()
     }
 

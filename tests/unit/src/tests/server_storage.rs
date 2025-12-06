@@ -1,3 +1,5 @@
+use std::{collections::HashMap, sync::Arc};
+
 use anyhow::Result;
 use rand::{rngs::OsRng, Rng};
 use sos_backend::BackendTarget;
@@ -18,6 +20,7 @@ use sos_sync::{
 use sos_test_utils::mock::{insert_database_vault, memory_database};
 use sos_vault::Vault;
 use tempfile::tempdir_in;
+use tokio::sync::Mutex;
 
 #[tokio::test]
 async fn fs_server_storage() -> Result<()> {
@@ -25,9 +28,11 @@ async fn fs_server_storage() -> Result<()> {
     Paths::scaffold(&temp.path().to_owned()).await?;
 
     let account_id = AccountId::random();
+    let shared_folder_events = Arc::new(Mutex::new(HashMap::default()));
     let mut storage = ServerStorage::new(
         BackendTarget::FileSystem(Paths::new_server(temp.path())),
         &account_id,
+        shared_folder_events,
     )
     .await?;
     assert_server_storage(&mut storage, &account_id).await?;
@@ -46,9 +51,11 @@ async fn db_server_storage() -> Result<()> {
         insert_database_vault(&mut client, &vault, true).await?;
     let paths = Paths::new_server(temp.path());
 
+    let shared_folder_events = Arc::new(Mutex::new(HashMap::default()));
     let mut storage = ServerStorage::new(
         BackendTarget::Database(paths, client),
         &account_id,
+        shared_folder_events,
     )
     .await?;
     assert_server_storage(&mut storage, &account_id).await?;

@@ -7,6 +7,7 @@ mod patch;
 #[cfg(feature = "pairing")]
 mod relay;
 mod scan;
+mod shared_folder;
 mod sync;
 
 pub use diff::{DiffRequest, DiffResponse};
@@ -16,7 +17,13 @@ pub use patch::{PatchRequest, PatchResponse};
 #[cfg(feature = "pairing")]
 #[doc(hidden)]
 pub use relay::{
-    pairing_message, PairingConfirm, PairingMessage, PairingReady,
-    PairingRequest, RelayHeader, RelayPacket, RelayPayload,
+    PairingConfirm, PairingMessage, PairingReady, PairingRequest,
+    RelayHeader, RelayPacket, RelayPayload, pairing_message,
 };
 pub use scan::{ScanRequest, ScanResponse};
+pub use shared_folder::{
+    GetFolderInvitesRequest, GetFolderInvitesResponse, GetRecipientRequest,
+    GetRecipientResponse, SetRecipientRequest, SetRecipientResponse,
+    SharedFolderRequest, SharedFolderResponse, UpdateFolderInviteRequest,
+    UpdateFolderInviteResponse,
+};

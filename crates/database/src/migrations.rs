@@ -1,6 +1,6 @@
 //! Run database migrations.
 use crate::Result;
-use async_sqlite::{rusqlite::Connection, Client};
+use async_sqlite::{Client, rusqlite::Connection};
 use refinery::Report;
 use tokio::sync::oneshot;
 

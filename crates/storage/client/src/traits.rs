@@ -4,33 +4,33 @@ use crate::{
     StorageChangeEvent,
 };
 use async_trait::async_trait;
-use futures::{pin_mut, StreamExt};
+use futures::{StreamExt, pin_mut};
 use indexmap::IndexSet;
 use sos_backend::{
-    compact::compact_folder, extract_vault, BackendTarget, DeviceEventLog,
-    Folder, FolderEventLog,
+    BackendTarget, DeviceEventLog, Folder, FolderEventLog,
+    compact::compact_folder, extract_vault,
 };
 use sos_core::{
+    AccountId, AuthenticationError, FolderRef, Paths, SecretId, StorageError,
+    UtcDateTime, VaultCommit, VaultFlags, VaultId,
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     decode,
     device::{DevicePublicKey, TrustedDevice},
     encode,
     events::{
-        patch::FolderPatch, AccountEvent, DeviceEvent, Event, 
-        EventLog, EventRecord, ReadEvent, WriteEvent,
+        AccountEvent, DeviceEvent, Event, EventLog, EventRecord, ReadEvent,
+        WriteEvent, patch::FolderPatch,
     },
-    AccountId, AuthenticationError, FolderRef, Paths, SecretId, StorageError,
-    UtcDateTime, VaultCommit, VaultFlags, VaultId,
 };
 use sos_login::{DelegatedAccess, FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{
-    secret::{Secret, SecretMeta, SecretRow},
     BuilderCredentials, ChangePassword, SecretAccess, Summary, Vault,
     VaultBuilder,
+    secret::{Secret, SecretMeta, SecretRow},
 };
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
@@ -417,10 +417,10 @@ pub trait ClientFolderStorage:
 
         // If the deleted vault is the currently selected
         // vault we must close it
-        if let Some(id) = &current_id {
-            if id == folder_id {
-                self.close_folder();
-            }
+        if let Some(id) = &current_id
+            && id == folder_id
+        {
+            self.close_folder();
         }
 
         // Remove from our cache of managed vaults
@@ -1135,7 +1135,7 @@ pub trait ClientAccountStorage:
 
     /// Prepare a new folder.
     #[doc(hidden)]
-    async fn prepare_folder(
+    async fn prepare_new_folder(
         &mut self,
         mut options: NewFolderOptions,
         _: Internal,
@@ -1162,14 +1162,37 @@ pub trait ClientAccountStorage:
                     ))
                     .await?
             }
-            AccessKey::Identity(id) => {
+            AccessKey::Identity(_id) => {
+                panic!(
+                    "prepare_new_folder does not support asymmetric folder encryption"
+                );
+
+                /*
+                let (recipients, read_only) = if let Some(shared_access) =
+                    options.shared_access
+                {
+                    let recipients = match &shared_access {
+                        SharedAccess::WriteAccess(list) => {
+                            SharedAccess::parse_recipients(list)?
+                        }
+                        SharedAccess::ReadOnly(_) => vec![],
+                    };
+                    (
+                        recipients,
+                        matches!(shared_access, SharedAccess::ReadOnly(_)),
+                    )
+                } else {
+                    (vec![], true)
+                };
+
                 builder
                     .build(BuilderCredentials::Shared {
                         owner: id,
-                        recipients: vec![],
-                        read_only: true,
+                        recipients,
+                        read_only,
                     })
                     .await?
+                */
             }
         };
 
@@ -1196,7 +1219,7 @@ pub trait ClientAccountStorage:
         self.guard_authenticated(Internal)?;
 
         let (buf, key, summary) =
-            self.prepare_folder(options, Internal).await?;
+            self.prepare_new_folder(options, Internal).await?;
 
         let account_event =
             AccountEvent::CreateFolder(*summary.id(), buf.clone());
@@ -1229,6 +1252,12 @@ pub trait ClientAccountStorage:
         apply_event: bool,
     ) -> Result<Vec<Event>> {
         self.guard_authenticated(Internal)?;
+
+        if let Some(summary) = self.find_folder(&FolderRef::Id(*folder_id))
+            && summary.flags().is_shared()
+        {
+            panic!("cannot call delete_folder on a shared folder");
+        }
 
         // Remove the files
         self.remove_vault(folder_id, Internal).await?;
@@ -1328,11 +1357,9 @@ pub trait ClientAccountStorage:
         let summary = vault.summary().clone();
 
         #[cfg(feature = "search")]
-        if exists {
-            if let Some(index) = self.search_index_mut() {
-                // Clean entries from the search index
-                index.remove_folder(summary.id()).await;
-            }
+        if exists && let Some(index) = self.search_index_mut() {
+            // Clean entries from the search index
+            index.remove_folder(summary.id()).await;
         }
 
         self.write_vault(&vault, Internal).await?;
@@ -1352,11 +1379,11 @@ pub trait ClientAccountStorage:
         }
 
         #[cfg(feature = "search")]
-        if let Some(key) = key {
-            if let Some(index) = self.search_index_mut() {
-                // Ensure the imported secrets are in the search index
-                index.add_vault(vault.clone(), key).await?;
-            }
+        if let Some(key) = key
+            && let Some(index) = self.search_index_mut()
+        {
+            // Ensure the imported secrets are in the search index
+            index.add_vault(vault.clone(), key).await?;
         }
 
         let event = vault.into_event().await?;

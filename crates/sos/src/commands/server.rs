@@ -1,9 +1,9 @@
 use crate::{
+    Error, Result,
     helpers::{
         account::resolve_user,
         messages::{fail, success},
     },
-    Error, Result,
 };
 use clap::Subcommand;
 use sos_core::{AccountRef, Origin};
@@ -49,11 +49,10 @@ pub async fn run(cmd: Command) -> Result<()> {
             let origin: Origin = url.into();
             let sync_result = owner.add_server(origin.clone()).await?;
 
-            if let Some(res) = sync_result {
-                if let Err(err) = res.result {
+            if let Some(res) = sync_result
+                && let Err(err) = res.result {
                     return Err(Error::InitialSync(err));
                 }
-            }
 
             success(format!("Added {}", origin.url()));
         }

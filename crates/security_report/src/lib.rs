@@ -1,7 +1,8 @@
+//! Helpers for security report generation.
 #![forbid(unsafe_code)]
 #![allow(clippy::type_complexity)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
-//! Helpers for security report generation.
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use sos_account::Account;
@@ -9,8 +10,8 @@ use sos_backend::AccessPoint;
 use sos_core::VaultId;
 use sos_password::generator::measure_entropy;
 use sos_vault::{
-    secret::{Secret, SecretId, SecretType},
     SecretAccess, Summary,
+    secret::{Secret, SecretId, SecretType},
 };
 use zxcvbn::{Entropy, Score};
 

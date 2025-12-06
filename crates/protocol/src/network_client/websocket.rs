@@ -1,12 +1,12 @@
 //! Listen for change notifications on a websocket connection.
 use crate::{
+    Error, NetworkChangeEvent, Result, WireEncodeDecode,
     network_client::{NetworkConfig, NetworkRetry, WebSocketRequest},
     transfer::CancelReason,
-    Error, NetworkChangeEvent, Result, WireEncodeDecode,
 };
 use futures::{
-    stream::{Map, SplitStream},
     Future, FutureExt, StreamExt,
+    stream::{Map, SplitStream},
 };
 use prost::bytes::Bytes;
 use rustls::{ClientConfig, RootCertStore};
@@ -16,16 +16,16 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::{net::TcpStream, sync::watch, time::Duration};
 use tokio_tungstenite::{
-    client_async_tls_with_config, connect_async,
+    Connector, MaybeTlsStream, WebSocketStream, client_async_tls_with_config,
+    connect_async,
     tungstenite::{
         self,
         client::IntoClientRequest,
         protocol::{
-            frame::{coding::CloseCode, Utf8Bytes},
             CloseFrame, Message,
+            frame::{Utf8Bytes, coding::CloseCode},
         },
     },
-    Connector, MaybeTlsStream, WebSocketStream,
 };
 
 use super::{bearer_prefix, encode_device_signature};

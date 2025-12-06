@@ -1,15 +1,15 @@
 use crate::{Error, Result};
+use async_sqlite::Client;
 use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
     Transaction,
 };
-use async_sqlite::Client;
 use sos_core::crypto::Seed;
 use sos_core::{
-    commit::CommitHash, crypto::AeadPack, decode, encode, SecretId,
-    UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
+    InviteStatus, SecretId, UtcDateTime, VaultCommit, VaultEntry, VaultFlags,
+    VaultId, commit::CommitHash, crypto::AeadPack, decode, encode,
 };
-use sos_vault::{Summary, Vault};
+use sos_vault::{SharedAccess, Summary, Vault};
 use sql_query_builder as sql;
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -29,7 +29,8 @@ fn folder_select_columns(sql: sql::Select) -> sql::Select {
             folders.version,
             folders.cipher,
             folders.kdf,
-            folders.flags
+            folders.flags,
+            folders.shared_access
         "#,
     )
 }
@@ -53,17 +54,18 @@ fn secret_select_columns(sql: sql::Select) -> sql::Select {
 #[derive(Debug, Default)]
 pub struct FolderRow {
     pub row_id: i64,
-    created_at: String,
-    modified_at: String,
-    identifier: String,
-    name: String,
-    salt: Option<String>,
-    meta: Option<Vec<u8>>,
-    seed: Option<Vec<u8>>,
-    version: i64,
-    cipher: String,
-    kdf: String,
-    flags: Vec<u8>,
+    pub(crate) created_at: String,
+    pub(crate) modified_at: String,
+    pub(crate) identifier: String,
+    pub(crate) name: String,
+    pub(crate) salt: Option<String>,
+    pub(crate) meta: Option<Vec<u8>>,
+    pub(crate) seed: Option<Vec<u8>>,
+    pub(crate) version: i64,
+    pub(crate) cipher: String,
+    pub(crate) kdf: String,
+    pub(crate) flags: Vec<u8>,
+    pub(crate) shared_access: Option<Vec<u8>>,
 }
 
 impl FolderRow {
@@ -76,7 +78,7 @@ impl FolderRow {
         };
         let salt = vault.salt().cloned();
         let seed = vault.seed().map(|s| s.as_ref().to_vec());
-        Self::new_insert_parts(vault.summary(), salt, meta, seed)
+        Self::new_insert_parts(vault.summary(), salt, meta, seed, None)
     }
 
     /// Create a new folder row to be inserted from parts.
@@ -85,6 +87,7 @@ impl FolderRow {
         salt: Option<String>,
         meta: Option<Vec<u8>>,
         seed: Option<Vec<u8>>,
+        shared_access: Option<Vec<u8>>,
     ) -> Result<Self> {
         Ok(Self {
             created_at: UtcDateTime::default().to_rfc3339()?,
@@ -98,8 +101,34 @@ impl FolderRow {
             cipher: summary.cipher().to_string(),
             kdf: summary.kdf().to_string(),
             flags: summary.flags().bits().to_le_bytes().to_vec(),
+            shared_access,
             ..Default::default()
         })
+    }
+
+    /// Create a folder row from a vault.
+    pub async fn new_insert_from_vault(vault: &Vault) -> Result<Self> {
+        let meta = if let Some(meta) = vault.header().meta() {
+            Some(encode(meta).await?)
+        } else {
+            None
+        };
+        let salt = vault.salt().cloned();
+        let seed = vault.seed().map(|s| s.as_ref().to_vec());
+
+        let shared_access = if !vault.shared_access().is_empty() {
+            Some(encode(vault.shared_access()).await?)
+        } else {
+            None
+        };
+
+        FolderRow::new_insert_parts(
+            vault.summary(),
+            salt,
+            meta,
+            seed,
+            shared_access,
+        )
     }
 
     /// Create a new folder row to update.
@@ -144,6 +173,7 @@ impl<'a> TryFrom<&Row<'a>> for FolderRow {
             cipher: row.get(9)?,
             kdf: row.get(10)?,
             flags: row.get(11)?,
+            shared_access: row.get(12)?,
         })
     }
 }
@@ -165,6 +195,8 @@ pub struct FolderRecord {
     pub seed: Option<Seed>,
     /// Folder summary.
     pub summary: Summary,
+    /// Shared access permissions.
+    pub shared_access: Option<SharedAccess>,
 }
 
 impl FolderRecord {
@@ -199,6 +231,13 @@ impl FolderRecord {
         let summary =
             Summary::new(version, folder_id, value.name, cipher, kdf, flags);
 
+        let shared_access = if let Some(shared_access) = &value.shared_access
+        {
+            Some(decode(shared_access).await?)
+        } else {
+            None
+        };
+
         Ok(FolderRecord {
             row_id: value.row_id,
             created_at,
@@ -207,6 +246,7 @@ impl FolderRecord {
             meta,
             seed,
             summary,
+            shared_access,
         })
     }
 
@@ -216,6 +256,9 @@ impl FolderRecord {
         vault.header_mut().set_meta(self.meta.clone());
         vault.header_mut().set_salt(self.salt.clone());
         vault.header_mut().set_seed(self.seed);
+        if let Some(shared_access) = &self.shared_access {
+            vault.header_mut().set_shared_access(shared_access.clone());
+        }
         Ok(vault)
     }
 }
@@ -378,16 +421,7 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
     ) -> Result<(i64, HashMap<SecretId, i64>)> {
         let folder_id = *vault.id();
 
-        let meta = if let Some(meta) = vault.header().meta() {
-            Some(encode(meta).await?)
-        } else {
-            None
-        };
-        let salt = vault.salt().cloned();
-        let seed = vault.seed().map(|s| s.as_ref().to_vec());
-
-        let folder_row =
-            FolderRow::new_insert_parts(vault.summary(), salt, meta, seed)?;
+        let folder_row = FolderRow::new_insert_from_vault(vault).await?;
 
         let mut secret_rows = Vec::new();
         for (secret_id, commit) in vault.iter() {
@@ -570,7 +604,19 @@ where
             .left_join(
                 "account_device_folder device ON folders.folder_id = device.folder_id",
             )
-            .where_clause("folders.account_id=?1")
+            .left_join(
+                "shared_folders shared ON folders.folder_id = shared.folder_id",
+            )
+            .left_join(
+                "recipients r ON shared.account_id = r.account_id",
+            )
+            .left_join(
+                "shared_folder_recipients sfr ON shared.shared_folder_id = sfr.shared_folder_id AND sfr.recipient_id = r.recipient_id",
+            )
+            .left_join(
+                "folder_invites fi ON fi.to_recipient_id = r.recipient_id AND fi.folder_id = folders.folder_id",
+            )
+            .where_clause("(folders.account_id = ?1 OR (shared.account_id = ?1 AND (sfr.is_creator = 1 OR fi.invite_status = ?2)))")
             .where_and("login.folder_id IS NULL")
             .where_and("device.folder_id IS NULL");
 
@@ -580,7 +626,10 @@ where
             Ok(row.try_into()?)
         }
 
-        let rows = stmt.query_and_then([account_id], convert_row)?;
+        let rows = stmt.query_and_then(
+            (account_id, InviteStatus::Accepted as u8),
+            convert_row,
+        )?;
         let mut folders = Vec::new();
         for row in rows {
             folders.push(row?);
@@ -655,11 +704,14 @@ where
                     version,
                     cipher,
                     kdf,
-                    flags
+                    flags,
+                    shared_access
                 )
             "#,
             )
-            .values("(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)");
+            .values(
+                "(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            );
 
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
@@ -675,6 +727,7 @@ where
             &folder_row.cipher,
             &folder_row.kdf,
             &folder_row.flags,
+            &folder_row.shared_access,
         ))?;
 
         Ok(self.conn.last_insert_rowid())
@@ -699,10 +752,11 @@ where
                     version = ?7,
                     cipher = ?8,
                     kdf = ?9,
-                    flags = ?10
+                    flags = ?10,
+                    shared_access = ?11
                  "#,
             )
-            .where_clause("identifier=?11");
+            .where_clause("identifier=?12");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
             &folder_row.modified_at,
@@ -715,6 +769,7 @@ where
             &folder_row.cipher,
             &folder_row.kdf,
             &folder_row.flags,
+            &folder_row.shared_access,
             folder_id.to_string(),
         ))?;
 

@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package shared_folder;
+
+import "protobuf/common.proto";
+
+message WireSetRecipientRequest {
+  /// Recipient information.
+  common.WireRecipient recipient = 1;
+}
+message WireSetRecipientResponse {}
+
+message WireGetRecipientRequest {}
+message WireGetRecipientResponse {
+  /// Recipient information.
+  common.WireRecipient recipient = 1;
+}
+
+message WireSharedFolderRequest {
+  /// Encoded vault.
+  bytes vault = 1;
+  // Collection of recipients.
+  repeated common.WireRecipient recipients = 2;
+}
+message WireSharedFolderResponse {}
+
+message WireGetFolderInvitesRequest {
+  /// Status of the invite.
+  optional common.WireInviteStatus invite_status = 1;
+  /// Limit the number of rows.
+  optional uint32 limit = 2;
+}
+message WireGetFolderInvitesResponse {
+  /// Folder invites.
+  repeated common.WireFolderInvite folder_invites = 1;
+}
+
+message WireUpdateFolderInviteRequest {
+  /// Status of the invite.
+  common.WireInviteStatus invite_status = 1;
+  /// Public key of the recipient that sent the invite.
+  string from_public_key = 2;
+  /// Folder identifier.
+  string folder_id = 3;
+}
+message WireUpdateFolderInviteResponse {}

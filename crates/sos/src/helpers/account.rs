@@ -2,7 +2,7 @@
 use crate::helpers::{
     display_passphrase,
     messages::success,
-    readline::{choose, choose_password, read_flag, read_password, Choice},
+    readline::{Choice, choose, choose_password, read_flag, read_password},
 };
 use crate::{Error, Result};
 use parking_lot::Mutex;
@@ -10,8 +10,8 @@ use secrecy::{ExposeSecret, SecretString};
 use sos_account::Account;
 use sos_backend::BackendTarget;
 use sos_core::{
-    constants::DEFAULT_VAULT_NAME, crypto::AccessKey, AccountId, AccountRef,
-    FolderRef, Paths, PublicIdentity,
+    AccountId, AccountRef, FolderRef, Paths, PublicIdentity,
+    constants::DEFAULT_VAULT_NAME, crypto::AccessKey,
 };
 use sos_net::{NetworkAccount, NetworkAccountSwitcher};
 use sos_password::diceware::generate_passphrase;
@@ -138,20 +138,18 @@ pub async fn resolve_account(
     if account.is_none() {
         if is_shell {
             let owner = USER.read().await;
-            if let Some(owner) = owner.selected_account() {
-                if owner.is_authenticated().await {
+            if let Some(owner) = owner.selected_account()
+                && owner.is_authenticated().await {
                     return Ok(Some((owner).into()));
                 }
-            }
         }
 
         let paths = Paths::new_client(Paths::data_dir()?);
         let target = BackendTarget::from_paths(&paths).await?;
-        if let Ok(mut accounts) = target.list_accounts().await {
-            if accounts.len() == 1 {
+        if let Ok(mut accounts) = target.list_accounts().await
+            && accounts.len() == 1 {
                 return Ok(Some(accounts.remove(0).into()));
             }
-        }
     }
     Ok(account.cloned())
 }

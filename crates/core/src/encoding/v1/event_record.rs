@@ -1,6 +1,6 @@
 use crate::{
-    commit::CommitHash, encoding::encoding_error, events::EventRecord,
-    UtcDateTime,
+    UtcDateTime, commit::CommitHash, encoding::encoding_error,
+    events::EventRecord,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{

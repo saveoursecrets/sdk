@@ -1,5 +1,6 @@
 use super::{account::Owner, set_clipboard_text};
 use crate::{
+    Error, Result,
     helpers::{
         messages::{fail, success},
         readline::{
@@ -7,7 +8,6 @@ use crate::{
             read_option, read_password,
         },
     },
-    Error, Result,
 };
 use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
@@ -15,8 +15,8 @@ use sos_account::Account;
 use sos_core::ExternalFileName;
 use sos_search::Document;
 use sos_vault::{
-    secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},
     Summary,
+    secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},
 };
 use sos_vfs as vfs;
 use std::{

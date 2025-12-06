@@ -1,6 +1,6 @@
 use crate::{Error, Result, UpgradeOptions};
 use async_trait::async_trait;
-use futures::{pin_mut, StreamExt};
+use futures::{StreamExt, pin_mut};
 use indexmap::IndexSet;
 use sos_audit::AuditStreamSink;
 use sos_backend::{
@@ -8,15 +8,14 @@ use sos_backend::{
     FolderEventLog,
 };
 use sos_client_storage::ClientStorage;
-use sos_core::{
-    decode, encode,
-    events::{EventLog, EventRecord},
-    VaultId,
-};
 use sos_core::{Origin, VaultCommit};
 use sos_core::{Paths, PublicIdentity, SecretId};
+use sos_core::{
+    VaultId, decode, encode,
+    events::{EventLog, EventRecord},
+};
 use sos_database::{
-    async_sqlite::{rusqlite::Transaction, Client},
+    async_sqlite::{Client, rusqlite::Transaction},
     entity::{
         AccountEntity, AccountRow, AuditEntity, EventEntity, EventRecordRow,
         FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, SecretRow,
@@ -28,10 +27,10 @@ use sos_preferences::PreferenceMap;
 use sos_server_storage::ServerStorage;
 use sos_sync::{StorageEventLogs, SyncStatus, SyncStorage};
 use sos_system_messages::SystemMessageMap;
-use sos_vault::{list_local_folders, Summary, Vault};
+use sos_vault::{Summary, Vault, list_local_folders};
 use sos_vfs as vfs;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 pub(crate) enum AccountStorage {
     Server(ServerStorage),
@@ -424,6 +423,7 @@ pub(crate) async fn import_account(
             ServerStorage::new(
                 BackendTarget::Database(paths.clone(), client.clone()),
                 account.account_id(),
+                Arc::new(Mutex::new(Default::default())),
             )
             .await?,
         )
@@ -518,7 +518,15 @@ fn create_folder(
     let folder_entity = FolderEntity::new(tx);
     let folder_id = folder_entity.insert_folder(
         account_id,
-        &FolderRow::new_insert_parts(vault.summary(), salt, meta, seed)?,
+        &FolderRow::new_insert_parts(
+            vault.summary(),
+            salt,
+            meta,
+            seed,
+            // File system accounts never used
+            // shared access so we don't need to handle it here
+            None,
+        )?,
     )?;
     let secret_ids =
         folder_entity.insert_folder_secrets(folder_id, rows.as_slice())?;

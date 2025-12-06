@@ -3,9 +3,9 @@ use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, Row,
 };
 use sos_core::{
+    UtcDateTime,
     commit::CommitHash,
     events::{EventLogType, EventRecord},
-    UtcDateTime,
 };
 use sql_query_builder as sql;
 use std::ops::Deref;

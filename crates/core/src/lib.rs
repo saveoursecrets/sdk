@@ -1,7 +1,7 @@
+//! Core types and constants for the [Save Our Secrets](https://saveoursecrets.com) SDK.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Core types and constants for the [Save Our Secrets](https://saveoursecrets.com) SDK.
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod account;
 pub mod commit;
@@ -17,6 +17,7 @@ pub mod file_identity;
 mod identity;
 mod origin;
 mod paths;
+mod sharing;
 
 pub use account::AccountId;
 // pub use crypto::*;
@@ -29,12 +30,13 @@ pub use identity::{AccountRef, PublicIdentity};
 pub use origin::{Origin, RemoteOrigins};
 pub use paths::Paths;
 pub use rs_merkle as merkle;
+pub use sharing::{FolderInvite, InviteStatus, Recipient};
 
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 use bitflags::bitflags;
-use rand::{rngs::OsRng, CryptoRng, Rng};
+use rand::{CryptoRng, Rng, rngs::OsRng};
 use serde::{Deserialize, Serialize};
 use std::{fmt, path::Path, str::FromStr};
 use uuid::Uuid;

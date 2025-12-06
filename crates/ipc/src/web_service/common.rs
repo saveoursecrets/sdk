@@ -1,12 +1,12 @@
 use super::{Body, Incoming};
 use bytes::Bytes;
-use http::{header::CONTENT_TYPE, Request, Response, StatusCode, Uri};
+use http::{Request, Response, StatusCode, Uri, header::CONTENT_TYPE};
 use http_body_util::{BodyExt, Full};
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use sos_core::AccountId;
 use sos_protocol::{
-    constants::{MIME_TYPE_JSON, X_SOS_ACCOUNT_ID},
     ErrorReply,
+    constants::{MIME_TYPE_JSON, X_SOS_ACCOUNT_ID},
 };
 use std::collections::HashMap;
 use url::form_urlencoded;

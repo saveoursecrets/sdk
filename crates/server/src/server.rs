@@ -1,20 +1,20 @@
 use crate::{
-    config::{self, TlsConfig},
-    handlers::{account, api, home, websocket::WebSocketAccount},
     Backend, Result, ServerConfig, SslConfig, StorageConfig,
+    config::{self, TlsConfig},
+    handlers::{account, api, home, sharing, websocket::WebSocketAccount},
 };
 use axum::{
+    Router,
     extract::Extension,
     http::{
-        header::{AUTHORIZATION, CONTENT_TYPE},
         HeaderValue, Method,
+        header::{AUTHORIZATION, CONTENT_TYPE},
     },
     middleware,
     response::{IntoResponse, Json},
     routing::{get, post, put},
-    Router,
 };
-use axum_server::{tls_rustls::RustlsConfig, Handle};
+use axum_server::{Handle, tls_rustls::RustlsConfig};
 use colored::Colorize;
 use futures::StreamExt;
 use sos_core::{AccountId, UtcDateTime};
@@ -32,7 +32,7 @@ use tower_http::{
 use tracing::Level;
 
 #[cfg(feature = "acme")]
-use tokio_rustls_acme::{caches::DirCache, AcmeConfig};
+use tokio_rustls_acme::{AcmeConfig, caches::DirCache};
 
 #[cfg(feature = "listen")]
 use super::handlers::websocket::upgrade;
@@ -40,7 +40,7 @@ use super::handlers::websocket::upgrade;
 use sos_core::ExternalFile;
 
 #[cfg(feature = "pairing")]
-use super::handlers::relay::{upgrade as relay_upgrade, RelayState};
+use super::handlers::relay::{RelayState, upgrade as relay_upgrade};
 
 /// Server state.
 pub struct State {
@@ -324,6 +324,23 @@ impl Server {
                     get(account::event_scan)
                         .post(account::event_diff)
                         .patch(account::event_patch),
+                )
+                .route(
+                    "/sharing/recipient",
+                    get(sharing::get_recipient).put(sharing::set_recipient),
+                )
+                .route("/sharing/folder", post(sharing::create_folder))
+                .route(
+                    "/sharing/folder/invites/sent",
+                    get(sharing::sent_folder_invites),
+                )
+                .route(
+                    "/sharing/folder/invites/inbox",
+                    get(sharing::received_folder_invites),
+                )
+                .route(
+                    "/sharing/folder/invites",
+                    put(sharing::update_folder_invite),
                 );
 
             {

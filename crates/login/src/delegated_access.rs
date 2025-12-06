@@ -1,7 +1,7 @@
 //! Trait for delegated password access.
 use async_trait::async_trait;
 use secrecy::SecretString;
-use sos_core::{crypto::AccessKey, VaultId};
+use sos_core::{VaultId, crypto::AccessKey};
 use sos_password::diceware::generate_passphrase_words;
 
 /// Number of words to use when generating passphrases for vaults.

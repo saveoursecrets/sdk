@@ -2,13 +2,13 @@
 use crate::archive::{Error, ManifestVersion1, Result};
 use hex;
 use sha2::{Digest, Sha256};
-use sos_archive::{ZipWriter, ARCHIVE_MANIFEST};
+use sos_archive::{ARCHIVE_MANIFEST, ZipWriter};
 use sos_core::{
+    AccountId, Paths, VaultId,
     constants::{
         ACCOUNT_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILE_EVENTS, JSON_EXT,
         PREFERENCES_FILE, REMOTES_FILE, VAULT_EXT,
     },
-    AccountId, Paths, VaultId,
 };
 use sos_vault::list_local_folders;
 use sos_vfs as vfs;

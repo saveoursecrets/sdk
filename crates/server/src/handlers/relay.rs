@@ -1,13 +1,13 @@
 //! Relay forwards packets between peers over a websocket connection.
 use axum::{
     extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
         Extension, Query,
+        ws::{Message, WebSocket, WebSocketUpgrade},
     },
     http::StatusCode,
     response::Response,
 };
-use futures::{stream::SplitSink, SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt, stream::SplitSink};
 use serde::Deserialize;
 use sos_protocol::RelayPacket;
 use std::{collections::HashMap, sync::Arc};

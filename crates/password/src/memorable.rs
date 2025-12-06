@@ -1,6 +1,6 @@
 use crate::{CONSONANTS, DIGITS, VOWELS};
-use rand::rngs::OsRng;
 use rand::Rng;
+use rand::rngs::OsRng;
 
 /// Memorable password generator.
 pub fn memorable_password(num_words: usize) -> String {

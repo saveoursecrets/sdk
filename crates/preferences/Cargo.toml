@@ -1,7 +1,7 @@
 [package]
 name = "sos-preferences"
 version = "0.17.5"
-edition = "2021"
+edition = "2024"
 description = "Preferences for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
@@ -13,12 +13,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 sos-core.workspace = true
-
 thiserror.workspace = true
 async-trait.workspace = true
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true

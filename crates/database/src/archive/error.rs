@@ -1,4 +1,4 @@
-use sos_core::{commit::CommitHash, AccountId};
+use sos_core::{AccountId, commit::CommitHash};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -37,7 +37,9 @@ pub enum Error {
 
     /// Error generated when the checksum for a database does not
     /// match the manifest.
-    #[error("database checksum is invalid, expected '{0}' but computed '{1}' (archive may be corrupt?)")]
+    #[error(
+        "database checksum is invalid, expected '{0}' but computed '{1}' (archive may be corrupt?)"
+    )]
     DatabaseChecksum(CommitHash, CommitHash),
 
     /// Error generated converting to fixed size slice.

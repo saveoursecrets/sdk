@@ -16,11 +16,11 @@ use sos_protocol::constants::{MIME_TYPE_JSON, X_SOS_REQUEST_ID};
 use async_trait::async_trait;
 use bytes::Bytes;
 use http::{
-    header::{CONTENT_ENCODING, CONTENT_TYPE},
     Method, Request, Response, StatusCode, Uri,
+    header::{CONTENT_ENCODING, CONTENT_TYPE},
 };
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 use std::{collections::HashMap, fmt, time::Duration};
 use typeshare::typeshare;
 

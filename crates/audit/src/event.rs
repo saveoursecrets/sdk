@@ -5,7 +5,7 @@ use sos_core::device::DevicePublicKey;
 use sos_core::events::{
     AccountEvent, Event, EventKind, ReadEvent, WriteEvent,
 };
-use sos_core::{events::LogEvent, AccountId, SecretId, UtcDateTime, VaultId};
+use sos_core::{AccountId, SecretId, UtcDateTime, VaultId, events::LogEvent};
 
 bitflags! {
     /// Bit flags for associated data.

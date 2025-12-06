@@ -1,8 +1,7 @@
+//! Traits and types for signing messages.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Traits and types for signing messages.
-use async_trait::async_trait;
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod encoding;
 mod error;
@@ -21,7 +20,7 @@ type BoxedSigner<O, V> =
 /// This trait is declared with an async signature so that
 /// in the future we can support threshold signatures
 /// which are inherently asynchronous.
-#[async_trait]
+#[async_trait::async_trait]
 pub trait Signer {
     /// Signature output.
     type Output;
@@ -58,8 +57,8 @@ pub mod ecdsa {
     use sha3::{Digest, Keccak256};
 
     pub use k256::ecdsa::{
-        hazmat::SignPrimitive, RecoveryId, Signature, SigningKey,
-        VerifyingKey,
+        RecoveryId, Signature, SigningKey, VerifyingKey,
+        hazmat::SignPrimitive,
     };
 
     use super::{BoxedSigner, Signer};
@@ -145,8 +144,8 @@ pub mod ecdsa {
 pub mod ed25519 {
     use async_trait::async_trait;
     pub use ed25519_dalek::{
-        Signature, Signer as Ed25519Signer, SigningKey, Verifier,
-        VerifyingKey, SECRET_KEY_LENGTH,
+        SECRET_KEY_LENGTH, Signature, Signer as Ed25519Signer, SigningKey,
+        Verifier, VerifyingKey,
     };
     use rand::rngs::OsRng;
 

@@ -5,12 +5,13 @@ use futures::StreamExt;
 use indexmap::IndexSet;
 use sha2::{Digest, Sha256};
 use sos_backend::BackendTarget;
-use sos_core::{commit::CommitHash, ExternalFile};
+use sos_core::{ExternalFile, commit::CommitHash};
 use sos_vfs as vfs;
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::{
+    Mutex, Semaphore,
     mpsc::{self, Receiver, Sender},
-    watch, Mutex, Semaphore,
+    watch,
 };
 use tokio_util::io::ReaderStream;
 

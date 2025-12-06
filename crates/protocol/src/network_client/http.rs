@@ -1,20 +1,27 @@
 //! HTTP client implementation.
 use crate::{
+    DiffRequest, DiffResponse, Error, GetFolderInvitesRequest,
+    GetFolderInvitesResponse, GetRecipientRequest, GetRecipientResponse,
+    NetworkError, PatchRequest, PatchResponse, Result, ScanRequest,
+    ScanResponse, SetRecipientRequest, SetRecipientResponse, SyncClient,
+    UpdateFolderInviteRequest, UpdateFolderInviteResponse, WireEncodeDecode,
     constants::{
+        MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
         routes::v1::{
+            SHARING_CREATE_FOLDER, SHARING_RECEIVED_INVITES,
+            SHARING_RECIPIENT, SHARING_SENT_INVITES, SHARING_UPDATE_INVITE,
             SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
         },
-        MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
     },
-    DiffRequest, DiffResponse, Error, NetworkError, PatchRequest,
-    PatchResponse, Result, ScanRequest, ScanResponse, SyncClient,
-    WireEncodeDecode,
+    query::MoveFileQuery,
 };
+#[cfg(feature = "files")]
+use crate::{SharedFolderRequest, SharedFolderResponse};
 use async_trait::async_trait;
 use http::StatusCode;
 use reqwest::{
-    header::{AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
     Certificate, RequestBuilder,
+    header::{AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -34,10 +41,10 @@ use super::{bearer_prefix, encode_device_signature};
 
 #[cfg(feature = "listen")]
 use crate::{
+    NetworkChangeEvent,
     network_client::websocket::{
         ListenOptions, WebSocketChangeListener, WebSocketHandle,
     },
-    NetworkChangeEvent,
 };
 
 #[cfg(feature = "files")]
@@ -462,6 +469,132 @@ impl SyncClient for HttpClient {
         let buffer = response.bytes().await?;
         Ok(PatchResponse::decode(buffer).await?)
     }
+
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
+    async fn set_recipient(
+        &self,
+        request: SetRecipientRequest,
+    ) -> Result<SetRecipientResponse> {
+        let body = request.encode().await?;
+        let url = self.build_url(SHARING_RECIPIENT)?;
+        tracing::debug!(url = %url, "http::set_recipient");
+        let request = self
+            .client
+            .put(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF);
+        let request = self.request_headers(request, &body).await?;
+        let response = request.body(body).send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::set_recipient");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(SetRecipientResponse::decode(buffer).await?)
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
+    async fn get_recipient(
+        &self,
+        _request: GetRecipientRequest,
+    ) -> Result<GetRecipientResponse> {
+        let url = self.build_url(SHARING_RECIPIENT)?;
+        tracing::debug!(url = %url, "http::get_recipient");
+
+        let sign_url = url.path().to_owned();
+        let request = self.client.get(url);
+        let request =
+            self.request_headers(request, sign_url.as_bytes()).await?;
+
+        let response = request.send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::get_recipient");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(GetRecipientResponse::decode(buffer).await?)
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
+    async fn create_shared_folder(
+        &self,
+        request: SharedFolderRequest,
+    ) -> Result<SharedFolderResponse> {
+        let body = request.encode().await?;
+        let url = self.build_url(SHARING_CREATE_FOLDER)?;
+        tracing::debug!(url = %url, "http::create_shared_folder");
+        let request = self
+            .client
+            .post(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF);
+        let request = self.request_headers(request, &body).await?;
+        let response = request.body(body).send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::create_shared_folder");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(SharedFolderResponse::decode(buffer).await?)
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
+    async fn sent_folder_invites(
+        &self,
+        request: GetFolderInvitesRequest,
+    ) -> Result<GetFolderInvitesResponse> {
+        let url = self.build_url(SHARING_SENT_INVITES)?;
+        tracing::debug!(url = %url, "http::sent_folder_invites");
+
+        let sign_url = url.path().to_owned();
+        let request = self.client.get(url).query(&request);
+        let request =
+            self.request_headers(request, sign_url.as_bytes()).await?;
+
+        let response = request.send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::sent_folder_invites");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(GetFolderInvitesResponse::decode(buffer).await?)
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
+    async fn received_folder_invites(
+        &self,
+        request: GetFolderInvitesRequest,
+    ) -> Result<GetFolderInvitesResponse> {
+        let url = self.build_url(SHARING_RECEIVED_INVITES)?;
+        tracing::debug!(url = %url, "http::received_folder_invites");
+
+        let sign_url = url.path().to_owned();
+        let request = self.client.get(url).query(&request);
+        let request =
+            self.request_headers(request, sign_url.as_bytes()).await?;
+
+        let response = request.send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::received_folder_invites");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(GetFolderInvitesResponse::decode(buffer).await?)
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
+    async fn update_folder_invite(
+        &self,
+        request: UpdateFolderInviteRequest,
+    ) -> Result<UpdateFolderInviteResponse> {
+        let body = request.encode().await?;
+        let url = self.build_url(SHARING_UPDATE_INVITE)?;
+        tracing::debug!(url = %url, "http::update_folder_invite");
+        let request = self
+            .client
+            .put(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF);
+        let request = self.request_headers(request, &body).await?;
+        let response = request.body(body).send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::update_folder_invite");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(UpdateFolderInviteResponse::decode(buffer).await?)
+    }
 }
 
 #[cfg(feature = "files")]
@@ -485,8 +618,8 @@ impl FileSyncClient for HttpClient {
     ) -> Result<http::StatusCode> {
         use futures::StreamExt;
         use reqwest::{
-            header::{CONTENT_LENGTH, CONTENT_TYPE},
             Body,
+            header::{CONTENT_LENGTH, CONTENT_TYPE},
         };
         use sos_vfs as vfs;
         use tokio::sync::mpsc;
@@ -708,17 +841,18 @@ impl FileSyncClient for HttpClient {
         to: &ExternalFile,
     ) -> Result<http::StatusCode> {
         let url_path = format!("api/v1/sync/file/{}", from);
-        let mut url = self.build_url(&url_path)?;
+        let url = self.build_url(&url_path)?;
 
-        url.query_pairs_mut()
-            .append_pair("vault_id", &to.vault_id().to_string())
-            .append_pair("secret_id", &to.secret_id().to_string())
-            .append_pair("name", &to.file_name().to_string());
+        let query = MoveFileQuery {
+            vault_id: *to.vault_id(),
+            secret_id: *to.secret_id(),
+            name: *to.file_name(),
+        };
 
         tracing::debug!(from = %from, to = %to, url = %url, "http::move_file");
 
         let sign_url = url.path().to_owned();
-        let request = self.client.post(url);
+        let request = self.client.post(url).query(&query);
         let request =
             self.request_headers(request, sign_url.as_bytes()).await?;
         let response = request.send().await?;

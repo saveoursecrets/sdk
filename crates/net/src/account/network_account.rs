@@ -11,32 +11,34 @@ use sos_account::{
 use sos_backend::{BackendTarget, Folder, ServerOrigins};
 use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::{
+    AccountId, AccountRef, AuthenticationError, FolderInvite, FolderRef,
+    InviteStatus, Origin, Paths, PublicIdentity, Recipient, RemoteOrigins,
+    SecretId, StorageError, UtcDateTime, VaultCommit, VaultFlags, VaultId,
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DevicePublicKey, TrustedDevice},
+    encode,
     events::{
         AccountEvent, DeviceEvent, EventLog, EventLogType, EventRecord,
         ReadEvent, WriteEvent,
     },
-    AccountId, AccountRef, AuthenticationError, FolderRef, Origin, Paths,
-    PublicIdentity, RemoteOrigins, SecretId, StorageError, UtcDateTime,
-    VaultCommit, VaultFlags, VaultId,
 };
 use sos_login::{
-    device::{DeviceManager, DeviceSigner},
     DelegatedAccess,
+    device::{DeviceManager, DeviceSigner},
 };
 use sos_protocol::{
+    AccountSync, DiffRequest, GetFolderInvitesRequest, GetRecipientRequest,
+    RemoteResult, RemoteSync, SetRecipientRequest, SharedFolderRequest,
+    SyncClient, SyncOptions, SyncResult, UpdateFolderInviteRequest,
     is_offline,
     network_client::{HttpClientOptions, NetworkConfig},
-    AccountSync, DiffRequest, RemoteResult, RemoteSync, SyncClient,
-    SyncOptions, SyncResult,
 };
 use sos_remote_sync::RemoteSyncHandler;
 use sos_sync::{CreateSet, StorageEventLogs, UpdateSet};
 use sos_vault::{
+    SharedAccess, Summary, Vault,
     secret::{Secret, SecretMeta, SecretRow, SecretType},
-    Summary, Vault,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -47,7 +49,7 @@ use tokio::sync::{Mutex, RwLock};
 
 #[cfg(feature = "clipboard")]
 use {
-    sos_account::{xclipboard::Clipboard, ClipboardCopyRequest},
+    sos_account::{ClipboardCopyRequest, xclipboard::Clipboard},
     sos_core::SecretPath,
 };
 
@@ -518,6 +520,171 @@ impl NetworkAccount {
             handle.shutdown().await;
         }
     }
+
+    /// Set recipient information on a server.
+    pub async fn set_recipient(
+        &self,
+        server: &Origin,
+        name: String,
+        email: Option<String>,
+    ) -> Result<Recipient> {
+        let recipient = Recipient {
+            name,
+            email,
+            public_key: self.shared_access_public_key().await?,
+        };
+        let bridge = self.remote_bridge(server).await?;
+        let request = SetRecipientRequest {
+            recipient: recipient.clone(),
+        };
+        bridge.client.set_recipient(request).await?;
+        Ok(recipient)
+    }
+
+    /// Fetch recipient information from a server for this account.
+    pub async fn find_recipient(
+        &self,
+        server: &Origin,
+    ) -> Result<Option<Recipient>> {
+        let bridge = self.remote_bridge(server).await?;
+        let request = GetRecipientRequest {};
+        let response = bridge.client.get_recipient(request).await?;
+        Ok(response.recipient)
+    }
+
+    /// Create a shared folder.
+    pub async fn create_shared_folder(
+        &mut self,
+        options: NewFolderOptions,
+        server: &Origin,
+        recipients: &[Recipient],
+        shared_access: Option<SharedAccess>,
+    ) -> Result<FolderCreate<<Self as Account>::NetworkResult>> {
+        let _ = self.sync_lock.lock().await;
+
+        // Create the vault to send to the server
+        let (vault, access_key) = {
+            let account = self.account.lock().await;
+            account
+                .prepare_shared_folder(options, recipients, shared_access)
+                .await?
+        };
+
+        let buffer = encode(&vault).await?;
+
+        let bridge = self.remote_bridge(server).await?;
+        let request = SharedFolderRequest {
+            vault: buffer.clone(),
+            recipients: recipients.to_vec(),
+        };
+
+        // Try to create the shared folder on the server
+        bridge.client.create_shared_folder(request).await?;
+
+        let result = self
+            .import_folder_buffer(&buffer, access_key, false)
+            .await?;
+
+        let result = FolderCreate {
+            folder: result.folder,
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_result: self.sync().await,
+        };
+
+        Ok(result)
+    }
+
+    /// List sent folder invites on a server for this account.
+    pub async fn sent_folder_invites(
+        &self,
+        server: &Origin,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>> {
+        let bridge = self.remote_bridge(server).await?;
+        let request = GetFolderInvitesRequest {
+            invite_status,
+            limit,
+        };
+        let response = bridge.client.sent_folder_invites(request).await?;
+        Ok(response.folder_invites)
+    }
+
+    /// List received folder invites on a server for this account.
+    pub async fn received_folder_invites(
+        &self,
+        server: &Origin,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>> {
+        let bridge = self.remote_bridge(server).await?;
+        let request = GetFolderInvitesRequest {
+            invite_status,
+            limit,
+        };
+        let response = bridge.client.received_folder_invites(request).await?;
+        Ok(response.folder_invites)
+    }
+
+    /// Update a folder invite.
+    async fn update_folder_invite(
+        &self,
+        server: &Origin,
+        invite_status: InviteStatus,
+        from_public_key: age::x25519::Recipient,
+        folder_id: VaultId,
+    ) -> Result<()> {
+        let bridge = self.remote_bridge(server).await?;
+        let request = UpdateFolderInviteRequest {
+            invite_status,
+            from_public_key,
+            folder_id,
+        };
+        bridge.client.update_folder_invite(request).await?;
+        Ok(())
+    }
+
+    /// Accept a folder invite.
+    pub async fn accept_folder_invite(
+        &mut self,
+        server: &Origin,
+        from_public_key: age::x25519::Recipient,
+        folder_id: VaultId,
+    ) -> Result<()> {
+        self.update_folder_invite(
+            server,
+            InviteStatus::Accepted,
+            from_public_key,
+            folder_id,
+        )
+        .await?;
+
+        let folder_key = {
+            let account = self.account.lock().await;
+            account.shared_private_access_key().await?
+        };
+        self.save_folder_password(&folder_id, folder_key).await?;
+
+        self.recover_remote_folder(server, &folder_id).await?;
+        Ok(())
+    }
+
+    /// Decline a folder invite.
+    pub async fn decline_folder_invite(
+        &self,
+        server: &Origin,
+        from_public_key: age::x25519::Recipient,
+        folder_id: VaultId,
+    ) -> Result<()> {
+        self.update_folder_invite(
+            server,
+            InviteStatus::Declined,
+            from_public_key,
+            folder_id,
+        )
+        .await
+    }
 }
 
 impl From<&NetworkAccount> for AccountRef {
@@ -654,6 +821,19 @@ impl NetworkAccount {
 
         Ok(())
     }
+
+    /// Prepare the vault for a new shared folder.
+    pub async fn prepare_shared_folder(
+        &self,
+        options: NewFolderOptions,
+        recipients: &[Recipient],
+        shared_access: Option<SharedAccess>,
+    ) -> Result<(Vault, AccessKey)> {
+        let account = self.account.lock().await;
+        Ok(account
+            .prepare_shared_folder(options, recipients, shared_access)
+            .await?)
+    }
 }
 
 #[async_trait]
@@ -682,6 +862,13 @@ impl Account for NetworkAccount {
     async fn is_authenticated(&self) -> bool {
         let account = self.account.lock().await;
         account.is_authenticated().await
+    }
+
+    async fn shared_access_public_key(
+        &self,
+    ) -> Result<age::x25519::Recipient> {
+        let account = self.account.lock().await;
+        Ok(account.shared_access_public_key().await?)
     }
 
     async fn import_account_events(
@@ -1531,9 +1718,8 @@ impl Account for NetworkAccount {
 
         let result = {
             let mut account = self.account.lock().await;
-            let result =
-                account.update_file(secret_id, meta, path, options).await?;
-            result
+
+            account.update_file(secret_id, meta, path, options).await?
         };
 
         let result = SecretChange {

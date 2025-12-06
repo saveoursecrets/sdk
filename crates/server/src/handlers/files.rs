@@ -1,34 +1,26 @@
-use super::{parse_account_id, BODY_LIMIT};
+use super::{BODY_LIMIT, parse_account_id};
 use crate::{
-    handlers::{authenticate_endpoint, ConnectionQuery},
     ServerBackend, ServerState, ServerTransfer,
+    handlers::{ConnectionQuery, authenticate_endpoint},
 };
 use axum::{
-    body::{to_bytes, Body},
+    body::{Body, to_bytes},
     extract::{Extension, OriginalUri, Path, Query, Request},
     http::{HeaderMap, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
 };
 use axum_extra::{
-    headers::{authorization::Bearer, Authorization},
+    headers::{Authorization, authorization::Bearer},
     typed_header::TypedHeader,
 };
-use serde::Deserialize;
 use sos_core::{
     ExternalFile, ExternalFileName, SecretId, SecretPath, VaultId,
 };
+use sos_protocol::query::MoveFileQuery;
 use std::sync::Arc;
 
 //use axum_macros::debug_handler;
-
-/// Query string for moving a file.
-#[derive(Debug, Deserialize)]
-pub struct MoveFileQuery {
-    pub vault_id: VaultId,
-    pub secret_id: SecretId,
-    pub name: ExternalFileName,
-}
 
 /// Upload a file.
 #[utoipa::path(
@@ -366,7 +358,7 @@ pub(crate) async fn compare_files(
 mod handlers {
     use super::MoveFileQuery;
     use crate::{
-        handlers::Caller, Error, Result, ServerBackend, ServerState,
+        Error, Result, ServerBackend, ServerState, handlers::Caller,
     };
     use axum::{
         body::{Body, Bytes},
@@ -380,9 +372,9 @@ mod handlers {
     use sos_core::{ExternalFileName, SecretId, VaultId};
     use sos_external_files::list_external_files;
     use sos_protocol::{
+        WireEncodeDecode,
         constants::MIME_TYPE_PROTOBUF,
         transfer::{FileSet, FileTransfersSet},
-        WireEncodeDecode,
     };
     use sos_server_storage::ServerAccountStorage;
     use std::{path::PathBuf, sync::Arc};

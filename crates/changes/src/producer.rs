@@ -1,10 +1,10 @@
 //! Producer for change notifications on a local socket.
 use crate::{Error, Result};
 use futures::sink::SinkExt;
-use interprocess::local_socket::{tokio::prelude::*, GenericNamespaced};
+use interprocess::local_socket::{GenericNamespaced, tokio::prelude::*};
 use sos_core::{
-    events::{changes_feed, LocalChangeEvent},
     Paths,
+    events::{LocalChangeEvent, changes_feed},
 };
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::{select, sync::Mutex, time};
@@ -126,16 +126,15 @@ async fn find_active_sockets(
         );
         for entry in read_dir(&socks)? {
             let entry = entry?;
-            if let Some(stem) = entry.path().file_stem() {
-                if let Ok(pid) =
+            if let Some(stem) = entry.path().file_stem()
+                && let Ok(pid) =
                     stem.to_string_lossy().as_ref().parse::<u32>()
-                {
-                    tracing::debug!(
-                        sock_file_pid = %pid,
-                        "changes::producer::find_active_sockets",
-                    );
-                    sockets.push((pid, entry.path().to_owned()));
-                }
+            {
+                tracing::debug!(
+                    sock_file_pid = %pid,
+                    "changes::producer::find_active_sockets",
+                );
+                sockets.push((pid, entry.path().to_owned()));
             }
         }
     }

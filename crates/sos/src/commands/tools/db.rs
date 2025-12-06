@@ -5,7 +5,7 @@ use sos_cli_helpers::messages::{info, success, warn};
 use sos_core::Paths;
 use sos_database::{migrations::migrate_client, open_file};
 use sos_database_upgrader::{
-    archive::upgrade_backup_archive, upgrade_accounts, UpgradeOptions,
+    UpgradeOptions, archive::upgrade_backup_archive, upgrade_accounts,
 };
 use sos_vault::list_accounts;
 use std::path::PathBuf;

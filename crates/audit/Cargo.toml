@@ -1,7 +1,7 @@
 [package]
 name = "sos-audit"
 version = "0.17.1"
-edition = "2021"
+edition = "2024"
 description = "Audit trail for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
@@ -17,6 +17,3 @@ serde.workspace = true
 futures.workspace = true
 binary-stream.workspace = true
 tokio.workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true

@@ -1,18 +1,18 @@
 [package]
 name = "sos-external-files"
 version = "0.17.1"
-edition = "2021"
+edition = "2024"
 description = "External file blob support for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [package.metadata.docs.rs]
-features = [ "full" ]
+all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-full = ["files"]
+default = ["files"]
 files = ["sos-core/files"]
 
 [dependencies]
@@ -22,6 +22,3 @@ sos-vfs.workspace = true
 
 indexmap.workspace = true
 tracing.workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true

@@ -1,7 +1,7 @@
 //! Encrypt and decrypt using 256 bit AES GSM.
 use crate::crypto::{AeadPack, DerivedPrivateKey, Nonce};
 use crate::{Error, Result};
-use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce as AesNonce};
+use aes_gcm::{Aes256Gcm, KeyInit, Nonce as AesNonce, aead::Aead};
 
 /// Encrypt plaintext using the given key as 256 bit AES-GCM.
 ///

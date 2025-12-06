@@ -47,7 +47,10 @@ pub fn init_tracing() {
 pub async fn make_client_backend(
     paths: &Arc<Paths>,
 ) -> Result<BackendTarget> {
-    Ok(if std::env::var("SOS_TEST_CLIENT_DB").ok().is_some() {
+    Ok(if std::env::var("SOS_TEST_CLIENT_FS").ok().is_some() {
+        Paths::scaffold(paths.documents_dir()).await?;
+        BackendTarget::FileSystem(paths.clone())
+    } else {
         let db_file = paths.database_file();
 
         /*
@@ -60,9 +63,6 @@ pub async fn make_client_backend(
         let mut client = open_file(&db_file).await?;
         sos_database::migrations::migrate_client(&mut client).await?;
         BackendTarget::Database(paths.clone(), client)
-    } else {
-        Paths::scaffold(paths.documents_dir()).await?;
-        BackendTarget::FileSystem(paths.clone())
     })
 }
 
@@ -116,7 +116,7 @@ impl MockServer {
         // using the test identifier
         config.storage.path = self.path.clone();
 
-        if std::env::var("SOS_TEST_SERVER_DB").ok().is_some() {
+        if std::env::var("SOS_TEST_SERVER_FS").ok().is_none() {
             let db_file = self.path.join(DATABASE_FILE);
 
             // Make sure each server test run is pristine
@@ -223,13 +223,17 @@ pub async fn spawn(
     spawn_with_config(test_id, addr, server_id, None).await
 }
 
-/// Spawn a mock server using the given config.
-pub async fn spawn_with_config(
+/// Build server paths.
+pub async fn default_server_paths(test_id: &str) -> Result<Arc<Paths>> {
+    server_paths(test_id, None, None).await
+}
+
+/// Build server paths for a test id.
+async fn server_paths(
     test_id: &str,
-    addr: Option<SocketAddr>,
     server_id: Option<&str>,
-    config: Option<ServerConfig>,
-) -> Result<TestServer> {
+    addr: Option<SocketAddr>,
+) -> Result<Arc<Paths>> {
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");
 
@@ -252,13 +256,53 @@ pub async fn spawn_with_config(
     // Setup required sub-directories
     vfs::create_dir_all(&path).await?;
 
+    Ok(Paths::new_server(path))
+}
+
+/// Spawn a mock server using the given config.
+pub async fn spawn_with_config(
+    test_id: &str,
+    addr: Option<SocketAddr>,
+    server_id: Option<&str>,
+    config: Option<ServerConfig>,
+) -> Result<TestServer> {
+    /*
+    let current_dir = std::env::current_dir()
+        .expect("failed to get current working directory");
+
+    // Prepare server storage
+    let target = current_dir.join("../../target/integration-test");
+    vfs::create_dir_all(&target).await?;
+    let target = target.canonicalize()?;
+
+    let server_id = server_id.unwrap_or("server");
+
+    // Ensure test runner is pristine
+    let path = target.join(test_id).join(server_id);
+
+    // Some tests need to restart a server so we should
+    // not wipe out the data (eg: sync offline manual)
+    if addr.is_none() {
+        let _ = vfs::remove_dir_all(&path).await;
+    }
+
+    // Setup required sub-directories
+    vfs::create_dir_all(&path).await?;
+    */
+
+    let paths = server_paths(test_id, server_id, addr).await?;
     let (tx, rx) = oneshot::channel::<SocketAddr>();
-    let handle = MockServer::launch(addr, path.clone(), tx, config)?;
+    let handle = MockServer::launch(
+        addr,
+        paths.documents_dir().to_owned(),
+        tx,
+        config,
+    )?;
     let addr = rx.await?;
     let url = socket_addr_url(&addr);
     Ok(TestServer {
         test_id: test_id.to_owned(),
-        paths: Paths::new_server(path),
+        paths,
         // path,
         origin: url.into(),
         addr,

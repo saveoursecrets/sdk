@@ -1,7 +1,9 @@
+//! Backend database and file system storage.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Backend database and file system storage.
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![allow(clippy::large_enum_variant)]
+
 mod access_point;
 #[cfg(feature = "archive")]
 pub mod archive;
@@ -40,7 +42,7 @@ pub use event_log::FileEventLog;
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
-use sos_core::{decode, AccountId, Paths, PublicIdentity};
+use sos_core::{AccountId, Paths, PublicIdentity, decode};
 use sos_database::{
     async_sqlite::Client,
     entity::{

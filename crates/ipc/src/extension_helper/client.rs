@@ -3,8 +3,8 @@
 //!
 //! Used to test the browser native messaging API integration.
 
-use crate::local_transport::{HttpMessage, LocalRequest, LocalResponse};
 use crate::Result;
+use crate::local_transport::{HttpMessage, LocalRequest, LocalResponse};
 use futures_util::{SinkExt, StreamExt};
 use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};

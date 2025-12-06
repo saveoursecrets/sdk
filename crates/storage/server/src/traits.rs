@@ -6,7 +6,8 @@ use sos_backend::FolderEventLog;
 use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
     events::patch::FolderDiff,
-    AccountId, Paths, VaultFlags, VaultId,
+    AccountId, FolderInvite, InviteStatus, Paths, Recipient, VaultFlags,
+    VaultId,
 };
 use sos_sync::CreateSet;
 use sos_vault::{Summary, Vault};
@@ -107,4 +108,39 @@ pub trait ServerAccountStorage {
 
     /// Delete this account.
     async fn delete_account(&mut self) -> Result<()>;
+
+    /// Set account recipient information.
+    async fn set_recipient(&mut self, recipient: Recipient) -> Result<()>;
+
+    /// Get account recipient information.
+    async fn get_recipient(&mut self) -> Result<Option<Recipient>>;
+
+    /// Create a shared folder.
+    async fn create_shared_folder(
+        &mut self,
+        vault: &[u8],
+        recipients: &[Recipient],
+    ) -> Result<()>;
+
+    /// List sent folder invites for this account.
+    async fn sent_folder_invites(
+        &mut self,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>>;
+
+    /// List received folder invites for this account.
+    async fn received_folder_invites(
+        &mut self,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>>;
+
+    /// Update a folder invite for this account.
+    async fn update_folder_invite(
+        &mut self,
+        invite_status: InviteStatus,
+        from_public_key: String,
+        folder_id: VaultId,
+    ) -> Result<()>;
 }

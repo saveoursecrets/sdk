@@ -1,22 +1,21 @@
 //! Storage backed by a database.
 use crate::{
-    traits::private::Internal, ClientAccountStorage, ClientBaseStorage,
-    ClientDeviceStorage, ClientEventLogStorage, ClientFolderStorage,
-    ClientVaultStorage, Error, Result,
+    ClientAccountStorage, ClientBaseStorage, ClientDeviceStorage,
+    ClientEventLogStorage, ClientFolderStorage, ClientVaultStorage, Error,
+    Result, traits::private::Internal,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use parking_lot::Mutex;
 use sos_backend::{
-    extract_vault, AccountEventLog, BackendTarget, DeviceEventLog, Folder,
-    FolderEventLog, StorageError,
+    AccountEventLog, BackendTarget, DeviceEventLog, Folder, FolderEventLog,
+    StorageError, extract_vault,
 };
 use sos_core::{
-    decode,
+    AccountId, Paths, SecretId, VaultFlags, VaultId, decode,
     device::TrustedDevice,
     encode,
     events::{DeviceEvent, Event, EventLog, ReadEvent},
-    AccountId, Paths, SecretId, VaultFlags, VaultId,
 };
 use sos_database::{
     async_sqlite::Client,
