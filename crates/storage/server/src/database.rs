@@ -39,7 +39,7 @@ use {sos_audit::AuditEvent, sos_backend::audit::append_audit_events};
 
 /// Storage for shared folder event logs.
 pub type SharedFolderEvents =
-    Arc<Mutex<HashMap<VaultId, RwLock<FolderEventLog>>>>;
+    Arc<Mutex<HashMap<VaultId, Arc<RwLock<FolderEventLog>>>>>;
 
 /// Server folders loaded into memory and mirrored to the database.
 pub struct ServerDatabaseStorage {
@@ -162,15 +162,26 @@ impl ServerDatabaseStorage {
     }
 
     /// Create new event log cache entries.
-    async fn create_folder_entry(&mut self, id: &VaultId) -> Result<()> {
+    async fn create_folder_entry(&mut self, folder: &Summary) -> Result<()> {
         let mut event_log = FolderEventLog::new_folder(
             self.target.clone(),
             &self.account_id,
-            id,
+            folder.id(),
         )
         .await?;
         event_log.load_tree().await?;
-        self.folders.insert(*id, Arc::new(RwLock::new(event_log)));
+
+        if folder.flags().is_shared() {
+            let mut shared_events = self.shared_folder_events.lock().await;
+            let folder_event_log = Arc::new(RwLock::new(event_log));
+            let folder_event_ref = folder_event_log.clone();
+            shared_events.insert(*folder.id(), folder_event_log);
+            self.folders.insert(*folder.id(), folder_event_ref);
+        } else {
+            self.folders
+                .insert(*folder.id(), Arc::new(RwLock::new(event_log)));
+        }
+
         Ok(())
     }
 
@@ -502,7 +513,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         for summary in &folders {
             // Ensure we don't overwrite existing data
             if !self.folders.contains_key(summary.id()) {
-                self.create_folder_entry(summary.id()).await?;
+                self.create_folder_entry(summary).await?;
             }
         }
 
@@ -530,7 +541,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         )
         .await?;
 
-        self.create_folder_entry(id).await?;
+        self.create_folder_entry(vault.summary()).await?;
 
         {
             let event_log = self.folders.get_mut(id).unwrap();
@@ -566,6 +577,10 @@ impl ServerAccountStorage for ServerDatabaseStorage {
 
         // Remove local state
         self.folders.remove(id);
+        {
+            let mut shared_folders = self.shared_folder_events.lock().await;
+            shared_folders.remove(id);
+        }
 
         #[cfg(feature = "files")]
         {
@@ -654,11 +669,11 @@ impl ServerAccountStorage for ServerDatabaseStorage {
 
     async fn create_shared_folder(
         &mut self,
-        vault: &[u8],
+        buffer: &[u8],
         recipients: &[Recipient],
     ) -> Result<()> {
         let account_id = self.account_id;
-        let vault: Vault = decode(vault).await?;
+        let vault: Vault = decode(buffer).await?;
         SharedFolderEntity::create_shared_folder(
             &self.client,
             &account_id,
@@ -666,6 +681,12 @@ impl ServerAccountStorage for ServerDatabaseStorage {
             recipients,
         )
         .await?;
+
+        /*
+        // Prepare the event log for the folder
+        self.create_folder_entry(vault.summary()).await?;
+        */
+
         Ok(())
     }
 
