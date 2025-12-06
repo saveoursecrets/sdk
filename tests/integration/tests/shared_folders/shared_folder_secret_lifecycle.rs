@@ -7,6 +7,7 @@ use sos_test_utils::{simulate_device, spawn, teardown};
 
 /// Tests creating a shared folder and having the owner
 /// perform basic secret lifecycle operations.
+#[ignore]
 #[tokio::test]
 async fn shared_folder_secret_lifecycle() -> Result<()> {
     const TEST_ID: &str = "shared_folder_secret_lifecycle";

@@ -13,6 +13,7 @@ mod storage;
 mod sync;
 mod traits;
 
+pub use database::SharedFolderEvents;
 pub use error::Error;
 pub use storage::ServerStorage;
 pub use traits::ServerAccountStorage;

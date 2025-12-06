@@ -29,13 +29,17 @@ use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 #[cfg(feature = "files")]
 use sos_backend::FileEventLog;
 
 #[cfg(feature = "audit")]
 use {sos_audit::AuditEvent, sos_backend::audit::append_audit_events};
+
+/// Storage for shared folder event logs.
+pub type SharedFolderEvents =
+    Arc<Mutex<HashMap<VaultId, RwLock<FolderEventLog>>>>;
 
 /// Server folders loaded into memory and mirrored to the database.
 pub struct ServerDatabaseStorage {
@@ -72,6 +76,9 @@ pub struct ServerDatabaseStorage {
 
     /// Reduced collection of devices.
     pub(super) devices: IndexSet<TrustedDevice>,
+
+    /// Shared folder events.
+    pub(super) shared_folder_events: SharedFolderEvents,
 }
 
 impl ServerDatabaseStorage {
@@ -82,6 +89,7 @@ impl ServerDatabaseStorage {
         mut target: BackendTarget,
         account_id: &AccountId,
         identity_log: Arc<RwLock<FolderEventLog>>,
+        shared_folder_events: SharedFolderEvents,
     ) -> Result<Self> {
         let (paths, client, account_row) = {
             let BackendTarget::Database(paths, client) = &mut target else {
@@ -131,6 +139,7 @@ impl ServerDatabaseStorage {
             file_log: Arc::new(RwLock::new(file_log)),
             folders: Default::default(),
             devices,
+            shared_folder_events,
         };
 
         storage.load_folders().await?;

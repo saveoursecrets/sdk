@@ -1,6 +1,7 @@
 use crate::{
-    database::ServerDatabaseStorage, filesystem::ServerFileStorage, Error,
-    Result, ServerAccountStorage,
+    database::{ServerDatabaseStorage, SharedFolderEvents},
+    filesystem::ServerFileStorage,
+    Error, Result, ServerAccountStorage,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -47,6 +48,7 @@ impl ServerStorage {
     pub async fn new(
         target: BackendTarget,
         account_id: &AccountId,
+        shared_folder_events: SharedFolderEvents,
     ) -> Result<Self> {
         match target {
             BackendTarget::FileSystem(paths) => {
@@ -62,6 +64,7 @@ impl ServerStorage {
                 Self::new_db(
                     BackendTarget::Database(paths, client),
                     account_id,
+                    shared_folder_events,
                 )
                 .await
             }
@@ -97,6 +100,7 @@ impl ServerStorage {
         target: BackendTarget,
         account_id: &AccountId,
         account_data: &CreateSet,
+        shared_folder_events: SharedFolderEvents,
     ) -> Result<Self> {
         match target {
             BackendTarget::FileSystem(paths) => {
@@ -112,6 +116,7 @@ impl ServerStorage {
                     BackendTarget::Database(paths, client),
                     account_id,
                     account_data,
+                    shared_folder_events,
                 )
                 .await
             }
@@ -157,6 +162,7 @@ impl ServerStorage {
     async fn new_db(
         target: BackendTarget,
         account_id: &AccountId,
+        shared_folder_events: SharedFolderEvents,
     ) -> Result<Self> {
         debug_assert!(matches!(target, BackendTarget::Database(_, _)));
         let BackendTarget::Database(paths, client) = &target else {
@@ -182,6 +188,7 @@ impl ServerStorage {
                 target,
                 account_id,
                 Arc::new(RwLock::new(event_log)),
+                shared_folder_events,
             )
             .await?,
         )))
@@ -192,6 +199,7 @@ impl ServerStorage {
         target: BackendTarget,
         account_id: &AccountId,
         account_data: &CreateSet,
+        shared_folder_events: SharedFolderEvents,
     ) -> Result<Self> {
         let BackendTarget::Database(paths, _) = &target else {
             panic!("database backend expected");
@@ -210,6 +218,7 @@ impl ServerStorage {
             target,
             account_id,
             Arc::new(RwLock::new(identity_log)),
+            shared_folder_events,
         )
         .await?;
         storage.import_account(account_data).await?;

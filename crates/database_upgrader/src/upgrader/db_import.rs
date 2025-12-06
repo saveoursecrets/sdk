@@ -30,7 +30,7 @@ use sos_system_messages::SystemMessageMap;
 use sos_vault::{Summary, Vault, list_local_folders};
 use sos_vfs as vfs;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 pub(crate) enum AccountStorage {
     Server(ServerStorage),
@@ -423,6 +423,7 @@ pub(crate) async fn import_account(
             ServerStorage::new(
                 BackendTarget::Database(paths.clone(), client.clone()),
                 account.account_id(),
+                Arc::new(Mutex::new(Default::default())),
             )
             .await?,
         )

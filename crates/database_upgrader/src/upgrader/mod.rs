@@ -19,6 +19,7 @@ use std::{
     sync::Arc,
 };
 use tempfile::NamedTempFile;
+use tokio::sync::Mutex;
 use url::Url;
 
 mod db_import;
@@ -142,6 +143,7 @@ async fn import_accounts(
                 ServerStorage::new(
                     BackendTarget::FileSystem(account_paths.clone()),
                     account.account_id(),
+                    Arc::new(Mutex::new(Default::default())),
                 )
                 .await?,
             )

@@ -24,6 +24,7 @@ use sos_sync::SyncStorage;
 use sos_vault::Summary;
 use sos_vfs as vfs;
 use std::{
+    collections::HashMap,
     path::PathBuf,
     sync::Arc,
     time::{Duration, SystemTime},
@@ -288,7 +289,10 @@ pub async fn assert_local_remote_vaults_eq<T: AsRef<Paths>>(
     let client =
         ClientStorage::new_unauthenticated(client_target, &account_id)
             .await?;
-    let server = ServerStorage::new(server_target, &account_id).await?;
+    let shared_folder_events = Arc::new(Mutex::new(HashMap::default()));
+    let server =
+        ServerStorage::new(server_target, &account_id, shared_folder_events)
+            .await?;
 
     // Compare vaults
     for summary in expected_summaries {
