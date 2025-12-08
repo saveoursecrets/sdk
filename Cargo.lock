@@ -2710,7 +2710,7 @@ dependencies = [
 name = "keychain_parser"
 version = "0.1.2"
 dependencies = [
- "logos 0.15.1",
+ "logos 0.16.0",
  "plist",
  "thiserror 2.0.17",
 ]
@@ -2860,6 +2860,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "logos"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a790d11254054e5dc83902dba85d253ff06ceb0cfafb12be8773435cb9dfb4f4"
+dependencies = [
+ "logos-derive 0.16.0",
+]
+
+[[package]]
 name = "logos-codegen"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2891,6 +2900,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "logos-codegen"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f60337c43a38313b58871f8d5d76872b8e17aa9d51fad494b5e76092c0ce05f5"
+dependencies = [
+ "beef",
+ "fnv",
+ "proc-macro2",
+ "quote",
+ "regex-automata",
+ "regex-syntax",
+ "rustc_version",
+ "syn 2.0.110",
+]
+
+[[package]]
 name = "logos-derive"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2906,6 +2931,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "605d9697bcd5ef3a42d38efc51541aa3d6a4a25f7ab6d1ed0da5ac632a26b470"
 dependencies = [
  "logos-codegen 0.15.1",
+]
+
+[[package]]
+name = "logos-derive"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d151b2ae667f69e10b8738f5cac0c746faa22b2e15ea7e83b55476afec3767dc"
+dependencies = [
+ "logos-codegen 0.16.0",
 ]
 
 [[package]]
