@@ -163,21 +163,42 @@ impl ServerDatabaseStorage {
 
     /// Create new event log cache entries.
     async fn create_folder_entry(&mut self, folder: &Summary) -> Result<()> {
-        let mut event_log = FolderEventLog::new_folder(
-            self.target.clone(),
-            &self.account_id,
-            folder.id(),
-        )
-        .await?;
-        event_log.load_tree().await?;
+        #[inline(always)]
+        async fn initialize_folder_event_log(
+            target: BackendTarget,
+            account_id: &AccountId,
+            folder_id: &VaultId,
+        ) -> Result<FolderEventLog> {
+            let mut event_log =
+                FolderEventLog::new_folder(target, account_id, folder_id)
+                    .await?;
+            event_log.load_tree().await?;
+            Ok(event_log)
+        }
 
         if folder.flags().is_shared() {
             let mut shared_events = self.shared_folder_events.lock().await;
-            let folder_event_log = Arc::new(RwLock::new(event_log));
-            let folder_event_ref = folder_event_log.clone();
-            shared_events.insert(*folder.id(), folder_event_log);
-            self.folders.insert(*folder.id(), folder_event_ref);
+            if let Some(shared_folder) = shared_events.get(folder.id()) {
+                self.folders.insert(*folder.id(), shared_folder.clone());
+            } else {
+                let event_log = initialize_folder_event_log(
+                    self.target.clone(),
+                    &self.account_id,
+                    folder.id(),
+                )
+                .await?;
+                let folder_event_log = Arc::new(RwLock::new(event_log));
+                let folder_event_ref = folder_event_log.clone();
+                shared_events.insert(*folder.id(), folder_event_log);
+                self.folders.insert(*folder.id(), folder_event_ref);
+            }
         } else {
+            let event_log = initialize_folder_event_log(
+                self.target.clone(),
+                &self.account_id,
+                folder.id(),
+            )
+            .await?;
             self.folders
                 .insert(*folder.id(), Arc::new(RwLock::new(event_log)));
         }

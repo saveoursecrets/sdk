@@ -7,7 +7,6 @@ use sos_test_utils::{simulate_device, spawn, teardown};
 
 /// Tests creating a shared folder and having the owner
 /// perform basic secret lifecycle operations.
-#[ignore]
 #[tokio::test]
 async fn shared_folder_secret_lifecycle() -> Result<()> {
     const TEST_ID: &str = "shared_folder_secret_lifecycle";
@@ -85,13 +84,7 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
     let folders = account1.owner.list_folders().await?;
     assert!(folders.iter().any(|f| f.name() == folder_name));
 
-    println!(
-        "-- 1 FOLDER IDS: {:#?} ---",
-        folders.iter().map(|f| f.id()).collect::<Vec<_>>()
-    );
-
     // Ensure the owner can manage secrets in the folder
-    println!("--- OWNER MUTATE SECRETS ---");
     let secret_ids = super::assert_shared_folder_lifecycle(
         &mut account1.owner,
         shared_folder.id(),
@@ -99,7 +92,6 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
         &test_id_owner,
     )
     .await?;
-    println!("--- OWNER MUTATE SECRETS --- {:?}", secret_ids);
 
     // Accept the folder invite which will
     // prepare the local copy of the shared
@@ -116,23 +108,16 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
     let folders = account2.owner.load_folders().await?;
     assert!(folders.iter().any(|f| f.name() == shared_folder.name()));
 
-    println!(
-        "-- 1 FOLDER IDS: {:#?} ---",
-        folders.iter().map(|f| f.id()).collect::<Vec<_>>()
-    );
-
     // Check the participant in the shared folder
     // can read the existing secrets
     for secret_id in &secret_ids {
-        let (row, _) = account2
+        account2
             .owner
             .read_secret(secret_id, Some(shared_folder.id()))
             .await?;
-        println!("{row:?}");
     }
 
     // Ensure the participant can manage secrets in the folder
-    println!("--- PARTICIPANT MUTATE SECRETS ---");
     let new_secret_ids = super::assert_shared_folder_lifecycle(
         &mut account2.owner,
         shared_folder.id(),
@@ -140,21 +125,9 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
         &test_id_participant,
     )
     .await?;
-    println!("--- PARTICIPANT MUTATE SECRETS --- {:?}", new_secret_ids);
 
     let sync_result = account1.owner.sync().await;
-    println!("{sync_result:?}");
     assert!(sync_result.first_error().is_none());
-
-    println!(
-        "--- PARTICIPANT SECRET IDS: {:?}",
-        account2.owner.list_secret_ids(shared_folder.id()).await?
-    );
-
-    println!(
-        "--- OWNER SECRET IDS: {:?}",
-        account1.owner.list_secret_ids(shared_folder.id()).await?
-    );
 
     for secret_id in &new_secret_ids {
         let (row, _) = account1
