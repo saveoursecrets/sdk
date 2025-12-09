@@ -10,7 +10,7 @@ use axum_extra::{
     headers::{Authorization, authorization::Bearer},
     typed_header::TypedHeader,
 };
-use sos_protocol::GetFolderInvitesRequest;
+use sos_protocol::{GetFolderInvitesRequest, SearchRecipientsRequest};
 use std::sync::Arc;
 
 /// Upsert account recipient information.
@@ -373,6 +373,65 @@ pub(crate) async fn update_folder_invite(
     }
 }
 
+/// Search for recipients.
+#[utoipa::path(
+    get,
+    path = "/sharing/recipient/search",
+    security(
+        ("bearer_token" = [])
+    ),
+    request_body(
+        content_type = "application/octet-stream",
+        content = Vec<u8>,
+    ),
+    responses(
+        (
+            status = StatusCode::UNAUTHORIZED,
+            description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account identifier is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            description = "List of recipients.",
+        ),
+    ),
+)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn search_recipients(
+    Extension(state): Extension<ServerState>,
+    Extension(backend): Extension<ServerBackend>,
+    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+    Query(params): Query<SearchRecipientsRequest>,
+    OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
+    match authenticate_endpoint(
+        account_id,
+        bearer,
+        uri.as_bytes(),
+        None,
+        Arc::clone(&state),
+        Arc::clone(&backend),
+    )
+    .await
+    {
+        Ok(caller) => {
+            match handlers::search_recipients(state, backend, caller, params)
+                .await
+            {
+                Ok(response) => response.into_response(),
+                Err(error) => error.into_response(),
+            }
+        }
+        Err(error) => error.into_response(),
+    }
+}
+
 mod handlers {
     use super::Caller;
     use crate::{Error, Result, ServerBackend, ServerState};
@@ -380,7 +439,8 @@ mod handlers {
     use http::header::{self, HeaderMap, HeaderValue};
     use sos_protocol::{
         GetFolderInvitesRequest, GetFolderInvitesResponse,
-        GetRecipientResponse, SetRecipientRequest, SetRecipientResponse,
+        GetRecipientResponse, SearchRecipientsRequest,
+        SearchRecipientsResponse, SetRecipientRequest, SetRecipientResponse,
         SharedFolderRequest, SharedFolderResponse, UpdateFolderInviteRequest,
         UpdateFolderInviteResponse, WireEncodeDecode,
         constants::MIME_TYPE_PROTOBUF,
@@ -588,6 +648,39 @@ mod handlers {
             )
             .await?;
         let packet = UpdateFolderInviteResponse {};
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
+        );
+
+        Ok((headers, packet.encode().await?))
+    }
+
+    pub(super) async fn search_recipients(
+        _state: ServerState,
+        backend: ServerBackend,
+        caller: Caller,
+        params: SearchRecipientsRequest,
+    ) -> Result<(HeaderMap, Vec<u8>)> {
+        let account = {
+            let reader = backend.read().await;
+            let accounts = reader.accounts();
+            let reader = accounts.read().await;
+            let account = reader
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
+            Arc::clone(account)
+        };
+
+        let recipients = {
+            let mut account = account.write().await;
+            account
+                .search_recipients(params.query, params.limit)
+                .await?
+        };
+        let packet = SearchRecipientsResponse { recipients };
 
         let mut headers = HeaderMap::new();
         headers.insert(

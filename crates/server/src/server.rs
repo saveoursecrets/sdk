@@ -329,6 +329,10 @@ impl Server {
                     "/sharing/recipient",
                     get(sharing::get_recipient).put(sharing::set_recipient),
                 )
+                .route(
+                    "/sharing/recipient/search",
+                    get(sharing::search_recipients),
+                )
                 .route("/sharing/folder", post(sharing::create_folder))
                 .route(
                     "/sharing/folder/invites/sent",

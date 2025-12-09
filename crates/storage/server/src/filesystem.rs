@@ -502,10 +502,18 @@ impl ServerAccountStorage for ServerFileStorage {
 
     async fn update_folder_invite(
         &mut self,
-        invite_status: InviteStatus,
-        from_public_key: String,
-        folder_id: VaultId,
+        _invite_status: InviteStatus,
+        _from_public_key: String,
+        _folder_id: VaultId,
     ) -> Result<()> {
+        unimplemented!();
+    }
+
+    async fn search_recipients(
+        &mut self,
+        _query: String,
+        _limit: Option<usize>,
+    ) -> Result<Vec<Recipient>> {
         unimplemented!();
     }
 }

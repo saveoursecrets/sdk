@@ -487,6 +487,21 @@ impl ServerAccountStorage for ServerStorage {
             }
         }
     }
+
+    async fn search_recipients(
+        &mut self,
+        query: String,
+        limit: Option<usize>,
+    ) -> Result<Vec<Recipient>> {
+        match self {
+            ServerStorage::FileSystem(fs) => {
+                fs.search_recipients(query, limit).await
+            }
+            ServerStorage::Database(db) => {
+                db.search_recipients(query, limit).await
+            }
+        }
+    }
 }
 
 #[async_trait]

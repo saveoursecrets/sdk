@@ -143,4 +143,11 @@ pub trait ServerAccountStorage {
         from_public_key: String,
         folder_id: VaultId,
     ) -> Result<()>;
+
+    /// Search for recipients.
+    async fn search_recipients(
+        &mut self,
+        query: String,
+        limit: Option<usize>,
+    ) -> Result<Vec<Recipient>>;
 }

@@ -19,6 +19,7 @@ use sos_core::{
 };
 use sos_database::entity::{
     AccountEntity, AccountRow, FolderEntity, FolderRecord, FolderRow,
+    RecipientEntity,
 };
 use sos_database::{async_sqlite::Client, entity::SharedFolderEntity};
 use sos_reducers::{DeviceReducer, FolderReducer};
@@ -754,6 +755,27 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         }
 
         Ok(())
+    }
+
+    async fn search_recipients(
+        &mut self,
+        query: String,
+        limit: Option<usize>,
+    ) -> Result<Vec<Recipient>> {
+        let records = self
+            .client
+            .conn_and_then(move |conn| {
+                let mut entity = RecipientEntity::new(&conn);
+                entity.search_recipients(&query, limit)
+            })
+            .await?;
+
+        let mut recipients = Vec::with_capacity(records.len());
+        for record in records {
+            recipients.push(record.try_into()?);
+        }
+
+        Ok(recipients)
     }
 }
 
