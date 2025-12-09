@@ -3,14 +3,16 @@ use crate::{
     DiffRequest, DiffResponse, Error, GetFolderInvitesRequest,
     GetFolderInvitesResponse, GetRecipientRequest, GetRecipientResponse,
     NetworkError, PatchRequest, PatchResponse, Result, ScanRequest,
-    ScanResponse, SetRecipientRequest, SetRecipientResponse, SyncClient,
+    ScanResponse, SearchRecipientsRequest, SearchRecipientsResponse,
+    SetRecipientRequest, SetRecipientResponse, SyncClient,
     UpdateFolderInviteRequest, UpdateFolderInviteResponse, WireEncodeDecode,
     constants::{
         MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
         routes::v1::{
             SHARING_CREATE_FOLDER, SHARING_RECEIVED_INVITES,
-            SHARING_RECIPIENT, SHARING_SENT_INVITES, SHARING_UPDATE_INVITE,
-            SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
+            SHARING_RECIPIENT, SHARING_SEARCH_RECIPIENTS,
+            SHARING_SENT_INVITES, SHARING_UPDATE_INVITE, SYNC_ACCOUNT,
+            SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
         },
     },
     query::MoveFileQuery,
@@ -594,6 +596,27 @@ impl SyncClient for HttpClient {
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
         Ok(UpdateFolderInviteResponse::decode(buffer).await?)
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
+    async fn search_recipients(
+        &self,
+        request: SearchRecipientsRequest,
+    ) -> Result<SearchRecipientsResponse> {
+        let url = self.build_url(SHARING_SEARCH_RECIPIENTS)?;
+        tracing::debug!(url = %url, "http::search_recipients");
+
+        let sign_url = url.path().to_owned();
+        let request = self.client.get(url).query(&request);
+        let request =
+            self.request_headers(request, sign_url.as_bytes()).await?;
+
+        let response = request.send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::search_recipients");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(SearchRecipientsResponse::decode(buffer).await?)
     }
 }
 

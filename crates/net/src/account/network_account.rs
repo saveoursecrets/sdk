@@ -29,9 +29,9 @@ use sos_login::{
 };
 use sos_protocol::{
     AccountSync, DiffRequest, GetFolderInvitesRequest, GetRecipientRequest,
-    RemoteResult, RemoteSync, SetRecipientRequest, SharedFolderRequest,
-    SyncClient, SyncOptions, SyncResult, UpdateFolderInviteRequest,
-    is_offline,
+    RemoteResult, RemoteSync, SearchRecipientsRequest, SetRecipientRequest,
+    SharedFolderRequest, SyncClient, SyncOptions, SyncResult,
+    UpdateFolderInviteRequest, is_offline,
     network_client::{HttpClientOptions, NetworkConfig},
 };
 use sos_remote_sync::RemoteSyncHandler;
@@ -684,6 +684,19 @@ impl NetworkAccount {
             folder_id,
         )
         .await
+    }
+
+    /// Search for recipients.
+    pub async fn search_recipients(
+        &self,
+        server: &Origin,
+        query: String,
+        limit: Option<usize>,
+    ) -> Result<Vec<Recipient>> {
+        let bridge = self.remote_bridge(server).await?;
+        let request = SearchRecipientsRequest { query, limit };
+        let response = bridge.client.search_recipients(request).await?;
+        Ok(response.recipients)
     }
 }
 

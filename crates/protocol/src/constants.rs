@@ -52,6 +52,10 @@ pub mod routes {
         /// Route for updating folder invite.
         pub const SHARING_UPDATE_INVITE: &str =
             "/api/v1/sharing/folder/invites";
+
+        /// Route for searching recipients.
+        pub const SHARING_SEARCH_RECIPIENTS: &str =
+            "/api/v1/sharing/recipient/search";
     }
 }
 

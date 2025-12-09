@@ -2,9 +2,9 @@ use crate::{
     DiffRequest, DiffResponse, GetFolderInvitesRequest,
     GetFolderInvitesResponse, GetRecipientRequest, GetRecipientResponse,
     PatchRequest, PatchResponse, ScanRequest, ScanResponse,
-    SetRecipientRequest, SetRecipientResponse, SharedFolderRequest,
-    SharedFolderResponse, SyncOptions, UpdateFolderInviteRequest,
-    UpdateFolderInviteResponse,
+    SearchRecipientsRequest, SearchRecipientsResponse, SetRecipientRequest,
+    SetRecipientResponse, SharedFolderRequest, SharedFolderResponse,
+    SyncOptions, UpdateFolderInviteRequest, UpdateFolderInviteResponse,
 };
 use async_trait::async_trait;
 use sos_core::Origin;
@@ -248,4 +248,10 @@ pub trait SyncClient {
         &self,
         request: UpdateFolderInviteRequest,
     ) -> Result<UpdateFolderInviteResponse, Self::Error>;
+
+    /// Search for recipients.
+    async fn search_recipients(
+        &self,
+        request: SearchRecipientsRequest,
+    ) -> Result<SearchRecipientsResponse, Self::Error>;
 }
