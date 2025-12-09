@@ -300,7 +300,11 @@ where
     pub fn search_recipients(
         &mut self,
         search_query: &str,
+        limit: Option<usize>,
     ) -> Result<Vec<RecipientRecord>> {
+        let limit = limit
+            .map(|l| l.to_string())
+            .unwrap_or_else(|| String::from("25"));
         let search_query = search_query
             .split_whitespace()
             .map(|word| format!("\"{}\"", word))
@@ -326,7 +330,7 @@ where
             .inner_join("recipients AS r ON fts.rowid = r.recipient_id")
             .where_clause("recipients_fts MATCH ?1")
             .order_by("fts.rank DESC")
-            .limit("25");
+            .limit(&limit);
 
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         fn convert_row(row: &Row<'_>) -> Result<RecipientRow> {

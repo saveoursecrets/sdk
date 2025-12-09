@@ -318,3 +318,71 @@ impl From<UpdateFolderInviteResponse> for WireUpdateFolderInviteResponse {
         Self {}
     }
 }
+
+/// Request to search for recipients.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchRecipientsRequest {
+    /// Search query.
+    pub query: String,
+    /// Limit the number of rows.
+    pub limit: Option<usize>,
+}
+
+impl ProtoBinding for SearchRecipientsRequest {
+    type Inner = WireSearchRecipientsRequest;
+}
+
+impl TryFrom<WireSearchRecipientsRequest> for SearchRecipientsRequest {
+    type Error = Error;
+
+    fn try_from(value: WireSearchRecipientsRequest) -> Result<Self> {
+        Ok(Self {
+            query: value.query,
+            limit: value.limit.map(|l| l as usize),
+        })
+    }
+}
+
+impl From<SearchRecipientsRequest> for WireSearchRecipientsRequest {
+    fn from(value: SearchRecipientsRequest) -> WireSearchRecipientsRequest {
+        Self {
+            query: value.query,
+            limit: value.limit.map(|l| l as u32),
+        }
+    }
+}
+
+/// Response from a request to search for recipients.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchRecipientsResponse {
+    /// Matched recipients.
+    pub recipients: Vec<Recipient>,
+}
+
+impl ProtoBinding for SearchRecipientsResponse {
+    type Inner = WireSearchRecipientsResponse;
+}
+
+impl TryFrom<WireSearchRecipientsResponse> for SearchRecipientsResponse {
+    type Error = Error;
+
+    fn try_from(value: WireSearchRecipientsResponse) -> Result<Self> {
+        let mut recipients = Vec::with_capacity(value.recipients.len());
+        for recipient in value.recipients {
+            recipients.push(recipient.try_into()?);
+        }
+        Ok(Self { recipients })
+    }
+}
+
+impl From<SearchRecipientsResponse> for WireSearchRecipientsResponse {
+    fn from(value: SearchRecipientsResponse) -> WireSearchRecipientsResponse {
+        Self {
+            recipients: value
+                .recipients
+                .into_iter()
+                .map(|f| f.into())
+                .collect(),
+        }
+    }
+}

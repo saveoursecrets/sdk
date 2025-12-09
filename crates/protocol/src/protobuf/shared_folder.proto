@@ -44,3 +44,14 @@ message WireUpdateFolderInviteRequest {
   string folder_id = 3;
 }
 message WireUpdateFolderInviteResponse {}
+
+message WireSearchRecipientsRequest {
+  /// Query for the search request.
+  string query = 1;
+  /// Limit the number of rows.
+  optional uint32 limit = 2;
+}
+message WireSearchRecipientsResponse {
+  // Collection of recipients.
+  repeated common.WireRecipient recipients = 1;
+}

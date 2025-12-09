@@ -139,7 +139,7 @@ async fn create_recipients_and_shared_folder_with_invite_status(
     let mut found_recipients = server
         .conn_and_then(move |conn| {
             let mut entity = RecipientEntity::new(&conn);
-            Ok::<_, anyhow::Error>(entity.search_recipients("two")?)
+            Ok::<_, anyhow::Error>(entity.search_recipients("two", None)?)
         })
         .await?;
 
