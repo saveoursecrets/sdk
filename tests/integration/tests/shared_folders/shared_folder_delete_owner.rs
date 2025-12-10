@@ -158,7 +158,6 @@ async fn shared_folder_delete_owner() -> Result<()> {
 
     // Now the participant performs a sync
     let sync_result = account2.owner.sync().await;
-    println!("{:#?}", sync_result);
     assert!(sync_result.first_error().is_none());
 
     // Now the shared folder is no longer accessible to the participant

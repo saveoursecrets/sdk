@@ -804,8 +804,12 @@ mod handlers {
                 if let Some(account) = reader.get(account_id) {
                     let mut account = account.write().await;
 
+                    // Delete in-memory folder event logs for other participants
+                    // the server database storage will handle the caller's.
                     account.delete_folder(&request.folder_id).await?;
 
+                    // Apply the account event log so participant clients will clean up
+                    // the folder on the next sync
                     let account_events = account.account_log().await?;
                     let mut account_events = account_events.write().await;
                     account_events

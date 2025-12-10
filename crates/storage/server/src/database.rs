@@ -604,7 +604,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         // With the introduction of shared folders it is now possible
         // that the folder does not exist for an account but we still
         // need to clean up in-memory data for shared folders so we
-        // allow QueryReturnedNoRows to accomodate this.
+        // allow QueryReturnedNoRows to allow this.
         match self.remove_vault_file(id).await {
             Err(Error::Database(DbError::AsyncSqlite(
                 async_sqlite::Error::Rusqlite(
@@ -802,6 +802,8 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         .await?;
 
         if outcome.is_creator {
+            self.delete_folder(folder_id).await?;
+
             let mut shared_folders = self.shared_folder_events.lock().await;
             shared_folders.remove(folder_id);
         }
