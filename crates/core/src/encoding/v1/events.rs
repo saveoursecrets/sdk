@@ -1,11 +1,11 @@
+#[cfg(feature = "files")]
+use crate::{SecretPath, events::FileEvent};
 use crate::{
+    VaultCommit, VaultFlags,
     crypto::AeadPack,
     encoding::{decode_uuid, encoding_error},
     events::{AccountEvent, DeviceEvent, EventKind, LogEvent, WriteEvent},
-    VaultCommit, VaultFlags,
 };
-#[cfg(feature = "files")]
-use crate::{events::FileEvent, SecretPath};
 
 use std::io::{Error, Result};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};

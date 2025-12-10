@@ -4,7 +4,7 @@ use chbs::{config::BasicConfig, word::WordSampler};
 use rand::Rng;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::csprng;
-use zxcvbn::{zxcvbn, Entropy};
+use zxcvbn::{Entropy, zxcvbn};
 
 const ROMAN_LOWER: &str = "abcdefghijklmnopqrstuvwxyz";
 const ROMAN_UPPER: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";

@@ -9,8 +9,8 @@ use sos_sync::SyncStorage;
 use std::collections::HashMap;
 
 use crate::web_service::{
-    internal_server_error, json, parse_json_body, status, Body, Incoming,
-    WebAccounts,
+    Body, Incoming, WebAccounts, internal_server_error, json,
+    parse_json_body, status,
 };
 
 #[derive(Deserialize)]

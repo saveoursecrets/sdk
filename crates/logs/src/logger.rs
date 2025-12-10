@@ -16,8 +16,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[doc(hidden)]
 pub const LOG_FILE_NAME: &str = "saveoursecrets.log";
 
-const DEFAULT_LOG_LEVEL: &str =
-    "sos=info,sos_net=debug,sos_bindings=debug,sos_backend=debug,sos_database=debug,sos_protocol=debug,sos_app=debug,sos_database_upgrader=debug";
+const DEFAULT_LOG_LEVEL: &str = "sos=info,sos_net=debug,sos_bindings=debug,sos_backend=debug,sos_database=debug,sos_protocol=debug,sos_app=debug,sos_database_upgrader=debug";
 
 /// State of the log files on disc.
 pub struct LogFileStatus {
@@ -213,10 +212,10 @@ impl Logger {
         for entry in std::fs::read_dir(&self.logs_dir)? {
             let entry = entry?;
             let path = entry.path();
-            if let Some(name) = path.file_name() {
-                if name.to_string_lossy().starts_with(&self.name) {
-                    files.push(path);
-                }
+            if let Some(name) = path.file_name()
+                && name.to_string_lossy().starts_with(&self.name)
+            {
+                files.push(path);
             }
         }
         Ok(files)

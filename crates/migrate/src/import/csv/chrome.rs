@@ -12,7 +12,7 @@ use url::Url;
 use super::{
     GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED,
 };
-use crate::{import::read_csv_records, Convert, Result};
+use crate::{Convert, Result, import::read_csv_records};
 
 /// Record for an entry in a Chrome passwords CSV export.
 #[derive(Deserialize)]

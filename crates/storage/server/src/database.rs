@@ -14,12 +14,14 @@ use sos_core::{
         patch::{FolderDiff, FolderPatch},
         AccountEvent, EventLog,
     },
-    AccountId, Paths, VaultFlags, VaultId,
+    AccountId, FolderInvite, InviteStatus, Paths, Recipient, VaultFlags,
+    VaultId,
 };
-use sos_database::async_sqlite::Client;
 use sos_database::entity::{
-    AccountEntity, AccountRow, FolderEntity, FolderRecord, FolderRow,
+    AccountEntity, AccountRow, DeleteSharedFolderOutcome, FolderEntity,
+    FolderRecord, FolderRow, RecipientEntity,
 };
+use sos_database::{async_sqlite::Client, entity::SharedFolderEntity};
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{EncryptedEntry, Summary, Vault};
@@ -28,13 +30,17 @@ use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 #[cfg(feature = "files")]
 use sos_backend::FileEventLog;
 
 #[cfg(feature = "audit")]
 use {sos_audit::AuditEvent, sos_backend::audit::append_audit_events};
+
+/// Storage for shared folder event logs.
+pub type SharedFolderEvents =
+    Arc<Mutex<HashMap<VaultId, Arc<RwLock<FolderEventLog>>>>>;
 
 /// Server folders loaded into memory and mirrored to the database.
 pub struct ServerDatabaseStorage {
@@ -71,6 +77,9 @@ pub struct ServerDatabaseStorage {
 
     /// Reduced collection of devices.
     pub(super) devices: IndexSet<TrustedDevice>,
+
+    /// Shared folder events.
+    pub(super) shared_folder_events: SharedFolderEvents,
 }
 
 impl ServerDatabaseStorage {
@@ -81,6 +90,7 @@ impl ServerDatabaseStorage {
         mut target: BackendTarget,
         account_id: &AccountId,
         identity_log: Arc<RwLock<FolderEventLog>>,
+        shared_folder_events: SharedFolderEvents,
     ) -> Result<Self> {
         let (paths, client, account_row) = {
             let BackendTarget::Database(paths, client) = &mut target else {
@@ -130,6 +140,7 @@ impl ServerDatabaseStorage {
             file_log: Arc::new(RwLock::new(file_log)),
             folders: Default::default(),
             devices,
+            shared_folder_events,
         };
 
         storage.load_folders().await?;
@@ -152,25 +163,58 @@ impl ServerDatabaseStorage {
     }
 
     /// Create new event log cache entries.
-    async fn create_folder_entry(&mut self, id: &VaultId) -> Result<()> {
-        let mut event_log = FolderEventLog::new_folder(
-            self.target.clone(),
-            &self.account_id,
-            id,
-        )
-        .await?;
-        event_log.load_tree().await?;
-        self.folders.insert(*id, Arc::new(RwLock::new(event_log)));
+    async fn create_folder_entry(&mut self, folder: &Summary) -> Result<()> {
+        #[inline(always)]
+        async fn initialize_folder_event_log(
+            target: BackendTarget,
+            account_id: &AccountId,
+            folder_id: &VaultId,
+        ) -> Result<FolderEventLog> {
+            let mut event_log =
+                FolderEventLog::new_folder(target, account_id, folder_id)
+                    .await?;
+            event_log.load_tree().await?;
+            Ok(event_log)
+        }
+
+        if folder.flags().is_shared() {
+            let mut shared_events = self.shared_folder_events.lock().await;
+            if let Some(shared_folder) = shared_events.get(folder.id()) {
+                self.folders.insert(*folder.id(), shared_folder.clone());
+            } else {
+                let event_log = initialize_folder_event_log(
+                    self.target.clone(),
+                    &self.account_id,
+                    folder.id(),
+                )
+                .await?;
+                let folder_event_log = Arc::new(RwLock::new(event_log));
+                let folder_event_ref = folder_event_log.clone();
+                shared_events.insert(*folder.id(), folder_event_log);
+                self.folders.insert(*folder.id(), folder_event_ref);
+            }
+        } else {
+            let event_log = initialize_folder_event_log(
+                self.target.clone(),
+                &self.account_id,
+                folder.id(),
+            )
+            .await?;
+            self.folders
+                .insert(*folder.id(), Arc::new(RwLock::new(event_log)));
+        }
+
         Ok(())
     }
 
     /// Remove a folder.
     async fn remove_vault_file(&self, folder_id: &VaultId) -> Result<()> {
+        let account_row_id = self.account_row_id;
         let folder_id = *folder_id;
         self.client
             .conn(move |conn| {
                 let folder = FolderEntity::new(&conn);
-                folder.delete_folder(&folder_id)
+                folder.delete_folder(account_row_id, &folder_id)
             })
             .await
             .map_err(sos_database::Error::from)?;
@@ -239,6 +283,39 @@ impl ServerDatabaseStorage {
             })
             .await
             .map_err(sos_database::Error::from)?)
+    }
+
+    async fn list_folder_invites(
+        &mut self,
+        sent: bool,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>> {
+        let account_id = self.account_id;
+        let records = self
+            .client
+            .conn_mut_and_then(move |conn| {
+                let mut entity = SharedFolderEntity::new(conn);
+                if sent {
+                    entity.sent_folder_invites(
+                        &account_id,
+                        invite_status,
+                        limit,
+                    )
+                } else {
+                    entity.received_folder_invites(
+                        &account_id,
+                        invite_status,
+                        limit,
+                    )
+                }
+            })
+            .await?;
+        let mut invites = Vec::with_capacity(records.len());
+        for record in records {
+            invites.push(record.try_into()?);
+        }
+        Ok(invites)
     }
 }
 
@@ -459,7 +536,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         for summary in &folders {
             // Ensure we don't overwrite existing data
             if !self.folders.contains_key(summary.id()) {
-                self.create_folder_entry(summary.id()).await?;
+                self.create_folder_entry(summary).await?;
             }
         }
 
@@ -487,7 +564,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         )
         .await?;
 
-        self.create_folder_entry(id).await?;
+        self.create_folder_entry(vault.summary()).await?;
 
         {
             let event_log = self.folders.get_mut(id).unwrap();
@@ -518,8 +595,28 @@ impl ServerAccountStorage for ServerDatabaseStorage {
     }
 
     async fn delete_folder(&mut self, id: &VaultId) -> Result<()> {
-        // Remove from the database
-        self.remove_vault_file(id).await?;
+        use sos_database::{
+            async_sqlite::{self, rusqlite},
+            Error as DbError,
+        };
+
+        // Remove from the database.
+        //
+        // With the introduction of shared folders it is now possible
+        // that the folder does not exist for an account but we still
+        // need to clean up in-memory data for shared folders so we
+        // allow QueryReturnedNoRows to allow this.
+        match self.remove_vault_file(id).await {
+            Err(Error::Database(DbError::AsyncSqlite(
+                async_sqlite::Error::Rusqlite(
+                    rusqlite::Error::QueryReturnedNoRows,
+                ),
+            ))) => {}
+            Err(e) => {
+                return Err(e);
+            }
+            Ok(_) => {}
+        }
 
         // Remove local state
         self.folders.remove(id);
@@ -581,6 +678,141 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         }
 
         Ok(())
+    }
+
+    async fn set_recipient(&mut self, recipient: Recipient) -> Result<()> {
+        let account_id = self.account_id;
+        self.client
+            .conn_mut_and_then(move |conn| {
+                let mut entity = SharedFolderEntity::new(conn);
+                entity.upsert_recipient(account_id, recipient)
+            })
+            .await?;
+        Ok(())
+    }
+
+    async fn get_recipient(&mut self) -> Result<Option<Recipient>> {
+        let account_id = self.account_id;
+        let record = self
+            .client
+            .conn_mut_and_then(move |conn| {
+                let mut entity = SharedFolderEntity::new(conn);
+                entity.find_recipient(account_id)
+            })
+            .await?;
+        Ok(match record {
+            Some(record) => Some(record.try_into()?),
+            None => None,
+        })
+    }
+
+    async fn create_shared_folder(
+        &mut self,
+        buffer: &[u8],
+        recipients: &[Recipient],
+    ) -> Result<()> {
+        let account_id = self.account_id;
+        let vault: Vault = decode(buffer).await?;
+        SharedFolderEntity::create_shared_folder(
+            &self.client,
+            &account_id,
+            &vault,
+            recipients,
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    async fn sent_folder_invites(
+        &mut self,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>> {
+        self.list_folder_invites(true, invite_status, limit).await
+    }
+
+    async fn received_folder_invites(
+        &mut self,
+        invite_status: Option<InviteStatus>,
+        limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>> {
+        self.list_folder_invites(false, invite_status, limit).await
+    }
+
+    async fn update_folder_invite(
+        &mut self,
+        invite_status: InviteStatus,
+        from_public_key: String,
+        folder_id: VaultId,
+    ) -> Result<()> {
+        let account_id = self.account_id;
+        self.client
+            .conn_mut_and_then(move |conn| {
+                let mut entity = SharedFolderEntity::new(conn);
+                entity.update_folder_invite(
+                    &account_id,
+                    invite_status,
+                    &from_public_key,
+                    &folder_id,
+                )
+            })
+            .await?;
+
+        // Must reload the folders when an invite
+        // is accepted so clients can immediately fetch
+        // the folder events
+        if let InviteStatus::Accepted = invite_status {
+            self.load_folders().await?;
+        }
+
+        Ok(())
+    }
+
+    async fn search_recipients(
+        &mut self,
+        query: String,
+        limit: Option<usize>,
+    ) -> Result<Vec<Recipient>> {
+        let records = self
+            .client
+            .conn_and_then(move |conn| {
+                let mut entity = RecipientEntity::new(&conn);
+                entity.search_recipients(&query, limit)
+            })
+            .await?;
+
+        let mut recipients = Vec::with_capacity(records.len());
+        for record in records {
+            recipients.push(record.try_into()?);
+        }
+
+        Ok(recipients)
+    }
+
+    async fn delete_shared_folder(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> Result<DeleteSharedFolderOutcome> {
+        let account_id = self.account_id;
+        let outcome = SharedFolderEntity::delete_shared_folder(
+            &self.client,
+            &account_id,
+            folder_id,
+        )
+        .await?;
+
+        // Delete in-memory folder event logs for the caller
+        self.delete_folder(folder_id).await?;
+
+        // Clean up shared folder event log when actually removing
+        // the folder data
+        if outcome.is_creator {
+            let mut shared_folders = self.shared_folder_events.lock().await;
+            shared_folders.remove(folder_id);
+        }
+
+        Ok(outcome)
     }
 }
 

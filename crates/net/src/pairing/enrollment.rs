@@ -1,7 +1,7 @@
 //! Enroll a device to an account on a remote server.
 use crate::{
-    pairing::{Error, Result},
     NetworkAccount,
+    pairing::{Error, Result},
 };
 use sos_account::Account;
 use sos_backend::{BackendTarget, ServerOrigins};
@@ -9,12 +9,12 @@ use sos_client_storage::{
     ClientAccountStorage, ClientBaseStorage, ClientStorage,
 };
 use sos_core::{
-    crypto::AccessKey, AccountId, Origin, PublicIdentity, RemoteOrigins,
+    AccountId, Origin, PublicIdentity, RemoteOrigins, crypto::AccessKey,
 };
 use sos_login::device::DeviceSigner;
 use sos_protocol::{
-    network_client::{HttpClient, HttpClientOptions, NetworkConfig},
     SyncClient,
+    network_client::{HttpClient, HttpClientOptions, NetworkConfig},
 };
 use sos_signer::ed25519::BoxedEd25519Signer;
 use std::collections::HashSet;

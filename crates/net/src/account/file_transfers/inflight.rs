@@ -4,11 +4,11 @@ use sos_protocol::transfer::{CancelReason, TransferOperation};
 use std::{
     collections::HashMap,
     sync::{
-        atomic::{AtomicU64, Ordering},
         Arc,
+        atomic::{AtomicU64, Ordering},
     },
 };
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 
 use super::{CancelChannel, TransferError};
 

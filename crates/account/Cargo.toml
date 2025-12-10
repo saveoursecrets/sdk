@@ -1,7 +1,7 @@
 [package]
 name = "sos-account"
 version = "0.17.6"
-edition = "2021"
+edition = "2024"
 description = "Local accounts for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
@@ -68,6 +68,7 @@ uuid.workspace = true
 time.workspace = true
 hex.workspace = true
 serde_json.workspace = true
+age.workspace = true
 
 sos-search = { workspace = true, optional = true }
 
@@ -81,6 +82,3 @@ tokio = { version = "1", default-features = false, features = ["rt", "sync", "ma
 futures-util = { workspace = true, optional = true }
 vcard4 = { workspace = true, optional = true }
 time-tz = { workspace = true, optional = true }
-
-[build-dependencies]
-rustc_version.workspace = true

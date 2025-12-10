@@ -1,7 +1,8 @@
+//! File system backend.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! File system backend.
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod advisory_locks;
 #[cfg(feature = "archive")]
 pub mod archive;

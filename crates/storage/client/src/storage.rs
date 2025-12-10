@@ -1,11 +1,11 @@
 use crate::{
+    ClientEventLogStorage, Error, Result,
     database::ClientDatabaseStorage,
     filesystem::ClientFileSystemStorage,
     traits::{
-        private::Internal, ClientAccountStorage, ClientBaseStorage,
-        ClientDeviceStorage, ClientFolderStorage, ClientVaultStorage,
+        ClientAccountStorage, ClientBaseStorage, ClientDeviceStorage,
+        ClientFolderStorage, ClientVaultStorage, private::Internal,
     },
-    ClientEventLogStorage, Error, Result,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -13,12 +13,12 @@ use sos_backend::{
     AccountEventLog, BackendTarget, DeviceEventLog, Folder, FolderEventLog,
 };
 use sos_core::{
+    AccountId, Paths, SecretId, VaultId,
     device::TrustedDevice,
     events::{
-        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
         Event, ReadEvent, WriteEvent,
+        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
     },
-    AccountId, Paths, SecretId, VaultId,
 };
 use sos_login::Identity;
 use sos_reducers::FolderReducer;

@@ -1,7 +1,7 @@
+//! Reduce event logs into compact representations.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Reduce event logs into compact representations.
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod device;
 #[cfg(feature = "files")]

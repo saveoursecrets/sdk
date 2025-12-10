@@ -5,14 +5,14 @@ use secrecy::SecretString;
 use serde::Deserialize;
 use sos_account::Account;
 use sos_core::AccountId;
-use sos_core::{crypto::AccessKey, ErrorExt};
+use sos_core::{ErrorExt, crypto::AccessKey};
 use sos_login::DelegatedAccess;
 use sos_sync::SyncStorage;
 use std::collections::HashMap;
 
 use crate::web_service::{
-    internal_server_error, json, parse_account_id, parse_json_body, status,
-    Body, Incoming, WebAccounts,
+    Body, Incoming, WebAccounts, internal_server_error, json,
+    parse_account_id, parse_json_body, status,
 };
 
 #[derive(Deserialize)]
@@ -285,13 +285,14 @@ where
             return internal_server_error(e);
         }
 
-        if save_password && keyring_password::supported() {
-            if let Err(e) = keyring_password::save_account_password(
+        if save_password
+            && keyring_password::supported()
+            && let Err(e) = keyring_password::save_account_password(
                 &account_id.to_string(),
                 password,
-            ) {
-                return internal_server_error(e);
-            }
+            )
+        {
+            return internal_server_error(e);
         }
     }
 

@@ -1,7 +1,7 @@
 //! Database audit log provider.
 use crate::{
-    entity::{AuditEntity, AuditRecord, AuditRow},
     Error,
+    entity::{AuditEntity, AuditRecord, AuditRow},
 };
 use async_sqlite::Client;
 use async_trait::async_trait;

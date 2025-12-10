@@ -1,11 +1,11 @@
 use super::repl::exec;
 use crate::{
+    Error, Result,
     helpers::{
-        account::{cd_folder, choose_account, sign_in, SHELL, USER},
+        account::{SHELL, USER, cd_folder, choose_account, sign_in},
         messages::fail,
         readline,
     },
-    Error, Result,
 };
 use sos_account::Account;
 use sos_core::{AccountRef, FolderRef, Paths};

@@ -3,8 +3,8 @@
 use crate::{Error, NetworkAccount, Result};
 use sos_core::Origin;
 use sos_protocol::{
-    network_client::ListenOptions, NetworkChangeEvent, RemoteResult,
-    RemoteSync,
+    NetworkChangeEvent, RemoteResult, RemoteSync,
+    network_client::ListenOptions,
 };
 use sos_sync::SyncStorage;
 use std::sync::Arc;

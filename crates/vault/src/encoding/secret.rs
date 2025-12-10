@@ -8,8 +8,8 @@ use binary_stream::futures::{
 };
 use secrecy::ExposeSecret;
 use sos_core::{
-    encoding::{decode_uuid, encoding_error},
     UtcDateTime,
+    encoding::{decode_uuid, encoding_error},
 };
 use std::{
     collections::HashMap,

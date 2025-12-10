@@ -1,11 +1,11 @@
 include!(concat!(env!("OUT_DIR"), "/common.rs"));
 
-use crate::{decode_uuid, encode_uuid, Error, ProtoBinding, Result};
-use rs_merkle::{algorithms::Sha256, MerkleProof};
+use crate::{Error, ProtoBinding, Result, decode_uuid, encode_uuid};
+use rs_merkle::{MerkleProof, algorithms::Sha256};
 use sos_core::{
+    FolderInvite, InviteStatus, Recipient, SecretPath, UtcDateTime,
     commit::{CommitHash, CommitProof, CommitState},
-    events::{patch::CheckedPatch, EventLogType, EventRecord},
-    SecretPath, UtcDateTime,
+    events::{EventLogType, EventRecord, patch::CheckedPatch},
 };
 use time::{Duration, OffsetDateTime};
 
@@ -274,6 +274,97 @@ impl From<SecretPath> for WireSecretPath {
         WireSecretPath {
             folder_id: encode_uuid(&value.0),
             secret_id: encode_uuid(&value.1),
+        }
+    }
+}
+
+impl ProtoBinding for Recipient {
+    type Inner = WireRecipient;
+}
+
+impl TryFrom<WireRecipient> for Recipient {
+    type Error = Error;
+
+    fn try_from(value: WireRecipient) -> Result<Self> {
+        Ok(Recipient {
+            name: value.name,
+            email: value.email,
+            public_key: value
+                .public_key
+                .parse::<age::x25519::Recipient>()
+                .map_err(Error::AgeX25519Parse)?,
+        })
+    }
+}
+
+impl From<Recipient> for WireRecipient {
+    fn from(value: Recipient) -> Self {
+        WireRecipient {
+            name: value.name,
+            email: value.email,
+            public_key: value.public_key.to_string(),
+        }
+    }
+}
+
+impl TryFrom<WireInviteStatus> for InviteStatus {
+    type Error = Error;
+    fn try_from(value: WireInviteStatus) -> Result<Self> {
+        Ok((value as i32).try_into()?)
+    }
+}
+
+impl From<InviteStatus> for WireInviteStatus {
+    fn from(value: InviteStatus) -> WireInviteStatus {
+        match value {
+            InviteStatus::Pending => {
+                WireInviteStatus::from_str_name("Pending").unwrap()
+            }
+            InviteStatus::Accepted => {
+                WireInviteStatus::from_str_name("Accepted").unwrap()
+            }
+            InviteStatus::Declined => {
+                WireInviteStatus::from_str_name("Declined").unwrap()
+            }
+        }
+    }
+}
+
+impl ProtoBinding for FolderInvite {
+    type Inner = WireFolderInvite;
+}
+
+impl TryFrom<WireFolderInvite> for FolderInvite {
+    type Error = Error;
+
+    fn try_from(value: WireFolderInvite) -> Result<Self> {
+        Ok(FolderInvite {
+            created_at: value.created_at.unwrap().try_into()?,
+            modified_at: value.modified_at.unwrap().try_into()?,
+            invite_status: value.invite_status.try_into()?,
+            folder_id: value.folder_id.parse()?,
+            folder_name: value.folder_name,
+            recipient_name: value.recipient_name,
+            recipient_email: value.recipient_email,
+            recipient_public_key: value
+                .recipient_public_key
+                .parse()
+                .map_err(Error::AgeX25519Parse)?,
+        })
+    }
+}
+
+impl From<FolderInvite> for WireFolderInvite {
+    fn from(value: FolderInvite) -> Self {
+        WireFolderInvite {
+            created_at: Some(value.created_at.into()),
+            modified_at: Some(value.modified_at.into()),
+            invite_status: WireInviteStatus::from(value.invite_status) as i32,
+            folder_id: value.folder_id.to_string(),
+            folder_name: value.folder_name,
+            recipient_name: value.recipient_name,
+            recipient_email: value.recipient_email,
+            recipient_public_key: value.recipient_public_key.to_string(),
         }
     }
 }

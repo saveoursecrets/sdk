@@ -1,8 +1,8 @@
 //! Patch and diff types for events.
 use crate::{
+    Result,
     commit::{CommitHash, CommitProof},
     events::{AccountEvent, DeviceEvent, EventRecord, WriteEvent},
-    Result,
 };
 use binary_stream::futures::{Decodable, Encodable};
 use std::marker::PhantomData;

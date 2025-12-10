@@ -14,27 +14,26 @@
 //! The first row must always contain a last commit hash that is all zero.
 //!
 use crate::{
-    formats::{
-        read_file_identity_bytes, EventLogRecord, FileItem, FormatStream,
-        FormatStreamIterator,
-    },
     Error, Result,
+    formats::{
+        EventLogRecord, FileItem, FormatStream, FormatStreamIterator,
+        read_file_identity_bytes,
+    },
 };
 use async_fd_lock::{LockRead, LockWrite};
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, Decodable, Encodable};
-use futures::{stream::BoxStream, StreamExt, TryStreamExt};
+use futures::{StreamExt, TryStreamExt, stream::BoxStream};
 use sos_core::{
+    AccountId,
     commit::{CommitHash, CommitProof, CommitSpan, CommitTree, Comparison},
     encode,
-    encoding::{encoding_options, VERSION1},
+    encoding::{VERSION1, encoding_options},
     events::{
-        changes_feed,
-        patch::{CheckedPatch, Diff, Patch},
         AccountEvent, DeviceEvent, EventLogType, EventRecord,
-        LocalChangeEvent, WriteEvent,
+        LocalChangeEvent, WriteEvent, changes_feed,
+        patch::{CheckedPatch, Diff, Patch},
     },
-    AccountId,
 };
 use sos_vfs::{self as vfs, File, OpenOptions};
 use std::result::Result as StdResult;
@@ -457,10 +456,10 @@ where
         // let file = self.file();
         let mut it = self.iter(true).await?;
         while let Some(record) = it.next().await? {
-            if let Some(commit) = commit {
-                if &record.commit() == commit.as_ref() {
-                    return Ok(events);
-                }
+            if let Some(commit) = commit
+                && &record.commit() == commit.as_ref()
+            {
+                return Ok(events);
             }
             let buffer = read_event_buffer(&self.data, &record).await?;
             // Iterating in reverse order as we would typically

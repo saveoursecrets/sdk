@@ -1,17 +1,17 @@
 //! File system paths for applications.
 use crate::{
+    AccountId, ExternalFile, ExternalFileName, Result, SecretId, VaultId,
     constants::{
         ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, BLOBS_DIR,
-        DATABASE_FILE, DEVICE_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR,
-        FILE_EVENTS, IDENTITY_DIR, JSON_EXT, LOCAL_DIR, LOGS_DIR,
-        PREFERENCES_FILE, REMOTES_FILE, REMOTE_DIR, SYSTEM_MESSAGES_FILE,
-        VAULTS_DIR, VAULT_EXT,
+        DATABASE_FILE, DEVICE_EVENTS, DEVICE_FILE, EVENT_LOG_EXT,
+        FILE_EVENTS, FILES_DIR, IDENTITY_DIR, JSON_EXT, LOCAL_DIR, LOGS_DIR,
+        PREFERENCES_FILE, REMOTE_DIR, REMOTES_FILE, SYSTEM_MESSAGES_FILE,
+        VAULT_EXT, VAULTS_DIR,
     },
-    AccountId, ExternalFile, ExternalFileName, Result, SecretId, VaultId,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use etcetera::{
-    app_strategy::choose_native_strategy, AppStrategy, AppStrategyArgs,
+    AppStrategy, AppStrategyArgs, app_strategy::choose_native_strategy,
 };
 use serde::{Deserialize, Serialize};
 use sos_vfs as vfs;

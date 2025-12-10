@@ -8,7 +8,7 @@ export PATH="target/debug:$PATH"
 
 command -v sos
 
-if [ -n "$SOS_TEST_CLIENT_DB" ]; then
+if [ -z "$SOS_TEST_CLIENT_FS" ]; then
   # env has already exported SOS_DATA_DIR so this
   # will create the database file and run migrations
   sos tool db migrate

@@ -1,7 +1,7 @@
 [package]
 name = "sos-platform-authenticator"
 version = "0.17.1"
-edition = "2021"
+edition = "2024"
 description = "Platform authenticator and keyring suppport for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
@@ -26,6 +26,3 @@ robius-authentication = "0.1"
 [target.'cfg(target_os = "macos")'.dependencies.security-framework]
 version = "3.1"
 # path = "../../../../forks/rust-security-framework/security-framework"
-
-[build-dependencies]
-rustc_version.workspace = true

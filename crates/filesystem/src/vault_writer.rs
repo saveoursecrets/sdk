@@ -3,12 +3,12 @@ use async_fd_lock::{LockRead, LockWrite};
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter};
 use sos_core::{
+    SecretId, VaultCommit, VaultEntry, VaultFlags,
     commit::CommitHash,
     crypto::AeadPack,
     encode,
     encoding::encoding_options,
     events::{ReadEvent, WriteEvent},
-    SecretId, VaultCommit, VaultEntry, VaultFlags,
 };
 use sos_vault::{Contents, EncryptedEntry, Header, Summary, Vault};
 use sos_vfs::{self as vfs, OpenOptions};

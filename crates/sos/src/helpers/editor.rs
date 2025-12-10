@@ -3,7 +3,7 @@
 //! VIM users should use `set nofixendofline` in their .vimrc
 //! to prevent an appended newline changing the file automatically.
 //!
-use crate::{helpers::messages::fail, Error, Result};
+use crate::{Error, Result, helpers::messages::fail};
 use async_recursion::async_recursion;
 use secrecy::ExposeSecret;
 use sha2::{Digest, Sha256};

@@ -9,6 +9,7 @@ mod folder;
 #[cfg(feature = "preferences")]
 mod preference;
 mod server;
+mod shared_folder;
 #[cfg(feature = "system-messages")]
 mod system_message;
 
@@ -24,5 +25,9 @@ pub use folder::{
 #[cfg(feature = "preferences")]
 pub use preference::{PreferenceEntity, PreferenceRow};
 pub use server::{ServerEntity, ServerRow};
+pub use shared_folder::{
+    DeleteSharedFolderOutcome, RecipientEntity, RecipientRecord,
+    SharedFolderEntity,
+};
 #[cfg(feature = "system-messages")]
 pub use system_message::{SystemMessageEntity, SystemMessageRow};

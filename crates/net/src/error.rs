@@ -1,7 +1,7 @@
 //! Error type for network accounts.
 use sos_core::{AuthenticationError, Origin};
 use sos_core::{ErrorExt, VaultId};
-use sos_protocol::{transfer::CancelReason, AsConflict, ConflictError};
+use sos_protocol::{AsConflict, ConflictError, transfer::CancelReason};
 use std::error::Error as StdError;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -45,6 +45,11 @@ pub enum Error {
     /// Error generated force update of an account failed.
     #[error("failed to force update, {0}")]
     ForceUpdate(Box<Error>),
+
+    /// Error generated when an operation cannot be permitted due to
+    /// the folder being shared.
+    #[error("operation not permitted on shared folder {0}")]
+    SharedFolderOperationNotPermitted(VaultId),
 
     /// Error generated trying to parse a device enrollment sharing URL.
     #[deprecated]

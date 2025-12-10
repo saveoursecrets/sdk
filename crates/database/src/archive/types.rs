@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sos_core::{commit::CommitHash, ArchiveManifestVersion};
+use sos_core::{ArchiveManifestVersion, commit::CommitHash};
 
 /// Version 3 manifest.
 #[derive(Debug, Serialize, Deserialize)]

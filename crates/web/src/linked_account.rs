@@ -13,26 +13,26 @@ use sos_backend::{
 };
 use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::{
+    AccountId, Origin, SecretId, VaultId,
     commit::{CommitHash, CommitState, Comparison},
     events::{
-        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
         WriteEvent,
+        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
     },
-    AccountId, Origin, SecretId, VaultId,
 };
 use sos_core::{
+    FolderRef, Paths, PublicIdentity, UtcDateTime, VaultCommit, VaultFlags,
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DevicePublicKey, TrustedDevice},
     events::{AccountEvent, DeviceEvent, EventRecord, ReadEvent},
-    FolderRef, Paths, PublicIdentity, UtcDateTime, VaultCommit, VaultFlags,
 };
 use sos_login::{
-    device::{DeviceManager, DeviceSigner},
     DelegatedAccess,
+    device::{DeviceManager, DeviceSigner},
 };
 use sos_protocol::{
-    network_client::HttpClient, RemoteResult, RemoteSync, SyncClient,
-    SyncOptions,
+    RemoteResult, RemoteSync, SyncClient, SyncOptions,
+    network_client::HttpClient,
 };
 use sos_remote_sync::{AutoMerge, RemoteSyncHandler};
 use sos_sync::{
@@ -40,8 +40,8 @@ use sos_sync::{
     SyncDirection, SyncStatus, SyncStorage, UpdateSet,
 };
 use sos_vault::{
-    secret::{Secret, SecretMeta, SecretRow, SecretType},
     Summary, Vault,
+    secret::{Secret, SecretMeta, SecretRow, SecretType},
 };
 use sos_vfs as vfs;
 use std::{
@@ -53,7 +53,7 @@ use tokio::sync::{Mutex, RwLock};
 
 #[cfg(feature = "clipboard")]
 use {
-    sos_account::{xclipboard::Clipboard, ClipboardCopyRequest},
+    sos_account::{ClipboardCopyRequest, xclipboard::Clipboard},
     sos_core::SecretPath,
 };
 
@@ -151,6 +151,13 @@ impl Account for LinkedAccount {
     async fn is_authenticated(&self) -> bool {
         let account = self.account.lock().await;
         account.is_authenticated().await
+    }
+
+    async fn shared_access_public_key(
+        &self,
+    ) -> Result<age::x25519::Recipient> {
+        let account = self.account.lock().await;
+        Ok(account.shared_access_public_key().await?)
     }
 
     async fn import_account_events(

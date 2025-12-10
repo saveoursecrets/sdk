@@ -10,7 +10,7 @@ use tokio::io::AsyncRead;
 use url::Url;
 
 use super::{GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord};
-use crate::{import::read_csv_records, Convert, Result};
+use crate::{Convert, Result, import::read_csv_records};
 
 /// Record for an entry in a Firefox passwords CSV export.
 #[derive(Deserialize)]

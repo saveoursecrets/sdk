@@ -7,7 +7,9 @@ use uuid::Uuid;
 pub enum Error {
     /// Error generated when event log row data does
     /// not match the commit hash.
-    #[error("row '{id}' checksums do not match, expected {commit} but got {value}")]
+    #[error(
+        "row '{id}' checksums do not match, expected {commit} but got {value}"
+    )]
     VaultHashMismatch {
         /// Expected commit hash.
         commit: CommitHash,

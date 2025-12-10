@@ -1,10 +1,10 @@
 use crate::{
+    Error, Result,
     helpers::{
         account::{resolve_account_address, resolve_user_with_password},
         messages::{info, success},
         readline::read_flag,
     },
-    Error, Result,
 };
 use clap::Subcommand;
 use sos_account::Account;
@@ -12,9 +12,9 @@ use sos_backend::BackendTarget;
 use sos_client_storage::ClientStorage;
 use sos_core::FolderRef;
 use sos_core::{
+    AccountRef, Paths,
     constants::EVENT_LOG_EXT,
     crypto::{AccessKey, Cipher, KeyDerivation},
-    AccountRef, Paths,
 };
 use std::path::PathBuf;
 use terminal_banner::{Banner, Padding};
@@ -31,7 +31,7 @@ mod security_report;
 use audit::Command as AuditCommand;
 use authenticator::Command as AuthenticatorCommand;
 use backup::Command as BackupCommand;
-use check::{verify_events, Command as CheckCommand};
+use check::{Command as CheckCommand, verify_events};
 use db::Command as DbCommand;
 use debug::Command as DebugCommand;
 use events::Command as EventsCommand;

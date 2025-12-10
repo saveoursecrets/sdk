@@ -1,14 +1,14 @@
 include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 
-use crate::{decode_uuid, encode_uuid, Error, ProtoBinding, Result};
+use crate::{Error, ProtoBinding, Result, decode_uuid, encode_uuid};
 use indexmap::{IndexMap, IndexSet};
 use sos_core::{
+    Origin,
     commit::Comparison,
     events::{
-        patch::{Diff, Patch},
         EventRecord,
+        patch::{Diff, Patch},
     },
-    Origin,
 };
 use sos_sync::{
     CreateSet, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff, SyncPacket,
@@ -764,11 +764,11 @@ impl From<TrackedDeviceChange> for WireTrackedDeviceChange {
 #[cfg(feature = "files")]
 mod files {
     use super::{
-        wire_tracked_file_change, WireTrackedFileChange,
-        WireTrackedFileDeleted, WireTrackedFileMoved,
+        WireTrackedFileChange, WireTrackedFileDeleted, WireTrackedFileMoved,
+        wire_tracked_file_change,
     };
     use crate::{
-        bindings::sync::WireTrackedFileCreated, Error, ProtoBinding, Result,
+        Error, ProtoBinding, Result, bindings::sync::WireTrackedFileCreated,
     };
 
     use sos_sync::TrackedFileChange;

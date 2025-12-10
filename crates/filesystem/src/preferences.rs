@@ -1,4 +1,4 @@
-use crate::{write_exclusive, Error};
+use crate::{Error, write_exclusive};
 use async_fd_lock::LockRead;
 use async_trait::async_trait;
 use sos_core::{AccountId, Paths};

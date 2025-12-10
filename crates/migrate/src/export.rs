@@ -1,14 +1,14 @@
 //! Export an archive of unencrypted secrets that
 //! can be used to migrate data to another app.
 use crate::Result;
-use async_zip::{tokio::write::ZipFileWriter, Compression, ZipEntryBuilder};
+use async_zip::{Compression, ZipEntryBuilder, tokio::write::ZipFileWriter};
 use secrecy::{ExposeSecret, SecretBox};
 use serde::{Deserialize, Serialize};
 use sos_backend::AccessPoint;
 use sos_core::{SecretId, VaultId};
 use sos_vault::{
-    secret::{FileContent, Secret, SecretMeta},
     SecretAccess, Summary, VaultMeta,
+    secret::{FileContent, Secret, SecretMeta},
 };
 use std::collections::HashMap;
 use tokio::io::AsyncWrite;

@@ -5,6 +5,8 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum Error {
     /// Error generated when secret meta data does not exist.
-    #[error("too few words for diceware passphrase generation, got {0} but minimum is {1}")]
+    #[error(
+        "too few words for diceware passphrase generation, got {0} but minimum is {1}"
+    )]
     DicewareWordsTooFew(usize, u8),
 }

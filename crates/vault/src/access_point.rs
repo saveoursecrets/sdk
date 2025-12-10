@@ -1,15 +1,15 @@
 //! Access point manages access to a vault.
 use crate::{
-    secret::{Secret, SecretMeta, SecretRow},
     EncryptedEntry, Error, SharedAccess, Summary, Vault, VaultMeta,
+    secret::{Secret, SecretMeta, SecretRow},
 };
 use async_trait::async_trait;
 use sos_core::{
+    AuthenticationError, SecretId, VaultCommit, VaultEntry, VaultFlags,
+    VaultId,
     crypto::{AccessKey, AeadPack, KeyDerivation, PrivateKey},
     decode, encode,
     events::{ReadEvent, WriteEvent},
-    AuthenticationError, SecretId, VaultCommit, VaultEntry, VaultFlags,
-    VaultId,
 };
 use sos_vfs as vfs;
 use std::path::Path;

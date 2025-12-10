@@ -1,6 +1,6 @@
 use crate::{
-    entity::{AccountEntity, ServerEntity, ServerRow},
     Error,
+    entity::{AccountEntity, ServerEntity, ServerRow},
 };
 use async_sqlite::Client;
 use async_trait::async_trait;

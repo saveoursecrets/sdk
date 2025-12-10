@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use sos_account::LocalAccount;
 use sos_core::{AccountId, Origin};
 use sos_protocol::{
-    network_client::{HttpClient, HttpClientOptions},
     RemoteResult, RemoteSync, SyncClient, SyncOptions,
+    network_client::{HttpClient, HttpClientOptions},
 };
 use sos_remote_sync::{AutoMerge, RemoteSyncHandler};
 use sos_sync::{SyncDirection, UpdateSet};
@@ -200,8 +200,8 @@ mod listen {
     use crate::RemoteBridge;
     #[cfg(not(target_arch = "wasm32"))]
     use sos_protocol::{
-        network_client::{ListenOptions, WebSocketHandle},
         NetworkChangeEvent,
+        network_client::{ListenOptions, WebSocketHandle},
     };
     use tokio::sync::mpsc;
 
@@ -222,15 +222,15 @@ mod listen {
             options: ListenOptions,
             channel: mpsc::Sender<NetworkChangeEvent>,
         ) -> WebSocketHandle {
-            let handle = self.client.listen(options, move |notification| {
+            
+
+            self.client.listen(options, move |notification| {
                 let tx = channel.clone();
                 async move {
                     tracing::debug!(notification = ?notification);
                     let _ = tx.send(notification).await;
                 }
-            });
-
-            handle
+            })
         }
     }
 }

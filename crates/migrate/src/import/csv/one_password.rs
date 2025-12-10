@@ -2,8 +2,8 @@
 
 use async_trait::async_trait;
 use serde::{
-    de::{self, Deserializer, Unexpected, Visitor},
     Deserialize,
+    de::{self, Deserializer, Unexpected, Visitor},
 };
 use sos_core::crypto::AccessKey;
 use sos_vault::Vault;
@@ -19,7 +19,7 @@ use url::Url;
 use super::{
     GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED,
 };
-use crate::{import::read_csv_records, Convert, Result};
+use crate::{Convert, Result, import::read_csv_records};
 
 /// Record for an entry in a MacOS passwords CSV export.
 #[derive(Deserialize)]

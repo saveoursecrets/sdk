@@ -1,4 +1,4 @@
-use crate::{commit::CommitSpan, events::EventLogType, AccountId};
+use crate::{AccountId, commit::CommitSpan, events::EventLogType};
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 use tokio::sync::watch;

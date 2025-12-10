@@ -41,13 +41,13 @@ pub fn generate_passphrase() -> Result<(SecretString, f64)> {
 
 /// Get the default config for diceware passphrase generation.
 pub fn default_config(words: usize) -> BasicConfig<WordSampler> {
-    let config = BasicConfigBuilder::default()
+    
+    BasicConfigBuilder::default()
         .word_provider(WORD_LIST.sampler())
         .words(words)
         .separator(' ')
         .capitalize_first(Probability::Never)
         .capitalize_words(Probability::Never)
         .build()
-        .unwrap();
-    config
+        .unwrap()
 }

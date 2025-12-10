@@ -8,9 +8,9 @@ use indexmap::IndexSet;
 use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
 use sos_core::events::WriteEvent;
 use sos_core::{
+    Origin, VaultId,
     commit::{CommitState, Comparison},
     events::patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
-    Origin, VaultId,
 };
 use sos_protocol::{
     AccountSync, RemoteSync, SyncClient, SyncOptions, SyncResult,

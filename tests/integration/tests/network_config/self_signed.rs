@@ -3,7 +3,7 @@ use sos_protocol::{network_client::NetworkConfig, reqwest::Url};
 use sos_server::{SslConfig, TlsConfig};
 use sos_test_utils::{
     default_server_config, simulate_device_with_network_config,
-    spawn_with_config,
+    spawn_with_config, teardown,
 };
 use std::{collections::HashMap, path::PathBuf};
 
@@ -58,6 +58,8 @@ async fn self_signed_server() -> Result<()> {
     device.listen_with_config(network_config).await?;
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

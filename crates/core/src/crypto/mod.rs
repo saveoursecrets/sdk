@@ -10,7 +10,7 @@ mod key_derivation;
 mod private_key;
 
 pub use cipher::Cipher;
-pub(crate) use cipher::{AES_GCM_256, X25519, X_CHACHA20_POLY1305};
+pub(crate) use cipher::{AES_GCM_256, X_CHACHA20_POLY1305, X25519};
 
 #[doc(hidden)]
 pub use key_derivation::Deriver;
@@ -33,13 +33,13 @@ pub enum Nonce {
 impl Nonce {
     /// Generate a new random 12 byte nonce.
     pub fn new_random_12() -> Nonce {
-        let val: [u8; 12] = csprng().gen();
+        let val: [u8; 12] = csprng().r#gen();
         Nonce::Nonce12(val)
     }
 
     /// Generate a new random 24 byte nonce.
     pub fn new_random_24() -> Nonce {
-        let val: [u8; 24] = csprng().gen();
+        let val: [u8; 24] = csprng().r#gen();
         Nonce::Nonce24(val)
     }
 }
@@ -53,8 +53,8 @@ impl Default for Nonce {
 impl AsRef<[u8]> for Nonce {
     fn as_ref(&self) -> &[u8] {
         match self {
-            Nonce::Nonce12(ref val) => val,
-            Nonce::Nonce24(ref val) => val,
+            Nonce::Nonce12(val) => val,
+            Nonce::Nonce24(val) => val,
         }
     }
 }

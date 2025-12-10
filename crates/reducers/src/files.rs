@@ -1,9 +1,9 @@
 use futures::{pin_mut, stream::StreamExt};
 use indexmap::IndexSet;
 use sos_core::{
+    ExternalFile,
     commit::CommitHash,
     events::{EventLog, FileEvent},
-    ExternalFile,
 };
 
 /// Reduce file events to a collection of external files.

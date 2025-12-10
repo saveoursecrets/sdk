@@ -8,11 +8,11 @@ use crate::{
 use async_trait::async_trait;
 use sos_backend::StorageError;
 use sos_core::{
-    events::{ReadEvent, WriteEvent},
     SecretId, VaultCommit, VaultId,
+    events::{ReadEvent, WriteEvent},
 };
-use sos_vault::secret::{Secret, SecretMeta, SecretRow};
 use sos_vault::Summary;
+use sos_vault::secret::{Secret, SecretMeta, SecretRow};
 
 #[cfg(feature = "files")]
 use sos_core::AuthenticationError;
@@ -30,10 +30,8 @@ where
     async fn create_secret(
         &mut self,
         secret_data: SecretRow,
-        #[cfg(not(feature = "files"))]
-        options: AccessOptions,
-        #[cfg(feature = "files")]
-        mut options: AccessOptions,
+        #[cfg(not(feature = "files"))] options: AccessOptions,
+        #[cfg(feature = "files")] mut options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
         self.guard_authenticated(Internal)?;
 
@@ -235,10 +233,8 @@ where
         folder: &Summary,
         id: &SecretId,
         mut secret_data: SecretRow,
-        #[cfg(not(feature = "search"))]
-        _is_update: bool,
-        #[cfg(feature = "search")]
-        is_update: bool,
+        #[cfg(not(feature = "search"))] _is_update: bool,
+        #[cfg(feature = "search")] is_update: bool,
         _: Internal,
     ) -> Result<WriteEvent> {
         // let summary = self.current_folder().ok_or(Error::NoOpenVault)?;

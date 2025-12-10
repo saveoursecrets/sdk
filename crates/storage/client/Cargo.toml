@@ -1,7 +1,7 @@
 [package]
 name = "sos-client-storage"
 version = "0.17.2"
-edition = "2021"
+edition = "2024"
 description = "Client storage for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
@@ -57,6 +57,3 @@ parking_lot.workspace = true
 binary-stream = { workspace = true, optional = true }
 tokio-util = { workspace = true, optional = true }
 age  = { workspace = true, optional = true }
-
-[build-dependencies]
-rustc_version.workspace = true

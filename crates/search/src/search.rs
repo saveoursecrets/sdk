@@ -1,16 +1,16 @@
 //! Search provides an in-memory index for secret meta data.
 use crate::{Error, Result};
-use probly_search::{score::bm25, Index, QueryResult};
+use probly_search::{Index, QueryResult, score::bm25};
 use serde::{Deserialize, Serialize};
 use sos_backend::AccessPoint;
-use sos_core::{crypto::AccessKey, VaultId};
+use sos_core::{VaultId, crypto::AccessKey};
 use sos_vault::{
-    secret::{Secret, SecretId, SecretMeta, SecretRef, SecretType},
     SecretAccess, Summary, Vault,
+    secret::{Secret, SecretId, SecretMeta, SecretRef, SecretType},
 };
 use std::{
     borrow::Cow,
-    collections::{btree_map::Values, BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet, btree_map::Values},
     sync::Arc,
 };
 use tokio::sync::RwLock;
@@ -928,11 +928,10 @@ impl DocumentView {
         doc: &Document,
         archive: Option<&ArchiveFilter>,
     ) -> bool {
-        if let Some(filter) = archive {
-            if !filter.include_documents && doc.folder_id() == &filter.id {
+        if let Some(filter) = archive
+            && !filter.include_documents && doc.folder_id() == &filter.id {
                 return false;
             }
-        }
         match self {
             DocumentView::All { ignored_types } => {
                 if let Some(ignored_types) = ignored_types {

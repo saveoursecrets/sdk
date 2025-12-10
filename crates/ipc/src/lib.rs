@@ -1,12 +1,11 @@
-#![deny(missing_docs)]
-#![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-#![allow(clippy::result_large_err)]
-
 //! Inter-process communication library for the
 //! [Save Our Secrets](https://saveoursecrets.com) SDK.
 //!
 //! Supports the native messaging API for browser extensions.
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![allow(clippy::result_large_err)]
 
 mod error;
 

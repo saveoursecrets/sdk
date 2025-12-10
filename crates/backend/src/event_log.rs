@@ -3,17 +3,17 @@ use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use futures::stream::BoxStream;
 use sos_core::{
+    AccountId, VaultId,
     commit::{CommitHash, CommitProof, CommitTree},
     events::{
-        patch::{CheckedPatch, Diff, Patch},
         AccountEvent, DeviceEvent, EventLog, EventLogType, EventRecord,
         WriteEvent,
+        patch::{CheckedPatch, Diff, Patch},
     },
-    AccountId, VaultId,
 };
 use sos_database::{
-    entity::{AccountEntity, FolderEntity, FolderRecord},
     DatabaseEventLog,
+    entity::{AccountEntity, FolderEntity, FolderRecord},
 };
 use sos_filesystem::FileSystemEventLog;
 

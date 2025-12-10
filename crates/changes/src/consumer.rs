@@ -2,9 +2,9 @@
 use crate::{Error, Result, SocketFile};
 use futures::stream::StreamExt;
 use interprocess::local_socket::{
-    tokio::prelude::*, GenericNamespaced, ListenerOptions,
+    GenericNamespaced, ListenerOptions, tokio::prelude::*,
 };
-use sos_core::{events::LocalChangeEvent, Paths};
+use sos_core::{Paths, events::LocalChangeEvent};
 use std::{path::PathBuf, sync::Arc};
 use tokio::{
     select,

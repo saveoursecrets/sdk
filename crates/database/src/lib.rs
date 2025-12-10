@@ -1,6 +1,6 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::large_enum_variant)]
 
 //! Database storage layer for the [Save Our Secrets](https://saveoursecrets.com) SDK.
@@ -37,7 +37,7 @@ pub use event_log::FileEventLog;
 
 mod error;
 pub use async_sqlite;
-pub use error::Error;
+pub use error::{Error, SharingError};
 
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;

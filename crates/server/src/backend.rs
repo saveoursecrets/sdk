@@ -1,13 +1,15 @@
 use super::{Error, Result};
 use sos_backend::BackendTarget;
-use sos_core::{device::DevicePublicKey, AccountId, Paths};
+use sos_core::{AccountId, Paths, device::DevicePublicKey};
 use sos_database::{async_sqlite::Client, entity::AccountEntity};
-use sos_server_storage::{ServerAccountStorage, ServerStorage};
+use sos_server_storage::{
+    ServerAccountStorage, ServerStorage, SharedFolderEvents,
+};
 use sos_signer::ed25519::{self, Verifier, VerifyingKey};
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, SyncStorage, UpdateSet};
 use sos_vfs as vfs;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 /// Individual account.
 pub type ServerAccount = Arc<RwLock<ServerStorage>>;
@@ -27,6 +29,7 @@ pub struct Backend {
     paths: Arc<Paths>,
     accounts: Accounts,
     target: BackendTarget,
+    shared_folder_events: SharedFolderEvents,
 }
 
 impl Backend {
@@ -36,6 +39,7 @@ impl Backend {
             paths,
             accounts: Arc::new(RwLock::new(Default::default())),
             target,
+            shared_folder_events: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -80,29 +84,25 @@ impl Backend {
         let mut dir = vfs::read_dir(self.paths.local_dir()).await?;
         while let Some(entry) = dir.next_entry().await? {
             let path = entry.path();
-            if vfs::metadata(&path).await?.is_dir() {
-                if let Some(name) = path.file_stem() {
-                    if let Ok(account_id) =
-                        name.to_string_lossy().parse::<AccountId>()
-                    {
-                        tracing::debug!(
-                            account_id = %account_id,
-                            "server_backend::load_fs_accounts",
-                        );
+            if vfs::metadata(&path).await?.is_dir()
+                && let Some(name) = path.file_stem()
+                && let Ok(account_id) =
+                    name.to_string_lossy().parse::<AccountId>()
+            {
+                tracing::debug!(
+                    account_id = %account_id,
+                    "server_backend::load_fs_accounts",
+                );
 
-                        let account = ServerStorage::new(
-                            self.target.clone(),
-                            &account_id,
-                        )
-                        .await?;
+                let account = ServerStorage::new(
+                    self.target.clone(),
+                    &account_id,
+                    self.shared_folder_events.clone(),
+                )
+                .await?;
 
-                        let mut accounts = self.accounts.write().await;
-                        accounts.insert(
-                            account_id,
-                            Arc::new(RwLock::new(account)),
-                        );
-                    }
-                }
+                let mut accounts = self.accounts.write().await;
+                accounts.insert(account_id, Arc::new(RwLock::new(account)));
             }
         }
 
@@ -121,8 +121,12 @@ impl Backend {
 
         for account in accounts {
             let account_id = *account.identity.account_id();
-            let account =
-                ServerStorage::new(self.target.clone(), &account_id).await?;
+            let account = ServerStorage::new(
+                self.target.clone(),
+                &account_id,
+                self.shared_folder_events.clone(),
+            )
+            .await?;
 
             let mut accounts = self.accounts.write().await;
             accounts.insert(account_id, Arc::new(RwLock::new(account)));
@@ -152,9 +156,13 @@ impl Backend {
 
         let target = self.target.clone().with_account_id(account_id);
 
-        let account =
-            ServerStorage::create_account(target, account_id, &account_data)
-                .await?;
+        let account = ServerStorage::create_account(
+            target,
+            account_id,
+            &account_data,
+            self.shared_folder_events.clone(),
+        )
+        .await?;
 
         let mut accounts = self.accounts.write().await;
         accounts

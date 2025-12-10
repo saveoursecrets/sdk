@@ -1,19 +1,20 @@
 //! Check integrity of the folders in an account.
 use crate::{
-    event_integrity, vault_integrity, Error, IntegrityFailure, Result,
+    Error, IntegrityFailure, Result, event_integrity, vault_integrity,
 };
-use futures::{pin_mut, StreamExt};
+use futures::{StreamExt, pin_mut};
 use sos_backend::BackendTarget;
 use sos_core::{
-    commit::CommitHash, events::EventRecord, AccountId, SecretId, VaultId,
+    AccountId, SecretId, VaultId, commit::CommitHash, events::EventRecord,
 };
 use sos_database::entity::FolderEntity;
 use sos_vault::Summary;
 use sos_vfs as vfs;
 use std::sync::Arc;
 use tokio::sync::{
+    Mutex, Semaphore,
     mpsc::{self, Receiver, Sender},
-    watch, Mutex, Semaphore,
+    watch,
 };
 
 /// Event dispatched whilst generating an integrity report.

@@ -188,35 +188,31 @@ pub trait RemoteSyncHandler {
             } else {
                 // Some parts of the remote patch may not
                 // be in conflict and must still be merged
-                if !maybe_conflict.identity {
-                    if let Some(MaybeDiff::Diff(diff)) =
+                if !maybe_conflict.identity
+                    && let Some(MaybeDiff::Diff(diff)) =
                         remote_changes.diff.identity
                     {
                         account.merge_identity(diff, &mut outcome).await?;
                     }
-                }
-                if !maybe_conflict.account {
-                    if let Some(MaybeDiff::Diff(diff)) =
+                if !maybe_conflict.account
+                    && let Some(MaybeDiff::Diff(diff)) =
                         remote_changes.diff.account
                     {
                         account.merge_account(diff, &mut outcome).await?;
                     }
-                }
-                if !maybe_conflict.device {
-                    if let Some(MaybeDiff::Diff(diff)) =
+                if !maybe_conflict.device
+                    && let Some(MaybeDiff::Diff(diff)) =
                         remote_changes.diff.device
                     {
                         account.merge_device(diff, &mut outcome).await?;
                     }
-                }
                 #[cfg(feature = "files")]
-                if !maybe_conflict.files {
-                    if let Some(MaybeDiff::Diff(diff)) =
+                if !maybe_conflict.files
+                    && let Some(MaybeDiff::Diff(diff)) =
                         remote_changes.diff.files
                     {
                         account.merge_files(diff, &mut outcome).await?;
                     }
-                }
 
                 let merge_folders = remote_changes
                     .diff

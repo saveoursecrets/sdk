@@ -7,16 +7,16 @@ use crate::{
 use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
 use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
+use sos_core::AccountId;
 use sos_core::commit::CommitHash;
 use sos_core::events::WriteEvent;
-use sos_core::AccountId;
 use sos_core::{
+    VaultId,
     commit::{CommitState, CommitTree, Comparison},
     events::{
-        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
         EventLog,
+        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
     },
-    VaultId,
 };
 use sos_vault::Summary;
 use std::{
@@ -28,7 +28,7 @@ use tokio::sync::RwLock;
 #[cfg(feature = "files")]
 use {
     sos_backend::FileEventLog,
-    sos_core::{events::patch::FileDiff, ExternalFile},
+    sos_core::{ExternalFile, events::patch::FileDiff},
 };
 
 macro_rules! debug_tree_events {

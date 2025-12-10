@@ -1,6 +1,6 @@
 //! Encrypt and decrypt using X25519 asymmetric encryption (AGE).
-use crate::crypto::{AeadPack, Nonce};
 use crate::Result;
+use crate::crypto::{AeadPack, Nonce};
 use age::x25519::{Identity, Recipient};
 use futures::io::{AsyncReadExt, BufReader};
 
@@ -9,6 +9,10 @@ pub async fn encrypt(
     plaintext: &[u8],
     recipients: Vec<Recipient>,
 ) -> Result<AeadPack> {
+    debug_assert!(
+        !recipients.is_empty(),
+        "asymmetric encryption recipients must not be empty"
+    );
     let recipients: Vec<_> = recipients
         .into_iter()
         .map(|r| {

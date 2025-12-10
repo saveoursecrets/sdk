@@ -10,7 +10,7 @@ mod meta_data;
 mod open_options;
 mod read_dir;
 
-pub use dir_builder::{create_dir, create_dir_all, DirBuilder};
+pub use dir_builder::{DirBuilder, create_dir, create_dir_all};
 pub use file::File;
 pub use fs::{
     canonicalize, copy, metadata, read, read_to_string, remove_dir,
@@ -18,4 +18,4 @@ pub use fs::{
 };
 pub use meta_data::{FileType, Metadata, Permissions};
 pub use open_options::OpenOptions;
-pub use read_dir::{read_dir, DirEntry, ReadDir};
+pub use read_dir::{DirEntry, ReadDir, read_dir};

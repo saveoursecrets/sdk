@@ -1,16 +1,16 @@
 use axum::{
+    Json,
     extract::Extension,
     response::{IntoResponse, Redirect},
-    Json,
 };
 
 //use axum_macros::debug_handler;
 
 use crate::{
-    authenticate::{self, BearerToken},
     Error, Result, ServerBackend,
+    authenticate::{self, BearerToken},
 };
-use axum_extra::headers::{authorization::Bearer, Authorization};
+use axum_extra::headers::{Authorization, authorization::Bearer};
 use http::HeaderMap;
 use serde::Deserialize;
 use serde_json::json;
@@ -19,6 +19,7 @@ use sos_protocol::constants::X_SOS_ACCOUNT_ID;
 
 pub mod account;
 pub mod files;
+pub mod sharing;
 
 #[cfg(feature = "pairing")]
 pub(crate) mod relay;
@@ -104,10 +105,10 @@ async fn authenticate_endpoint(
     // Deny unauthorized account ids
     {
         let reader = state.read().await;
-        if let Some(access) = &reader.config.access {
-            if !access.is_allowed_access(&token.account_id) {
-                return Err(Error::Forbidden);
-            }
+        if let Some(access) = &reader.config.access
+            && !access.is_allowed_access(&token.account_id)
+        {
+            return Err(Error::Forbidden);
         }
     }
 
@@ -138,10 +139,10 @@ pub(crate) async fn send_notification(
     // Send notification on the websockets channel
     match notification.encode().await {
         Ok(buffer) => {
-            if let Some(account) = reader.sockets.get(caller.account_id()) {
-                if let Err(error) = account.broadcast(caller, buffer).await {
-                    tracing::warn!(error = ?error);
-                }
+            if let Some(account) = reader.sockets.get(caller.account_id())
+                && let Err(error) = account.broadcast(caller, buffer).await
+            {
+                tracing::warn!(error = ?error);
             }
         }
         Err(e) => {

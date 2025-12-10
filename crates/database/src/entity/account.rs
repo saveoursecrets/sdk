@@ -1,12 +1,12 @@
 use crate::{
-    entity::{FolderEntity, FolderRecord, SecretRow},
     Error, Result,
+    entity::{FolderEntity, FolderRecord, SecretRow},
 };
 use async_sqlite::{
+    Client,
     rusqlite::{
         Connection, Error as SqlError, OptionalExtension, Row, Transaction,
     },
-    Client,
 };
 use sos_core::{AccountId, PublicIdentity, UtcDateTime, VaultCommit};
 use sos_vault::Vault;
@@ -22,13 +22,13 @@ pub struct AccountRow {
     /// Row identifier.
     pub row_id: i64,
     /// RFC3339 date and time.
-    created_at: String,
+    pub(crate) created_at: String,
     /// RFC3339 date and time.
-    modified_at: String,
+    pub(crate) modified_at: String,
     /// Account identifier.
-    identifier: String,
+    pub(crate) identifier: String,
     /// Account name.
-    name: String,
+    pub(crate) name: String,
 }
 
 impl AccountRow {
@@ -231,7 +231,8 @@ impl<'conn> AccountEntity<'conn, Transaction<'conn>> {
                 let folder_entity = FolderEntity::new(&tx);
 
                 // Delete the old folder
-                folder_entity.delete_folder(&login_folder_id)?;
+                folder_entity
+                    .delete_folder(account.row_id, &login_folder_id)?;
 
                 // Create the new folder
                 let folder_row_id = folder_entity

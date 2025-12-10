@@ -3,8 +3,8 @@ use crate::{Error, Result};
 use async_zip::tokio::read::seek::ZipFileReader;
 use sos_backend::AccessPoint;
 use sos_vault::{
-    secret::{Secret, SecretMeta, SecretRow},
     SecretAccess,
+    secret::{Secret, SecretMeta, SecretRow},
 };
 use sos_vfs as vfs;
 use std::path::Path;

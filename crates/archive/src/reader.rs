@@ -1,4 +1,4 @@
-use crate::{Result, ARCHIVE_MANIFEST};
+use crate::{ARCHIVE_MANIFEST, Result};
 use async_zip::tokio::read::seek::ZipFileReader;
 use serde::de::DeserializeOwned;
 use tokio::io::{AsyncBufRead, AsyncSeek};

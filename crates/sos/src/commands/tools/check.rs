@@ -1,12 +1,12 @@
 use crate::{
+    Error, Result,
     helpers::{
         account::resolve_account_address,
         messages::{fail, success},
     },
-    Error, Result,
 };
 use clap::Subcommand;
-use futures::{pin_mut, StreamExt};
+use futures::{StreamExt, pin_mut};
 use sos_backend::BackendTarget;
 use sos_client_storage::{ClientFolderStorage, ClientStorage};
 use sos_core::{AccountRef, FolderRef, Paths};

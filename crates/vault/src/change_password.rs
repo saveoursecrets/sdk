@@ -1,12 +1,12 @@
 //! Flow for changing a vault password.
 use crate::{
-    vault::{EncryptedEntry, Vault},
     Error, Result,
+    vault::{EncryptedEntry, Vault},
 };
 use sos_core::{
+    VaultCommit, VaultEntry,
     crypto::{AccessKey, KeyDerivation, PrivateKey, Seed},
     events::WriteEvent,
-    VaultCommit, VaultEntry,
 };
 
 /// Builder that changes a vault password.

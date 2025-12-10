@@ -1,11 +1,11 @@
 //! Upgrade backup archives.
-use crate::{upgrade_accounts, Error, Result, UpgradeOptions};
+use crate::{Error, Result, UpgradeOptions, upgrade_accounts};
 use sos_backend::{
-    archive::{
-        export_backup_archive, import_backup_archive,
-        read_backup_archive_manifest, ArchiveManifest,
-    },
     BackendTarget,
+    archive::{
+        ArchiveManifest, export_backup_archive, import_backup_archive,
+        read_backup_archive_manifest,
+    },
 };
 use sos_core::Paths;
 use sos_database::open_file;

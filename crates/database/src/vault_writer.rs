@@ -1,16 +1,16 @@
 //! Write vault changes to a database.
 use crate::{
-    entity::{FolderEntity, FolderRecord, SecretRecord, SecretRow},
     Error,
+    entity::{FolderEntity, FolderRecord, SecretRecord, SecretRow},
 };
 use async_sqlite::Client;
 use async_trait::async_trait;
 use sos_core::{
+    SecretId, VaultCommit, VaultEntry, VaultFlags, VaultId,
     commit::CommitHash,
     crypto::AeadPack,
     encode,
     events::{ReadEvent, WriteEvent},
-    SecretId, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
 use sos_vault::{EncryptedEntry, Summary, Vault};
 use std::borrow::Cow;

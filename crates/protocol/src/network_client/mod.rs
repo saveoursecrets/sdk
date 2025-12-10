@@ -8,8 +8,8 @@ use sos_signer::ed25519::{
 use std::{
     future::Future,
     sync::{
-        atomic::{AtomicU32, Ordering},
         Arc,
+        atomic::{AtomicU32, Ordering},
     },
     time::Duration,
 };
@@ -20,11 +20,11 @@ mod http;
 mod websocket;
 
 pub use self::http::{
-    set_user_agent, HttpClient, HttpClientOptions, NetworkConfig,
+    HttpClient, HttpClientOptions, NetworkConfig, set_user_agent,
 };
 
 #[cfg(feature = "listen")]
-pub use websocket::{changes, connect, ListenOptions, WebSocketHandle};
+pub use websocket::{ListenOptions, WebSocketHandle, changes, connect};
 
 /// Network retry state and logic for exponential backoff.
 #[cfg(not(target_arch = "wasm32"))]

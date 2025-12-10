@@ -1,25 +1,25 @@
 //! Server for the native messaging API extension helper.
 
 use crate::{
+    Result, ServiceAppInfo,
     local_transport::{HttpMessage, LocalRequest, LocalResponse},
     memory_server::{LocalMemoryClient, LocalMemoryServer},
     web_service::WebAccounts,
-    Result, ServiceAppInfo,
 };
 use futures_util::{SinkExt, StreamExt};
 use http::{
-    header::{CONTENT_LENGTH, CONTENT_TYPE},
     StatusCode,
+    header::{CONTENT_LENGTH, CONTENT_TYPE},
 };
 use sos_account::{Account, AccountSwitcher};
 use sos_changes::consumer::ChangeConsumer;
-use sos_core::{events::LocalChangeEvent, ErrorExt, Paths};
+use sos_core::{ErrorExt, Paths, events::LocalChangeEvent};
 use sos_login::DelegatedAccess;
 use sos_logs::Logger;
-use sos_protocol::{constants::MIME_TYPE_JSON, ErrorReply};
+use sos_protocol::{ErrorReply, constants::MIME_TYPE_JSON};
 use sos_sync::SyncStorage;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
 use super::{CHUNK_LIMIT, CHUNK_SIZE};

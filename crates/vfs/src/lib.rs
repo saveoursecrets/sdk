@@ -1,4 +1,3 @@
-#![allow(clippy::len_without_is_empty)]
 //! Virtual file system.
 //!
 //! The API is designed to match the `tokio::fs` module which in
@@ -43,6 +42,8 @@
 //! `symlink()`, `symlink_metadata()`, `symlink_file()` and
 //! `symlink_dir()` functions are not available.
 //!
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![allow(clippy::len_without_is_empty)]
 
 #[cfg(any(
     feature = "mem-fs",

@@ -1,6 +1,6 @@
-use crate::{helpers::messages::info, Error, Result};
+use crate::{Error, Result, helpers::messages::info};
 use clap::Subcommand;
-use futures::{pin_mut, StreamExt};
+use futures::{StreamExt, pin_mut};
 use sos_audit::{AuditData, AuditEvent};
 use sos_core::AccountId;
 use sos_vfs::{self as vfs};

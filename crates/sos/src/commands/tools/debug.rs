@@ -1,9 +1,9 @@
-use crate::{helpers::account::resolve_account_address, Result};
+use crate::{Result, helpers::account::resolve_account_address};
 use clap::Subcommand;
 use sos_backend::BackendTarget;
 use sos_client_storage::ClientStorage;
 use sos_core::{AccountRef, Paths};
-use sos_debug_snapshot::{export_debug_snapshot, DebugSnapshotOptions};
+use sos_debug_snapshot::{DebugSnapshotOptions, export_debug_snapshot};
 use sos_sync::SyncStorage;
 use std::path::PathBuf;
 

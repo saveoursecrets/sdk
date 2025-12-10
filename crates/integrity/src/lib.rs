@@ -1,7 +1,8 @@
+//! Integrity checks for vaults, event logs and external files.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Integrity checks for vaults, event logs and external files.
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod account_integrity;
 mod error;
 mod event_integrity;
@@ -9,19 +10,19 @@ mod event_integrity;
 mod file_integrity;
 mod vault_integrity;
 
-pub use account_integrity::{account_integrity, FolderIntegrityEvent};
+pub use account_integrity::{FolderIntegrityEvent, account_integrity};
 pub use event_integrity::event_integrity;
 pub use vault_integrity::vault_integrity;
 
 #[cfg(feature = "files")]
-pub use file_integrity::{file_integrity, FileIntegrityEvent};
+pub use file_integrity::{FileIntegrityEvent, file_integrity};
 
 pub use error::Error;
 
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
-use sos_core::{commit::CommitHash, ExternalFile, VaultId};
+use sos_core::{ExternalFile, VaultId, commit::CommitHash};
 
 /// Reasons why an integrity check can fail.
 #[derive(Debug)]

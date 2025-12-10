@@ -15,8 +15,10 @@ use sos_core::{
         patch::{FolderDiff, FolderPatch},
         AccountEvent, EventLog,
     },
-    AccountId, Paths, VaultFlags, VaultId,
+    AccountId, FolderInvite, InviteStatus, Paths, Recipient, VaultFlags,
+    VaultId,
 };
+use sos_database::entity::DeleteSharedFolderOutcome;
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{EncryptedEntry, Header, Summary, Vault};
@@ -465,6 +467,62 @@ impl ServerAccountStorage for ServerFileStorage {
         }
         vfs::remove_file(&identity_event).await?;
         Ok(())
+    }
+
+    async fn set_recipient(&mut self, _recipient: Recipient) -> Result<()> {
+        unimplemented!();
+    }
+
+    async fn get_recipient(&mut self) -> Result<Option<Recipient>> {
+        unimplemented!();
+    }
+
+    async fn create_shared_folder(
+        &mut self,
+        _vault: &[u8],
+        _recipients: &[Recipient],
+    ) -> Result<()> {
+        unimplemented!();
+    }
+
+    async fn sent_folder_invites(
+        &mut self,
+        _invite_status: Option<InviteStatus>,
+        _limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>> {
+        unimplemented!();
+    }
+
+    async fn received_folder_invites(
+        &mut self,
+        _invite_status: Option<InviteStatus>,
+        _limit: Option<usize>,
+    ) -> Result<Vec<FolderInvite>> {
+        unimplemented!();
+    }
+
+    async fn update_folder_invite(
+        &mut self,
+        _invite_status: InviteStatus,
+        _from_public_key: String,
+        _folder_id: VaultId,
+    ) -> Result<()> {
+        unimplemented!();
+    }
+
+    async fn search_recipients(
+        &mut self,
+        _query: String,
+        _limit: Option<usize>,
+    ) -> Result<Vec<Recipient>> {
+        unimplemented!();
+    }
+
+    async fn delete_shared_folder(
+        &mut self,
+        _folder_id: &VaultId,
+    ) -> Result<DeleteSharedFolderOutcome> {
+        unimplemented!();
     }
 }
 

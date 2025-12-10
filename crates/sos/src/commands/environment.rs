@@ -1,9 +1,9 @@
-use crate::{helpers::account::resolve_account_address, Result};
+use crate::{Result, helpers::account::resolve_account_address};
 use clap::Subcommand;
-use enum_iterator::{all, Sequence};
+use enum_iterator::{Sequence, all};
 use sos_core::{
-    constants::{SOS_DATA_DIR, SOS_OFFLINE, SOS_PROMPT},
     AccountRef, Paths,
+    constants::{SOS_DATA_DIR, SOS_OFFLINE, SOS_PROMPT},
 };
 use std::{fmt, str::FromStr};
 
