@@ -16,6 +16,19 @@ pub use folder_invites::FolderInviteRecord;
 use recipient::RecipientRow;
 pub use recipient::{RecipientEntity, RecipientRecord};
 
+/// Information about a shared folder deletion.
+#[derive(Debug)]
+pub struct DeleteSharedFolderOutcome {
+    /// Whether the account that performed 
+    /// the deletion was the folder creator.
+    pub is_creator: bool,
+    /// Public key of the account that 
+    /// requested the deletion.
+    pub caller_public_key: String,
+    /// All shared folder participant account identifiers and public keys.
+    pub participants: Vec<(AccountId, String)>,
+}
+
 /// Record for a shared folder.
 #[derive(Debug)]
 pub struct SharedFolderRecord {
@@ -589,7 +602,7 @@ impl<'conn> SharedFolderEntity<'conn> {
         client: &Client,
         account_id: &AccountId,
         folder_id: &VaultId,
-    ) -> Result<()> {
+    ) -> Result<DeleteSharedFolderOutcome> {
         // Validate account exists and get recipient
         let check_account_id = *account_id;
         let (account_row, recipient_row) = client
@@ -610,6 +623,9 @@ impl<'conn> SharedFolderEntity<'conn> {
             account_row.ok_or(SharingError::DeleteNoAccount(*account_id))?;
         let recipient_row = recipient_row
             .ok_or(SharingError::RecipientNotCreated(*account_id))?;
+
+        // Store caller's public key for the outcome
+        let caller_public_key = recipient_row.recipient_public_key.clone();
 
         // Validate folder exists and get shared folder join
         let check_folder_id = *folder_id;
@@ -669,6 +685,43 @@ impl<'conn> SharedFolderEntity<'conn> {
         let (shared_folder_id, is_creator) =
             shared_folder.ok_or(SharingError::DeleteNotShared(*folder_id))?;
 
+        // Get all recipients for this shared folder BEFORE deletion
+        let folder_row_id = folder_row.row_id;
+        let participants = client
+            .conn_and_then(move |conn| {
+                let query = sql::Select::new()
+                    .select(
+                        r#"
+                    a.identifier,
+                    r.recipient_public_key
+                "#,
+                    )
+                    .from("shared_folders AS sf")
+                    .inner_join(
+                        "shared_folder_recipients AS sfr ON sf.shared_folder_id = sfr.shared_folder_id",
+                    )
+                    .inner_join("recipients AS r ON sfr.recipient_id = r.recipient_id")
+                    .inner_join("accounts AS a ON r.account_id = a.account_id")
+                    .where_clause("sf.folder_id = ?1");
+
+                let mut stmt = conn.prepare_cached(&query.as_string())?;
+
+                fn convert_row(row: &Row<'_>) -> Result<(AccountId, String)> {
+                    let account_id: String = row.get(0)?;
+                    let public_key: String = row.get(1)?;
+                    Ok((account_id.parse()?, public_key))
+                }
+
+                let rows = stmt.query_and_then([folder_row_id], convert_row)?;
+
+                let mut recipients = Vec::new();
+                for row in rows {
+                    recipients.push(row?);
+                }
+                Ok::<_, crate::Error>(recipients)
+            })
+            .await?;
+
         // Delete based on creator status
         client
             .conn_mut_and_then(move |conn| {
@@ -710,6 +763,10 @@ impl<'conn> SharedFolderEntity<'conn> {
             })
             .await?;
 
-        Ok(())
+        Ok(DeleteSharedFolderOutcome {
+            is_creator,
+            caller_public_key,
+            participants,
+        })
     }
 }
