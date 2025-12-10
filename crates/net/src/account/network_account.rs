@@ -1924,12 +1924,14 @@ impl Account for NetworkAccount {
         &mut self,
         folder_id: &VaultId,
     ) -> Result<FolderDelete<Self::NetworkResult>> {
-        let folder = self
-            .find_folder(&FolderRef::Id(*folder_id))
-            .await
-            .ok_or(StorageError::FolderNotFound(*folder_id))?;
-        if folder.flags().is_shared() {
-            return Err(Error::SharedFolderOperationNotPermitted(*folder_id));
+        if let Some(folder) =
+            self.find_folder(&FolderRef::Id(*folder_id)).await
+        {
+            if folder.flags().is_shared() {
+                return Err(Error::SharedFolderOperationNotPermitted(
+                    *folder_id,
+                ));
+            }
         }
 
         let _ = self.sync_lock.lock().await;
