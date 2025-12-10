@@ -18,6 +18,7 @@ use sos_core::{
     AccountId, FolderInvite, InviteStatus, Paths, Recipient, VaultFlags,
     VaultId,
 };
+use sos_database::entity::DeleteSharedFolderOutcome;
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{EncryptedEntry, Header, Summary, Vault};
@@ -520,7 +521,7 @@ impl ServerAccountStorage for ServerFileStorage {
     async fn delete_shared_folder(
         &mut self,
         _folder_id: &VaultId,
-    ) -> Result<()> {
+    ) -> Result<DeleteSharedFolderOutcome> {
         unimplemented!();
     }
 }

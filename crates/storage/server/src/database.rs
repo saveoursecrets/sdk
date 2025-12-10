@@ -18,8 +18,8 @@ use sos_core::{
     VaultId,
 };
 use sos_database::entity::{
-    AccountEntity, AccountRow, FolderEntity, FolderRecord, FolderRow,
-    RecipientEntity,
+    AccountEntity, AccountRow, DeleteSharedFolderOutcome, FolderEntity,
+    FolderRecord, FolderRow, RecipientEntity,
 };
 use sos_database::{async_sqlite::Client, entity::SharedFolderEntity};
 use sos_reducers::{DeviceReducer, FolderReducer};
@@ -594,15 +594,31 @@ impl ServerAccountStorage for ServerDatabaseStorage {
     }
 
     async fn delete_folder(&mut self, id: &VaultId) -> Result<()> {
-        // Remove from the database
-        self.remove_vault_file(id).await?;
+        use sos_database::{
+            async_sqlite::{self, rusqlite},
+            Error as DbError,
+        };
+
+        // Remove from the database.
+        //
+        // With the introduction of shared folders it is now possible
+        // that the folder does not exist for an account but we still
+        // need to clean up in-memory data for shared folders so we
+        // allow QueryReturnedNoRows to accomodate this.
+        match self.remove_vault_file(id).await {
+            Err(Error::Database(DbError::AsyncSqlite(
+                async_sqlite::Error::Rusqlite(
+                    rusqlite::Error::QueryReturnedNoRows,
+                ),
+            ))) => {}
+            Err(e) => {
+                return Err(e);
+            }
+            Ok(_) => {}
+        }
 
         // Remove local state
         self.folders.remove(id);
-        {
-            let mut shared_folders = self.shared_folder_events.lock().await;
-            shared_folders.remove(id);
-        }
 
         #[cfg(feature = "files")]
         {
@@ -776,15 +792,21 @@ impl ServerAccountStorage for ServerDatabaseStorage {
     async fn delete_shared_folder(
         &mut self,
         folder_id: &VaultId,
-    ) -> Result<()> {
+    ) -> Result<DeleteSharedFolderOutcome> {
         let account_id = self.account_id;
-        SharedFolderEntity::delete_shared_folder(
+        let outcome = SharedFolderEntity::delete_shared_folder(
             &self.client,
             &account_id,
             folder_id,
         )
         .await?;
-        Ok(())
+
+        if outcome.is_creator {
+            let mut shared_folders = self.shared_folder_events.lock().await;
+            shared_folders.remove(folder_id);
+        }
+
+        Ok(outcome)
     }
 }
 

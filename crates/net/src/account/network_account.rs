@@ -609,7 +609,7 @@ impl NetworkAccount {
         // Try to delete the shared folder on the server
         bridge.client.delete_shared_folder(request).await?;
 
-        // Delete from local storage
+        // Delete from local storage and sync changes
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
@@ -1926,12 +1926,9 @@ impl Account for NetworkAccount {
     ) -> Result<FolderDelete<Self::NetworkResult>> {
         if let Some(folder) =
             self.find_folder(&FolderRef::Id(*folder_id)).await
+            && folder.flags().is_shared()
         {
-            if folder.flags().is_shared() {
-                return Err(Error::SharedFolderOperationNotPermitted(
-                    *folder_id,
-                ));
-            }
+            return Err(Error::SharedFolderOperationNotPermitted(*folder_id));
         }
 
         let _ = self.sync_lock.lock().await;

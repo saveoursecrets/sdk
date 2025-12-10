@@ -60,4 +60,8 @@ message WireDeleteSharedFolderRequest {
   /// Folder identifier.
   string folder_id = 1;
 }
-message WireDeleteSharedFolderResponse {}
+message WireDeleteSharedFolderResponse {
+  /// Whether the account that deleted the folder
+  /// also created the folder.
+  bool is_creator = 1;
+}

@@ -497,6 +497,7 @@ mod handlers {
     use crate::{Error, Result, ServerBackend, ServerState};
     use axum::body::Bytes;
     use http::header::{self, HeaderMap, HeaderValue};
+    use sos_core::events::{AccountEvent, EventLog};
     use sos_protocol::{
         CreateSharedFolderRequest, CreateSharedFolderResponse,
         DeleteSharedFolderRequest, DeleteSharedFolderResponse,
@@ -507,6 +508,7 @@ mod handlers {
         WireEncodeDecode, constants::MIME_TYPE_PROTOBUF,
     };
     use sos_server_storage::ServerAccountStorage;
+    use sos_sync::StorageEventLogs;
     use std::sync::Arc;
 
     pub(super) async fn set_recipient(
@@ -602,7 +604,6 @@ mod handlers {
                     packet.recipients.as_slice(),
                 )
                 .await?;
-            // account.set_recipient(packet.recipient).await?;
         }
 
         // Empty response packet for now
@@ -768,16 +769,51 @@ mod handlers {
             Arc::clone(account)
         };
 
-        let packet = DeleteSharedFolderRequest::decode(bytes).await?;
+        let request = DeleteSharedFolderRequest::decode(bytes).await?;
 
-        {
+        let outcome = {
             let mut account = account.write().await;
-            account.delete_shared_folder(&packet.folder_id).await?;
-            // account.set_recipient(packet.recipient).await?;
-        }
+            account.delete_shared_folder(&request.folder_id).await?
+        };
 
         // Empty response packet for now
-        let packet = DeleteSharedFolderResponse {};
+        let response = DeleteSharedFolderResponse {
+            is_creator: outcome.is_creator,
+        };
+
+        let other_recipient_account_ids = outcome
+            .participants
+            .iter()
+            .filter(|a| a.1 != outcome.caller_public_key)
+            .map(|a| a.0)
+            .collect::<Vec<_>>();
+
+        // Inject a delete folder event into the account event log
+        // for the other participants which will make them delete
+        // the folder on the next sync.
+        //
+        // The calling client should delete their own local copy
+        // which will generate the event.
+        if outcome.is_creator {
+            let synthetic_account_event =
+                AccountEvent::DeleteFolder(request.folder_id);
+            let reader = backend.read().await;
+            let accounts = reader.accounts();
+            let reader = accounts.read().await;
+            for account_id in &other_recipient_account_ids {
+                if let Some(account) = reader.get(account_id) {
+                    let mut account = account.write().await;
+
+                    account.delete_folder(&request.folder_id).await?;
+
+                    let account_events = account.account_log().await?;
+                    let mut account_events = account_events.write().await;
+                    account_events
+                        .apply(std::slice::from_ref(&synthetic_account_event))
+                        .await?;
+                }
+            }
+        }
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -785,6 +821,6 @@ mod handlers {
             HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        Ok((headers, packet.encode().await?))
+        Ok((headers, response.encode().await?))
     }
 }

@@ -94,7 +94,7 @@ async fn shared_folder_delete_owner() -> Result<()> {
     assert!(folders.iter().any(|f| f.name() == folder_name));
 
     // Ensure the owner can manage secrets in the folder
-    let secret_ids = super::assert_shared_folder_lifecycle(
+    let mut secret_ids = super::assert_shared_folder_lifecycle(
         &mut account1.owner,
         shared_folder.id(),
         account1_password,
@@ -149,8 +149,32 @@ async fn shared_folder_delete_owner() -> Result<()> {
         .iter()
         .any(|f| f.name() == folder_name));
 
-    // TODO: check the participant can still read until a sync
-    // TODO: check the participant has no folder and cannot read after a sync
+    // The participant can still access the shared secret for now
+    let target_secret_id = secret_ids.remove(0);
+    account2
+        .owner
+        .read_secret(&target_secret_id, Some(shared_folder.id()))
+        .await?;
+
+    // Now the participant performs a sync
+    let sync_result = account2.owner.sync().await;
+    println!("{:#?}", sync_result);
+    assert!(sync_result.first_error().is_none());
+
+    // Now the shared folder is no longer accessible to the participant
+    assert!(!account2
+        .owner
+        .list_folders()
+        .await?
+        .iter()
+        .any(|f| f.name() == folder_name));
+
+    // Check the secret is no longer accessible to the participant
+    assert!(account2
+        .owner
+        .read_secret(&target_secret_id, Some(shared_folder.id()))
+        .await
+        .is_err());
 
     account1.owner.sign_out().await?;
     account2.owner.sign_out().await?;

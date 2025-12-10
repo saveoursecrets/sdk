@@ -9,6 +9,7 @@ use sos_core::{
     AccountId, FolderInvite, InviteStatus, Paths, Recipient, VaultFlags,
     VaultId,
 };
+use sos_database::entity::DeleteSharedFolderOutcome;
 use sos_sync::CreateSet;
 use sos_vault::{Summary, Vault};
 use std::collections::{HashMap, HashSet};
@@ -155,5 +156,5 @@ pub trait ServerAccountStorage {
     async fn delete_shared_folder(
         &mut self,
         folder_id: &VaultId,
-    ) -> Result<()>;
+    ) -> Result<DeleteSharedFolderOutcome>;
 }

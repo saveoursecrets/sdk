@@ -424,7 +424,11 @@ impl From<DeleteSharedFolderRequest> for WireDeleteSharedFolderRequest {
 
 /// Response from a request to delete a folder.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DeleteSharedFolderResponse {}
+pub struct DeleteSharedFolderResponse {
+    /// Whether the account deleting the folder
+    /// also created the folder.
+    pub is_creator: bool,
+}
 
 impl ProtoBinding for DeleteSharedFolderResponse {
     type Inner = WireDeleteSharedFolderResponse;
@@ -433,15 +437,19 @@ impl ProtoBinding for DeleteSharedFolderResponse {
 impl TryFrom<WireDeleteSharedFolderResponse> for DeleteSharedFolderResponse {
     type Error = Error;
 
-    fn try_from(_value: WireDeleteSharedFolderResponse) -> Result<Self> {
-        Ok(Self {})
+    fn try_from(value: WireDeleteSharedFolderResponse) -> Result<Self> {
+        Ok(Self {
+            is_creator: value.is_creator,
+        })
     }
 }
 
 impl From<DeleteSharedFolderResponse> for WireDeleteSharedFolderResponse {
     fn from(
-        _value: DeleteSharedFolderResponse,
+        value: DeleteSharedFolderResponse,
     ) -> WireDeleteSharedFolderResponse {
-        Self {}
+        Self {
+            is_creator: value.is_creator,
+        }
     }
 }
