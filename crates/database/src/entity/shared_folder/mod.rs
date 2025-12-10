@@ -19,10 +19,10 @@ pub use recipient::{RecipientEntity, RecipientRecord};
 /// Information about a shared folder deletion.
 #[derive(Debug)]
 pub struct DeleteSharedFolderOutcome {
-    /// Whether the account that performed 
+    /// Whether the account that performed
     /// the deletion was the folder creator.
     pub is_creator: bool,
-    /// Public key of the account that 
+    /// Public key of the account that
     /// requested the deletion.
     pub caller_public_key: String,
     /// All shared folder participant account identifiers and public keys.

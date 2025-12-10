@@ -801,9 +801,12 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         )
         .await?;
 
-        if outcome.is_creator {
-            self.delete_folder(folder_id).await?;
+        // Delete in-memory folder event logs for the caller
+        self.delete_folder(folder_id).await?;
 
+        // Clean up shared folder event log when actually removing
+        // the folder data
+        if outcome.is_creator {
             let mut shared_folders = self.shared_folder_events.lock().await;
             shared_folders.remove(folder_id);
         }

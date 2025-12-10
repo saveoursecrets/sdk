@@ -187,7 +187,7 @@ async fn db_entity_shared_folder_delete_participant() -> Result<()> {
     let account2_folders = account2.load_folders().await?;
     assert!(!account2_folders.iter().any(|s| s.name() == FOLDER_NAME));
 
-    teardown(TEST_ID).await;
+    // teardown(TEST_ID).await;
 
     Ok(())
 }
