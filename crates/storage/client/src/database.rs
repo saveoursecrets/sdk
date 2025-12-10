@@ -327,11 +327,12 @@ impl ClientVaultStorage for ClientDatabaseStorage {
         folder_id: &VaultId,
         _: Internal,
     ) -> Result<()> {
+        let account_row_id = self.account_row_id;
         let folder_id = *folder_id;
         self.client
             .conn(move |conn| {
                 let folder_entity = FolderEntity::new(&conn);
-                folder_entity.delete_folder(&folder_id)
+                folder_entity.delete_folder(account_row_id, &folder_id)
             })
             .await
             .map_err(sos_database::Error::from)?;

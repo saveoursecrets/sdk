@@ -231,7 +231,8 @@ impl<'conn> AccountEntity<'conn, Transaction<'conn>> {
                 let folder_entity = FolderEntity::new(&tx);
 
                 // Delete the old folder
-                folder_entity.delete_folder(&login_folder_id)?;
+                folder_entity
+                    .delete_folder(account.row_id, &login_folder_id)?;
 
                 // Create the new folder
                 let folder_row_id = folder_entity

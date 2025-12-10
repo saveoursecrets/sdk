@@ -938,14 +938,16 @@ where
     /// Delete a folder.
     pub fn delete_folder(
         &self,
+        account_id: i64,
         folder_id: &VaultId,
     ) -> StdResult<bool, SqlError> {
         let row = self.find_one(folder_id)?;
         let query = sql::Delete::new()
             .delete_from("folders")
-            .where_clause("folder_id = ?1");
+            .where_clause("account_id = ?1")
+            .where_and("folder_id = ?2");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        let affected_rows = stmt.execute([row.row_id])?;
+        let affected_rows = stmt.execute([account_id, row.row_id])?;
         Ok(affected_rows > 0)
     }
 

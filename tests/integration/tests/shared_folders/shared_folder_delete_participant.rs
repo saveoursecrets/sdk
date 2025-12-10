@@ -170,7 +170,7 @@ async fn shared_folder_delete_participant() -> Result<()> {
         .owner
         .read_secret(&target_secret_id, Some(shared_folder.id()))
         .await
-        .is_err());
+        .is_ok());
 
     account1.owner.sign_out().await?;
     account2.owner.sign_out().await?;

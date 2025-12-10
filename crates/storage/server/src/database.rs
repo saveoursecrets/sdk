@@ -209,11 +209,12 @@ impl ServerDatabaseStorage {
 
     /// Remove a folder.
     async fn remove_vault_file(&self, folder_id: &VaultId) -> Result<()> {
+        let account_row_id = self.account_row_id;
         let folder_id = *folder_id;
         self.client
             .conn(move |conn| {
                 let folder = FolderEntity::new(&conn);
-                folder.delete_folder(&folder_id)
+                folder.delete_folder(account_row_id, &folder_id)
             })
             .await
             .map_err(sos_database::Error::from)?;
