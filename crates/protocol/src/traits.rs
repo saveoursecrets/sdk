@@ -1,9 +1,10 @@
 use crate::{
-    DiffRequest, DiffResponse, GetFolderInvitesRequest,
-    GetFolderInvitesResponse, GetRecipientRequest, GetRecipientResponse,
-    PatchRequest, PatchResponse, ScanRequest, ScanResponse,
-    SearchRecipientsRequest, SearchRecipientsResponse, SetRecipientRequest,
-    SetRecipientResponse, SharedFolderRequest, SharedFolderResponse,
+    CreateSharedFolderRequest, CreateSharedFolderResponse,
+    DeleteSharedFolderRequest, DeleteSharedFolderResponse, DiffRequest,
+    DiffResponse, GetFolderInvitesRequest, GetFolderInvitesResponse,
+    GetRecipientRequest, GetRecipientResponse, PatchRequest, PatchResponse,
+    ScanRequest, ScanResponse, SearchRecipientsRequest,
+    SearchRecipientsResponse, SetRecipientRequest, SetRecipientResponse,
     SyncOptions, UpdateFolderInviteRequest, UpdateFolderInviteResponse,
 };
 use async_trait::async_trait;
@@ -228,8 +229,8 @@ pub trait SyncClient {
     /// Create a shared folder.
     async fn create_shared_folder(
         &self,
-        request: SharedFolderRequest,
-    ) -> Result<SharedFolderResponse, Self::Error>;
+        request: CreateSharedFolderRequest,
+    ) -> Result<CreateSharedFolderResponse, Self::Error>;
 
     /// List sent folder invites.
     async fn sent_folder_invites(
@@ -254,4 +255,10 @@ pub trait SyncClient {
         &self,
         request: SearchRecipientsRequest,
     ) -> Result<SearchRecipientsResponse, Self::Error>;
+
+    /// Delete a shared folder.
+    async fn delete_shared_folder(
+        &self,
+        request: DeleteSharedFolderRequest,
+    ) -> Result<DeleteSharedFolderResponse, Self::Error>;
 }

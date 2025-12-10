@@ -6,10 +6,11 @@ use sos_protocol::AccountSync;
 use sos_test_utils::{simulate_device, spawn, teardown};
 
 /// Tests creating a shared folder and having the owner
-/// and a participant perform basic secret lifecycle operations.
+/// delete the folder. Once the partcipant has called sync()
+/// the folder will also be unavailable to the participant.
 #[tokio::test]
-async fn shared_folder_secret_lifecycle() -> Result<()> {
-    const TEST_ID: &str = "shared_folder_secret_lifecycle";
+async fn shared_folder_delete_owner() -> Result<()> {
+    const TEST_ID: &str = "shared_folder_delete_owner";
     // sos_test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
@@ -126,7 +127,7 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
     }
 
     // Ensure the participant can manage secrets in the folder
-    let new_secret_ids = super::assert_shared_folder_lifecycle(
+    super::assert_shared_folder_lifecycle(
         &mut account2.owner,
         shared_folder.id(),
         account2_password,
@@ -134,18 +135,22 @@ async fn shared_folder_secret_lifecycle() -> Result<()> {
     )
     .await?;
 
-    // Ensure the owner can read the secrets that the participant creates
-    // after calling sync().
-    let sync_result = account1.owner.sync().await;
-    assert!(sync_result.first_error().is_none());
+    // Owner deletes the shared folder
+    account1
+        .owner
+        .delete_shared_folder(&origin, shared_folder.id())
+        .await?;
 
-    for secret_id in &new_secret_ids {
-        let (row, _) = account1
-            .owner
-            .read_secret(secret_id, Some(shared_folder.id()))
-            .await?;
-        println!("{row:?}");
-    }
+    // Immediately not available to the owner
+    assert!(!account1
+        .owner
+        .list_folders()
+        .await?
+        .iter()
+        .any(|f| f.name() == folder_name));
+
+    // TODO: check the participant can still read until a sync
+    // TODO: check the participant has no folder and cannot read after a sync
 
     account1.owner.sign_out().await?;
     account2.owner.sign_out().await?;

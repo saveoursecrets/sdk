@@ -22,9 +22,10 @@ pub use relay::{
 };
 pub use scan::{ScanRequest, ScanResponse};
 pub use shared_folder::{
+    CreateSharedFolderRequest, CreateSharedFolderResponse,
+    DeleteSharedFolderRequest, DeleteSharedFolderResponse,
     GetFolderInvitesRequest, GetFolderInvitesResponse, GetRecipientRequest,
     GetRecipientResponse, SearchRecipientsRequest, SearchRecipientsResponse,
-    SetRecipientRequest, SetRecipientResponse, SharedFolderRequest,
-    SharedFolderResponse, UpdateFolderInviteRequest,
+    SetRecipientRequest, SetRecipientResponse, UpdateFolderInviteRequest,
     UpdateFolderInviteResponse,
 };

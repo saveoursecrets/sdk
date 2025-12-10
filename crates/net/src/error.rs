@@ -46,6 +46,11 @@ pub enum Error {
     #[error("failed to force update, {0}")]
     ForceUpdate(Box<Error>),
 
+    /// Error generated when an operation cannot be permitted due to
+    /// the folder being shared.
+    #[error("operation not permitted on shared folder {0}")]
+    SharedFolderOperationNotPermitted(VaultId),
+
     /// Error generated trying to parse a device enrollment sharing URL.
     #[deprecated]
     #[error("invalid share url for device enrollment")]

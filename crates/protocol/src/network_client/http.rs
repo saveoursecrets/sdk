@@ -1,24 +1,24 @@
 //! HTTP client implementation.
 use crate::{
-    DiffRequest, DiffResponse, Error, GetFolderInvitesRequest,
-    GetFolderInvitesResponse, GetRecipientRequest, GetRecipientResponse,
-    NetworkError, PatchRequest, PatchResponse, Result, ScanRequest,
-    ScanResponse, SearchRecipientsRequest, SearchRecipientsResponse,
-    SetRecipientRequest, SetRecipientResponse, SyncClient,
-    UpdateFolderInviteRequest, UpdateFolderInviteResponse, WireEncodeDecode,
+    CreateSharedFolderRequest, CreateSharedFolderResponse,
+    DeleteSharedFolderRequest, DeleteSharedFolderResponse, DiffRequest,
+    DiffResponse, Error, GetFolderInvitesRequest, GetFolderInvitesResponse,
+    GetRecipientRequest, GetRecipientResponse, NetworkError, PatchRequest,
+    PatchResponse, Result, ScanRequest, ScanResponse,
+    SearchRecipientsRequest, SearchRecipientsResponse, SetRecipientRequest,
+    SetRecipientResponse, SyncClient, UpdateFolderInviteRequest,
+    UpdateFolderInviteResponse, WireEncodeDecode,
     constants::{
         MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
         routes::v1::{
-            SHARING_CREATE_FOLDER, SHARING_RECEIVED_INVITES,
-            SHARING_RECIPIENT, SHARING_SEARCH_RECIPIENTS,
-            SHARING_SENT_INVITES, SHARING_UPDATE_INVITE, SYNC_ACCOUNT,
-            SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
+            SHARING_FOLDER, SHARING_RECEIVED_INVITES, SHARING_RECIPIENT,
+            SHARING_SEARCH_RECIPIENTS, SHARING_SENT_INVITES,
+            SHARING_UPDATE_INVITE, SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS,
+            SYNC_ACCOUNT_STATUS,
         },
     },
     query::MoveFileQuery,
 };
-#[cfg(feature = "files")]
-use crate::{SharedFolderRequest, SharedFolderResponse};
 use async_trait::async_trait;
 use http::StatusCode;
 use reqwest::{
@@ -517,10 +517,10 @@ impl SyncClient for HttpClient {
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
     async fn create_shared_folder(
         &self,
-        request: SharedFolderRequest,
-    ) -> Result<SharedFolderResponse> {
+        request: CreateSharedFolderRequest,
+    ) -> Result<CreateSharedFolderResponse> {
         let body = request.encode().await?;
-        let url = self.build_url(SHARING_CREATE_FOLDER)?;
+        let url = self.build_url(SHARING_FOLDER)?;
         tracing::debug!(url = %url, "http::create_shared_folder");
         let request = self
             .client
@@ -532,7 +532,7 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::create_shared_folder");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(SharedFolderResponse::decode(buffer).await?)
+        Ok(CreateSharedFolderResponse::decode(buffer).await?)
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
@@ -617,6 +617,27 @@ impl SyncClient for HttpClient {
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
         Ok(SearchRecipientsResponse::decode(buffer).await?)
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
+    async fn delete_shared_folder(
+        &self,
+        request: DeleteSharedFolderRequest,
+    ) -> Result<DeleteSharedFolderResponse> {
+        let body = request.encode().await?;
+        let url = self.build_url(SHARING_FOLDER)?;
+        tracing::debug!(url = %url, "http::delete_shared_folder");
+        let request = self
+            .client
+            .delete(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF);
+        let request = self.request_headers(request, &body).await?;
+        let response = request.body(body).send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::delete_shared_folder");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(DeleteSharedFolderResponse::decode(buffer).await?)
     }
 }
 

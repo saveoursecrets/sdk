@@ -6,6 +6,7 @@ use sos_net::NetworkAccount;
 use sos_test_utils::mock;
 use sos_vault::secret::Secret;
 
+mod shared_folder_delete_owner;
 mod shared_folder_secret_lifecycle;
 // mod shared_folder_write_access;
 

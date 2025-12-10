@@ -28,10 +28,10 @@ use sos_login::{
     device::{DeviceManager, DeviceSigner},
 };
 use sos_protocol::{
-    AccountSync, DiffRequest, GetFolderInvitesRequest, GetRecipientRequest,
-    RemoteResult, RemoteSync, SearchRecipientsRequest, SetRecipientRequest,
-    SharedFolderRequest, SyncClient, SyncOptions, SyncResult,
-    UpdateFolderInviteRequest, is_offline,
+    AccountSync, CreateSharedFolderRequest, DeleteSharedFolderRequest,
+    DiffRequest, GetFolderInvitesRequest, GetRecipientRequest, RemoteResult,
+    RemoteSync, SearchRecipientsRequest, SetRecipientRequest, SyncClient,
+    SyncOptions, SyncResult, UpdateFolderInviteRequest, is_offline,
     network_client::{HttpClientOptions, NetworkConfig},
 };
 use sos_remote_sync::RemoteSyncHandler;
@@ -573,7 +573,7 @@ impl NetworkAccount {
         let buffer = encode(&vault).await?;
 
         let bridge = self.remote_bridge(server).await?;
-        let request = SharedFolderRequest {
+        let request = CreateSharedFolderRequest {
             vault: buffer.clone(),
             recipients: recipients.to_vec(),
         };
@@ -588,6 +588,36 @@ impl NetworkAccount {
         let result = FolderCreate {
             folder: result.folder,
             event: result.event,
+            commit_state: result.commit_state,
+            sync_result: self.sync().await,
+        };
+
+        Ok(result)
+    }
+
+    /// Delete a shared folder.
+    pub async fn delete_shared_folder(
+        &mut self,
+        server: &Origin,
+        folder_id: &VaultId,
+    ) -> Result<FolderDelete<<Self as Account>::NetworkResult>> {
+        let bridge = self.remote_bridge(server).await?;
+        let request = DeleteSharedFolderRequest {
+            folder_id: *folder_id,
+        };
+
+        // Try to delete the shared folder on the server
+        bridge.client.delete_shared_folder(request).await?;
+
+        // Delete from local storage
+        let _ = self.sync_lock.lock().await;
+        let result = {
+            let mut account = self.account.lock().await;
+            account.delete_folder(folder_id).await?
+        };
+
+        let result = FolderDelete {
+            events: result.events,
             commit_state: result.commit_state,
             sync_result: self.sync().await,
         };
@@ -1894,6 +1924,14 @@ impl Account for NetworkAccount {
         &mut self,
         folder_id: &VaultId,
     ) -> Result<FolderDelete<Self::NetworkResult>> {
+        let folder = self
+            .find_folder(&FolderRef::Id(*folder_id))
+            .await
+            .ok_or(StorageError::FolderNotFound(*folder_id))?;
+        if folder.flags().is_shared() {
+            return Err(Error::SharedFolderOperationNotPermitted(*folder_id));
+        }
+
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;

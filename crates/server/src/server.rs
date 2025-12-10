@@ -333,7 +333,11 @@ impl Server {
                     "/sharing/recipient/search",
                     get(sharing::search_recipients),
                 )
-                .route("/sharing/folder", post(sharing::create_folder))
+                .route(
+                    "/sharing/folder",
+                    post(sharing::create_folder)
+                        .delete(sharing::delete_folder),
+                )
                 .route(
                     "/sharing/folder/invites/sent",
                     get(sharing::sent_folder_invites),

@@ -502,6 +502,20 @@ impl ServerAccountStorage for ServerStorage {
             }
         }
     }
+
+    async fn delete_shared_folder(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => {
+                fs.delete_shared_folder(folder_id).await
+            }
+            ServerStorage::Database(db) => {
+                db.delete_shared_folder(folder_id).await
+            }
+        }
+    }
 }
 
 #[async_trait]

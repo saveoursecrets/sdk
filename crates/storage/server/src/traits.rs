@@ -150,4 +150,10 @@ pub trait ServerAccountStorage {
         query: String,
         limit: Option<usize>,
     ) -> Result<Vec<Recipient>>;
+
+    /// Delete a shared folder.
+    async fn delete_shared_folder(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> Result<()>;
 }

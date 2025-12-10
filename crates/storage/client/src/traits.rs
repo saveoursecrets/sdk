@@ -1253,12 +1253,6 @@ pub trait ClientAccountStorage:
     ) -> Result<Vec<Event>> {
         self.guard_authenticated(Internal)?;
 
-        if let Some(summary) = self.find_folder(&FolderRef::Id(*folder_id))
-            && summary.flags().is_shared()
-        {
-            panic!("cannot call delete_folder on a shared folder");
-        }
-
         // Remove the files
         self.remove_vault(folder_id, Internal).await?;
 

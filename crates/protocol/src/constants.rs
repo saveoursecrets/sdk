@@ -38,8 +38,8 @@ pub mod routes {
         /// Route for set and get recipient information.
         pub const SHARING_RECIPIENT: &str = "/api/v1/sharing/recipient";
 
-        /// Route for creating a shared folder.
-        pub const SHARING_CREATE_FOLDER: &str = "/api/v1/sharing/folder";
+        /// Route for creating and deleting a shared folder.
+        pub const SHARING_FOLDER: &str = "/api/v1/sharing/folder";
 
         /// Route for listing sent invites.
         pub const SHARING_SENT_INVITES: &str =

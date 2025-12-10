@@ -116,21 +116,21 @@ impl From<GetRecipientRequest> for WireGetRecipientRequest {
 /// Used during auto merge to force push a combined collection
 /// of events.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SharedFolderRequest {
+pub struct CreateSharedFolderRequest {
     /// Encoded vault.
     pub vault: Vec<u8>,
     /// List of recipients.
     pub recipients: Vec<Recipient>,
 }
 
-impl ProtoBinding for SharedFolderRequest {
-    type Inner = WireSharedFolderRequest;
+impl ProtoBinding for CreateSharedFolderRequest {
+    type Inner = WireCreateSharedFolderRequest;
 }
 
-impl TryFrom<WireSharedFolderRequest> for SharedFolderRequest {
+impl TryFrom<WireCreateSharedFolderRequest> for CreateSharedFolderRequest {
     type Error = Error;
 
-    fn try_from(value: WireSharedFolderRequest) -> Result<Self> {
+    fn try_from(value: WireCreateSharedFolderRequest) -> Result<Self> {
         let mut recipients = Vec::with_capacity(value.recipients.len());
         for recipient in value.recipients {
             recipients.push(recipient.try_into()?);
@@ -142,8 +142,10 @@ impl TryFrom<WireSharedFolderRequest> for SharedFolderRequest {
     }
 }
 
-impl From<SharedFolderRequest> for WireSharedFolderRequest {
-    fn from(value: SharedFolderRequest) -> WireSharedFolderRequest {
+impl From<CreateSharedFolderRequest> for WireCreateSharedFolderRequest {
+    fn from(
+        value: CreateSharedFolderRequest,
+    ) -> WireCreateSharedFolderRequest {
         Self {
             vault: value.vault,
             recipients: value
@@ -157,22 +159,24 @@ impl From<SharedFolderRequest> for WireSharedFolderRequest {
 
 /// Response from a create shared folder request.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SharedFolderResponse {}
+pub struct CreateSharedFolderResponse {}
 
-impl ProtoBinding for SharedFolderResponse {
-    type Inner = WireSharedFolderResponse;
+impl ProtoBinding for CreateSharedFolderResponse {
+    type Inner = WireCreateSharedFolderResponse;
 }
 
-impl TryFrom<WireSharedFolderResponse> for SharedFolderResponse {
+impl TryFrom<WireCreateSharedFolderResponse> for CreateSharedFolderResponse {
     type Error = Error;
 
-    fn try_from(_value: WireSharedFolderResponse) -> Result<Self> {
+    fn try_from(_value: WireCreateSharedFolderResponse) -> Result<Self> {
         Ok(Self {})
     }
 }
 
-impl From<SharedFolderResponse> for WireSharedFolderResponse {
-    fn from(_value: SharedFolderResponse) -> WireSharedFolderResponse {
+impl From<CreateSharedFolderResponse> for WireCreateSharedFolderResponse {
+    fn from(
+        _value: CreateSharedFolderResponse,
+    ) -> WireCreateSharedFolderResponse {
         Self {}
     }
 }
@@ -384,5 +388,60 @@ impl From<SearchRecipientsResponse> for WireSearchRecipientsResponse {
                 .map(|f| f.into())
                 .collect(),
         }
+    }
+}
+
+/// Request to delete a folder invite.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeleteSharedFolderRequest {
+    /// Folder identifier.
+    pub folder_id: VaultId,
+}
+
+impl ProtoBinding for DeleteSharedFolderRequest {
+    type Inner = WireDeleteSharedFolderRequest;
+}
+
+impl TryFrom<WireDeleteSharedFolderRequest> for DeleteSharedFolderRequest {
+    type Error = Error;
+
+    fn try_from(value: WireDeleteSharedFolderRequest) -> Result<Self> {
+        Ok(Self {
+            folder_id: value.folder_id.parse()?,
+        })
+    }
+}
+
+impl From<DeleteSharedFolderRequest> for WireDeleteSharedFolderRequest {
+    fn from(
+        value: DeleteSharedFolderRequest,
+    ) -> WireDeleteSharedFolderRequest {
+        Self {
+            folder_id: value.folder_id.to_string(),
+        }
+    }
+}
+
+/// Response from a request to delete a folder.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeleteSharedFolderResponse {}
+
+impl ProtoBinding for DeleteSharedFolderResponse {
+    type Inner = WireDeleteSharedFolderResponse;
+}
+
+impl TryFrom<WireDeleteSharedFolderResponse> for DeleteSharedFolderResponse {
+    type Error = Error;
+
+    fn try_from(_value: WireDeleteSharedFolderResponse) -> Result<Self> {
+        Ok(Self {})
+    }
+}
+
+impl From<DeleteSharedFolderResponse> for WireDeleteSharedFolderResponse {
+    fn from(
+        _value: DeleteSharedFolderResponse,
+    ) -> WireDeleteSharedFolderResponse {
+        Self {}
     }
 }

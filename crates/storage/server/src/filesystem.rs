@@ -516,6 +516,13 @@ impl ServerAccountStorage for ServerFileStorage {
     ) -> Result<Vec<Recipient>> {
         unimplemented!();
     }
+
+    async fn delete_shared_folder(
+        &mut self,
+        _folder_id: &VaultId,
+    ) -> Result<()> {
+        unimplemented!();
+    }
 }
 
 #[async_trait]

@@ -704,11 +704,6 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         )
         .await?;
 
-        /*
-        // Prepare the event log for the folder
-        self.create_folder_entry(vault.summary()).await?;
-        */
-
         Ok(())
     }
 
@@ -776,6 +771,20 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         }
 
         Ok(recipients)
+    }
+
+    async fn delete_shared_folder(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> Result<()> {
+        let account_id = self.account_id;
+        SharedFolderEntity::delete_shared_folder(
+            &self.client,
+            &account_id,
+            folder_id,
+        )
+        .await?;
+        Ok(())
     }
 }
 
