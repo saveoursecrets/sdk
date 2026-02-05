@@ -153,7 +153,7 @@ sha3 = "0.10.6"
 rand = "0.8"
 semver = { version = "1", features = ["serde"] }
 url = { version = "2", features = ["serde"] }
-time = { version = "0.3.19", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
+time = { version = "0.3.47", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
 time-tz = { version = "2", features = ["system"] }
 futures = "0.3"
 bs58 = "0.4"
