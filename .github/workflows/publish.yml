@@ -88,7 +88,7 @@ jobs:
           arch: ${{ matrix.arch }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3.6.0
+        uses: sigstore/cosign-installer@v4.1.0
       - name: Check cosign install
         run: cosign version
 
