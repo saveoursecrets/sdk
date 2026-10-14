@@ -8,7 +8,9 @@ use sos_core::{
 };
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::{select, sync::Mutex, time};
-use tokio_util::{codec::LengthDelimitedCodec, sync::CancellationToken};
+use tokio_util::{
+    bytes::Bytes, codec::LengthDelimitedCodec, sync::CancellationToken,
+};
 
 /// Producer socket connection for change events.
 pub struct ChangeProducer;
@@ -91,7 +93,7 @@ async fn dispatch_sockets(
                     .native_endian()
                     .new_write(socket);
                 let message = serde_json::to_vec(&event)?;
-                writer.send(message.into()).await?;
+                writer.send(Bytes::from(message)).await?;
             }
             Err(e) => {
                 // If we can't connect to the socket
