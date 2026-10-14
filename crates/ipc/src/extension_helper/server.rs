@@ -6,6 +6,7 @@ use crate::{
     memory_server::{LocalMemoryClient, LocalMemoryServer},
     web_service::WebAccounts,
 };
+use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
 use http::{
     StatusCode,
@@ -238,7 +239,9 @@ where
                                 tracing::error!(
                                     "extension_helper::exceeds_limit");
                             }
-                            if let Err(e) = stdout.send(output.into()).await {
+                            if let Err(e) =
+                                stdout.send(Bytes::from(output)).await
+                            {
                                 tracing::error!(
                                     error = %e,
                                     "extension_helper::stdout_write",
