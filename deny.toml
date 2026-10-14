@@ -8,7 +8,9 @@ db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
 yanked = "warn"
 ignore = [
-    # we need "age" to update i18n-embed-fl to fix this 
+    # proc-macro-error is unmaintained. age 0.12 moved
+    # i18n-embed-fl onto proc-macro-error3; this remains via
+    # robius-authentication > polkit > glib > glib-macros.
     "RUSTSEC-2024-0370",
     # need an update to notify -> notify-types to remove 
     # the dependency in the unmaintained `instant` crate
