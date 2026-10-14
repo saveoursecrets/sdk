@@ -1,6 +1,6 @@
 [package]
 name = "sos-vault"
-version = "0.17.5"
+version = "0.18.0"
 edition = "2024"
 description = "Vault encrypted storage for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"

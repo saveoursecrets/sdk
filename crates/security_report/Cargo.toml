@@ -1,6 +1,6 @@
 [package]
 name = "sos-security-report"
-version = "0.17.2"
+version = "0.18.0"
 edition = "2024"
 description = "Generate a security report for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"

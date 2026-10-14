@@ -1,6 +1,6 @@
 [package]
 name = "sos-database"
-version = "0.17.5"
+version = "0.18.0"
 edition = "2024"
 description = "Database backend for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
@@ -19,15 +19,14 @@ full = [
   "preferences",
   "system-messages",
 ]
-archive = ["sos-archive"]
+archive = ["sos-archive", "files"]
 audit = ["sos-audit"]
-files = ["sos-external-files/files"]
+files = ["sos-external-files/files", "sos-core/files"]
 preferences = ["sos-preferences"]
 system-messages = ["sos-system-messages", "urn"]
 
 [dependencies]
 sos-core.workspace = true
-sos-external-files.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 
@@ -59,3 +58,8 @@ sql_query_builder = { workspace = true }
 
 # system-messages
 urn = { workspace = true, optional = true }
+
+[dependencies.sos-external-files]
+version = "0.18"
+path = "../external_files"
+default-features = false
