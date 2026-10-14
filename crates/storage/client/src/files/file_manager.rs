@@ -378,9 +378,10 @@ impl ExternalFileManager {
         );
 
         if let Some(parent) = new_path.parent()
-            && !vfs::try_exists(parent).await? {
-                vfs::create_dir_all(parent).await?;
-            }
+            && !vfs::try_exists(parent).await?
+        {
+            vfs::create_dir_all(parent).await?;
+        }
 
         vfs::rename(old_path, new_path).await?;
 
@@ -569,14 +570,15 @@ fn get_file_sources(secret: &Secret) -> Vec<FileSource> {
             content: FileContent::External { path, .. },
             ..
         } = secret
-            && path.is_some() {
-                let name = basename(path.as_ref().unwrap());
-                files.push(FileSource {
-                    path: path.clone().unwrap(),
-                    name,
-                    field_index,
-                });
-            }
+            && path.is_some()
+        {
+            let name = basename(path.as_ref().unwrap());
+            files.push(FileSource {
+                path: path.clone().unwrap(),
+                name,
+                field_index,
+            });
+        }
     }
 
     let mut files = Vec::new();
@@ -620,9 +622,10 @@ fn get_file_secret_diff<'a>(
         content: FileContent::External { path, .. },
         ..
     } = new_secret
-        && path.is_none() {
-            unchanged.push(new_secret);
-        }
+        && path.is_none()
+    {
+        unchanged.push(new_secret);
+    }
 
     // Check if the top-level secret will be overwritten
     // so we delete the old files
@@ -630,9 +633,10 @@ fn get_file_secret_diff<'a>(
         content: FileContent::External { path, .. },
         ..
     } = new_secret
-        && path.is_some() {
-            deleted.push(old_secret);
-        }
+        && path.is_some()
+    {
+        deleted.push(old_secret);
+    }
 
     // Find attachments that are unchanged
     for field in new_secret.user_data().fields() {
@@ -640,9 +644,10 @@ fn get_file_secret_diff<'a>(
             content: FileContent::External { path, .. },
             ..
         } = field.secret()
-            && path.is_none() {
-                unchanged.push(field.secret());
-            }
+            && path.is_none()
+        {
+            unchanged.push(field.secret());
+        }
     }
 
     // Find deleted attachments
@@ -651,20 +656,21 @@ fn get_file_secret_diff<'a>(
             content: FileContent::External { path, .. },
             ..
         } = field.secret()
-            && path.is_none() {
-                let existing =
-                    new_secret.user_data().fields().iter().find(|other| {
-                        // Must compare on secret as the label can
-                        // be changed in a rename operation so comparing
-                        // the fields would result in deleting the file
-                        // when an attachment is renamed
-                        field.secret() == other.secret()
-                    });
+            && path.is_none()
+        {
+            let existing =
+                new_secret.user_data().fields().iter().find(|other| {
+                    // Must compare on secret as the label can
+                    // be changed in a rename operation so comparing
+                    // the fields would result in deleting the file
+                    // when an attachment is renamed
+                    field.secret() == other.secret()
+                });
 
-                if existing.is_none() {
-                    deleted.push(field.secret());
-                }
+            if existing.is_none() {
+                deleted.push(field.secret());
             }
+        }
     }
 
     FileStorageDiff { deleted, unchanged }

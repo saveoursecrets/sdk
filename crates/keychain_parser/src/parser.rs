@@ -443,10 +443,10 @@ impl<'s> KeychainList<'s> {
                     ),
                 )
                 && attr_service.matches(service)
-                    && attr_account.matches(account)
-                {
-                    return true;
-                }
+                && attr_account.matches(account)
+            {
+                return true;
+            }
             false
         })
     }
@@ -467,10 +467,10 @@ impl<'s> KeychainList<'s> {
                     ),
                 )
                 && attr_service.matches(service)
-                    && attr_type.matches(NOTE_TYPE)
-                {
-                    return true;
-                }
+                && attr_type.matches(NOTE_TYPE)
+            {
+                return true;
+            }
             false
         })
     }

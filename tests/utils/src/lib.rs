@@ -85,7 +85,7 @@ fn socket_addr_url(addr: &SocketAddr) -> Url {
 }
 
 struct MockServer {
-    handle: Handle,
+    handle: Handle<SocketAddr>,
     addr: SocketAddr,
     path: PathBuf,
 }
@@ -176,7 +176,7 @@ impl MockServer {
 }
 
 /// Ensure the server is shutdown when the handle is dropped.
-pub struct ShutdownHandle(Handle);
+pub struct ShutdownHandle(Handle<SocketAddr>);
 
 impl Drop for ShutdownHandle {
     fn drop(&mut self) {

@@ -139,17 +139,19 @@ pub async fn resolve_account(
         if is_shell {
             let owner = USER.read().await;
             if let Some(owner) = owner.selected_account()
-                && owner.is_authenticated().await {
-                    return Ok(Some((owner).into()));
-                }
+                && owner.is_authenticated().await
+            {
+                return Ok(Some((owner).into()));
+            }
         }
 
         let paths = Paths::new_client(Paths::data_dir()?);
         let target = BackendTarget::from_paths(&paths).await?;
         if let Ok(mut accounts) = target.list_accounts().await
-            && accounts.len() == 1 {
-                return Ok(Some(accounts.remove(0).into()));
-            }
+            && accounts.len() == 1
+        {
+            return Ok(Some(accounts.remove(0).into()));
+        }
     }
     Ok(account.cloned())
 }

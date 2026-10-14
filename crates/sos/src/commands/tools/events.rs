@@ -218,9 +218,10 @@ async fn print_events<
         tree.commit();
 
         if let Some(commit) = &until_commit
-            && commit == record.commit() {
-                break;
-            }
+            && commit == record.commit()
+        {
+            break;
+        }
     }
 
     if !tree.is_empty() {

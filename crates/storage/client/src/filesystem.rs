@@ -291,13 +291,14 @@ impl ClientVaultStorage for ClientFileSystemStorage {
         while let Some(entry) = contents.next_entry().await? {
             let path = entry.path();
             if let Some(extension) = path.extension()
-                && extension == VAULT_EXT {
-                    let summary = Header::read_summary_file(path).await?;
-                    if summary.flags().is_system() {
-                        continue;
-                    }
-                    summaries.push(summary);
+                && extension == VAULT_EXT
+            {
+                let summary = Header::read_summary_file(path).await?;
+                if summary.flags().is_system() {
+                    continue;
                 }
+                summaries.push(summary);
+            }
         }
         Ok(summaries)
     }

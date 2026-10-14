@@ -123,12 +123,16 @@ impl HttpClient {
                 .read_timeout(Duration::from_millis(15000))
                 .connect_timeout(Duration::from_millis(5000));
 
+            let mut extra_roots = Vec::new();
             for cert in options.network_config.certificates.values() {
                 if let Ok(cert) = Certificate::from_pem(cert.as_bytes()) {
-                    builder = builder.add_root_certificate(cert);
+                    extra_roots.push(cert);
                 } else {
                     tracing::warn!("invalid certificate");
                 }
+            }
+            if !extra_roots.is_empty() {
+                builder = builder.tls_certs_merge(extra_roots);
             }
 
             for (domain, addr) in options.network_config.resolve_addrs.iter()

@@ -41,7 +41,6 @@ pub fn generate_passphrase() -> Result<(SecretString, f64)> {
 
 /// Get the default config for diceware passphrase generation.
 pub fn default_config(words: usize) -> BasicConfig<WordSampler> {
-    
     BasicConfigBuilder::default()
         .word_provider(WORD_LIST.sampler())
         .words(words)

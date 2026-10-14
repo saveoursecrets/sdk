@@ -86,7 +86,7 @@ impl Server {
         &self,
         state: ServerState,
         backend: ServerBackend,
-        handle: Handle,
+        handle: Handle<SocketAddr>,
     ) -> Result<()> {
         let reader = state.read().await;
         let origins = Server::read_origins(&reader)?;
@@ -114,7 +114,7 @@ impl Server {
         addr: SocketAddr,
         state: ServerState,
         backend: ServerBackend,
-        handle: Handle,
+        handle: Handle<SocketAddr>,
         origins: Vec<HeaderValue>,
         tls: TlsConfig,
     ) -> Result<()> {
@@ -146,7 +146,7 @@ impl Server {
         addr: SocketAddr,
         state: ServerState,
         backend: ServerBackend,
-        handle: Handle,
+        handle: Handle<SocketAddr>,
         origins: Vec<HeaderValue>,
         acme: config::AcmeConfig,
     ) -> Result<()> {
@@ -198,7 +198,7 @@ impl Server {
         addr: SocketAddr,
         state: ServerState,
         backend: ServerBackend,
-        handle: Handle,
+        handle: Handle<SocketAddr>,
         origins: Vec<HeaderValue>,
     ) -> Result<()> {
         let storage = {

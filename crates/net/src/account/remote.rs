@@ -222,8 +222,6 @@ mod listen {
             options: ListenOptions,
             channel: mpsc::Sender<NetworkChangeEvent>,
         ) -> WebSocketHandle {
-            
-
             self.client.listen(options, move |notification| {
                 let tx = channel.clone();
                 async move {

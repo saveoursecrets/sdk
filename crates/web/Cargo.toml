@@ -46,6 +46,11 @@ sos-vfs.workspace = true
 sos-search = { workspace = true, optional = true }
 sos-migrate = { workspace = true, optional = true }
 
+# uuid's v4 feature needs an explicit randomness source on
+# wasm32-unknown-unknown. Enabling it here covers the crates
+# sos-web pulls in.
+uuid = { workspace = true, features = ["js"] }
+
 thiserror.workspace = true
 tracing.workspace = true
 indexmap.workspace = true
