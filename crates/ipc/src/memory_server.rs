@@ -1,11 +1,11 @@
 //! HTTP server that listens for connections
 //! using in-memory duplex streams.
 use crate::{
-    local_transport::{LocalRequest, LocalResponse},
     LocalWebService, Result, ServiceAppInfo, WebAccounts,
+    local_transport::{LocalRequest, LocalResponse},
 };
 use bytes::Bytes;
-use http::{header::CONNECTION, Request, Response};
+use http::{Request, Response, header::CONNECTION};
 use http_body_util::{BodyExt, Full};
 use hyper::client::conn::http1::handshake;
 use hyper::server::conn::http1::Builder;

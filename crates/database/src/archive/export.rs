@@ -1,12 +1,12 @@
-use super::{types::ManifestVersion3, Error, Result};
+use super::{Error, Result, types::ManifestVersion3};
 use crate::entity::{AccountEntity, AccountRecord, AccountRow};
-use async_sqlite::rusqlite::{backup, Connection};
+use async_sqlite::rusqlite::{Connection, backup};
 use sha2::{Digest, Sha256};
-use sos_archive::{ZipWriter, ARCHIVE_MANIFEST};
+use sos_archive::{ARCHIVE_MANIFEST, ZipWriter};
 use sos_core::{
+    Paths,
     commit::CommitHash,
     constants::{BLOBS_DIR, DATABASE_FILE},
-    Paths,
 };
 use sos_external_files::list_external_files;
 use sos_vfs as vfs;

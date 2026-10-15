@@ -1,6 +1,6 @@
 //! File format iterators.
 use binary_stream::futures::Decodable;
-use sos_core::{commit::CommitHash, events::EventRecord, UtcDateTime};
+use sos_core::{UtcDateTime, commit::CommitHash, events::EventRecord};
 use std::ops::Range;
 
 /// Trait for types yielded by the file iterator.

@@ -1,5 +1,5 @@
 use crate::{Error, Result};
-use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
+use rs_merkle::{Hasher, MerkleTree, algorithms::Sha256};
 
 use super::{CommitHash, CommitProof, CommitState, Comparison, TreeHash};
 

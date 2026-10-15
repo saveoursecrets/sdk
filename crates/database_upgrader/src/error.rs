@@ -1,4 +1,4 @@
-use sos_core::{commit::CommitHash, AccountId};
+use sos_core::{AccountId, commit::CommitHash};
 use std::path::PathBuf;
 use thiserror::Error;
 

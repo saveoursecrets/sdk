@@ -1,9 +1,9 @@
 //! Types and functions to compute diffs.
 use indexmap::IndexMap;
 use sos_core::{
-    commit::Comparison,
-    events::{patch::FolderDiff, EventLog},
     VaultId,
+    commit::Comparison,
+    events::{EventLog, patch::FolderDiff},
 };
 use sos_sync::{
     MaybeDiff, StorageEventLogs, SyncDiff, SyncStatus, SyncStorage,

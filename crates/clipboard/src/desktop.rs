@@ -3,7 +3,7 @@ use crate::Result;
 use std::{borrow::Cow, sync::Arc};
 use tokio::{
     sync::Mutex,
-    time::{sleep, Duration},
+    time::{Duration, sleep},
 };
 use zeroize::Zeroize;
 

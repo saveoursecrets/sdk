@@ -1,23 +1,23 @@
 //! Run integrity checks on vault files.
 use crate::{Error, Result};
 use binary_stream::futures::BinaryReader;
-use futures::{stream::BoxStream, StreamExt, TryStreamExt};
+use futures::{StreamExt, TryStreamExt, stream::BoxStream};
 use sos_backend::{
+    BackendTarget,
     database::{
         async_sqlite::rusqlite::Row,
         entity::{FolderEntity, SecretRow},
     },
-    BackendTarget,
 };
 use sos_core::{
+    AccountId, SecretId, VaultId,
     commit::{CommitHash, CommitTree},
     constants::VAULT_IDENTITY,
     encoding::encoding_options,
-    AccountId, SecretId, VaultId,
 };
 use sos_filesystem::formats::{
-    read_file_identity_bytes, FileItem, FormatStream, FormatStreamIterator,
-    VaultRecord,
+    FileItem, FormatStream, FormatStreamIterator, VaultRecord,
+    read_file_identity_bytes,
 };
 use sos_vault::Header;
 use sos_vfs as vfs;

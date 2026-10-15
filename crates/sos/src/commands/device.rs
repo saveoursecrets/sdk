@@ -1,14 +1,14 @@
 use crate::{
+    Error, Result,
     helpers::{
-        account::{resolve_user, Owner},
+        account::{Owner, resolve_user},
         messages::success,
         readline::read_flag,
     },
-    Error, Result,
 };
 use clap::Subcommand;
 use sos_account::Account;
-use sos_core::{device::TrustedDevice, AccountRef};
+use sos_core::{AccountRef, device::TrustedDevice};
 use std::sync::Arc;
 
 #[derive(Subcommand, Debug)]

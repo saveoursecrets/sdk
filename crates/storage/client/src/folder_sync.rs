@@ -3,15 +3,15 @@ use crate::Result;
 use async_trait::async_trait;
 use sos_backend::Folder;
 use sos_core::{
-    events::{
-        patch::{CheckedPatch, FolderDiff},
-        EventLog, LogEvent, WriteEvent,
-    },
     VaultId,
+    events::{
+        EventLog, LogEvent, WriteEvent,
+        patch::{CheckedPatch, FolderDiff},
+    },
 };
 use sos_login::IdentityFolder;
 use sos_reducers::FolderReducer;
-use sos_vault::{secret::SecretRow, SecretAccess};
+use sos_vault::{SecretAccess, secret::SecretRow};
 
 /// Options for folder merge.
 pub(crate) enum FolderMergeOptions<'a> {

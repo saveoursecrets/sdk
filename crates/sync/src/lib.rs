@@ -1,11 +1,11 @@
+//! Core types and traits for sync and merge operations; part of the
+//! [Save Our Secrets](https://saveoursecrets.com) SDK.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::field_reassign_with_default)]
 #![allow(clippy::collapsible_match)]
 
-//! Core types and traits for sync and merge operations; part of the
-//! [Save Our Secrets](https://saveoursecrets.com) SDK.
 mod error;
 mod traits;
 mod types;

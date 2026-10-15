@@ -53,24 +53,19 @@ where
     let mut dir = vfs::read_dir(path.as_ref()).await?;
     while let Some(entry) = dir.next_entry().await? {
         let path = entry.path();
-        if path.is_dir() {
-            if let Some(file_name) = path.file_name() {
-                if let Ok(folder_id) =
-                    file_name.to_string_lossy().as_ref().parse::<VaultId>()
-                {
-                    let mut folder_files =
-                        list_folder(func(folder_id)).await?;
+        if path.is_dir()
+            && let Some(file_name) = path.file_name()
+            && let Ok(folder_id) =
+                file_name.to_string_lossy().as_ref().parse::<VaultId>()
+        {
+            let mut folder_files = list_folder(func(folder_id)).await?;
 
-                    for (secret_id, mut external_files) in
-                        folder_files.drain(..)
-                    {
-                        for file_name in external_files.drain(..) {
-                            files.insert(ExternalFile::new(
-                                SecretPath(folder_id, secret_id),
-                                file_name,
-                            ));
-                        }
-                    }
+            for (secret_id, mut external_files) in folder_files.drain(..) {
+                for file_name in external_files.drain(..) {
+                    files.insert(ExternalFile::new(
+                        SecretPath(folder_id, secret_id),
+                        file_name,
+                    ));
                 }
             }
         }
@@ -86,18 +81,16 @@ async fn list_folder(
         let mut folder_dir = vfs::read_dir(path.as_ref()).await?;
         while let Some(entry) = folder_dir.next_entry().await? {
             let path = entry.path();
-            if path.is_dir() {
-                if let Some(file_name) = path.file_name() {
-                    tracing::debug!(file_name = ?file_name);
-                    if let Ok(secret_id) = file_name
-                        .to_string_lossy()
-                        .as_ref()
-                        .parse::<SecretId>()
-                    {
-                        let external_files = list_secret_files(path).await?;
-                        // tracing::debug!(files_len = external_files.len());
-                        files.push((secret_id, external_files));
-                    }
+            if path.is_dir()
+                && let Some(file_name) = path.file_name()
+            {
+                tracing::debug!(file_name = ?file_name);
+                if let Ok(secret_id) =
+                    file_name.to_string_lossy().as_ref().parse::<SecretId>()
+                {
+                    let external_files = list_secret_files(path).await?;
+                    // tracing::debug!(files_len = external_files.len());
+                    files.push((secret_id, external_files));
                 }
             }
         }
@@ -113,20 +106,20 @@ async fn list_secret_files(
     let mut dir = vfs::read_dir(path.as_ref()).await?;
     while let Some(entry) = dir.next_entry().await? {
         let path = entry.path();
-        if path.is_file() {
-            if let Some(file_name) = path.file_name() {
-                if let Ok(name) = file_name
-                    .to_string_lossy()
-                    .as_ref()
-                    .parse::<ExternalFileName>()
-                {
-                    files.insert(name);
-                } else {
-                    tracing::warn!(
-                        file_name = %file_name.to_string_lossy().as_ref(),
-                        "skip file (invalid file name)",
-                    );
-                }
+        if path.is_file()
+            && let Some(file_name) = path.file_name()
+        {
+            if let Ok(name) = file_name
+                .to_string_lossy()
+                .as_ref()
+                .parse::<ExternalFileName>()
+            {
+                files.insert(name);
+            } else {
+                tracing::warn!(
+                    file_name = %file_name.to_string_lossy().as_ref(),
+                    "skip file (invalid file name)",
+                );
             }
         }
     }

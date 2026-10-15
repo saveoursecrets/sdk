@@ -4,16 +4,16 @@ use sos_account::{Account, AccountSwitcher};
 use sos_backend::BackendTarget;
 use sos_changes::consumer::ConsumerHandle;
 use sos_core::{
+    AccountId, ErrorExt, Paths, VaultId,
     events::{
         AccountEvent, EventLog, EventLogType, LocalChangeEvent, WriteEvent,
     },
-    AccountId, ErrorExt, Paths, VaultId,
 };
 use sos_login::DelegatedAccess;
 use sos_sync::SyncStorage;
 use sos_vault::SecretAccess;
 use std::{collections::HashSet, sync::Arc};
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 
 /// Event broadcast when an account changes.
 #[typeshare::typeshare]

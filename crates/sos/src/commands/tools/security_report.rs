@@ -1,11 +1,11 @@
 use crate::{
-    helpers::{account::resolve_user, messages::success},
     Error, Result,
+    helpers::{account::resolve_user, messages::success},
 };
 use sos_core::AccountRef;
-use sos_net::{hashcheck, NetworkAccount};
+use sos_net::{NetworkAccount, hashcheck};
 use sos_security_report::{
-    generate_security_report, SecurityReportOptions, SecurityReportRow,
+    SecurityReportOptions, SecurityReportRow, generate_security_report,
 };
 use std::{fmt, path::PathBuf, str::FromStr};
 use zxcvbn::Score;

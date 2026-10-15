@@ -1,7 +1,7 @@
 [package]
 name = "sos-web"
-version = "0.17.2"
-edition = "2021"
+version = "0.18.0"
+edition = "2024"
 description = "Thin client for webassembly bindings to the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
@@ -46,13 +46,15 @@ sos-vfs.workspace = true
 sos-search = { workspace = true, optional = true }
 sos-migrate = { workspace = true, optional = true }
 
+# uuid's v4 feature needs an explicit randomness source on
+# wasm32-unknown-unknown. Enabling it here covers the crates
+# sos-web pulls in.
+uuid = { workspace = true, features = ["js"] }
+
 thiserror.workspace = true
 tracing.workspace = true
 indexmap.workspace = true
 async-trait.workspace = true
 tokio.workspace = true
 secrecy.workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true
-
+age.workspace = true

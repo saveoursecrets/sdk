@@ -1,12 +1,12 @@
 use crate::{
-    commands::{
-        account, device, environment, folder, preferences, secret, server,
-        shell, sync, tools, AccountCommand, DeviceCommand,
-        EnvironmentCommand, FolderCommand, PreferenceCommand, SecretCommand,
-        ServerCommand, SyncCommand, ToolsCommand,
-    },
-    helpers::{account::SHELL, PROGRESS_MONITOR},
     CommandTree, Result,
+    commands::{
+        AccountCommand, DeviceCommand, EnvironmentCommand, FolderCommand,
+        PreferenceCommand, SecretCommand, ServerCommand, SyncCommand,
+        ToolsCommand, account, device, environment, folder, preferences,
+        secret, server, shell, sync, tools,
+    },
+    helpers::{PROGRESS_MONITOR, account::SHELL},
 };
 use clap::{CommandFactory, Parser, Subcommand};
 use sos_backend::{BackendTarget, InferOptions};
@@ -145,8 +145,12 @@ pub async fn run() -> Result<()> {
     let options = if std::env::var("SOS_TEST").ok().is_some() {
         InferOptions {
             // When testing don't automatically use database
-            // backend so we can respect SOS_TEST_CLIENT_DB
-            use_database_when_accounts_empty: false,
+            // backend so we can respect SOS_TEST_CLIENT_FS
+            use_database_when_accounts_empty: std::env::var(
+                "SOS_TEST_CLIENT_FS",
+            )
+            .ok()
+            .is_none(),
             ..Default::default()
         }
     } else {
@@ -160,7 +164,9 @@ pub async fn run() -> Result<()> {
 
     #[cfg(any(test, debug_assertions))]
     if let Some(password) = args.password.take() {
-        std::env::set_var("SOS_PASSWORD", password);
+        unsafe {
+            std::env::set_var("SOS_PASSWORD", password);
+        }
     }
 
     match args.cmd {

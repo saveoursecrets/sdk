@@ -3,8 +3,9 @@
 //!
 //! Used to test the browser native messaging API integration.
 
-use crate::local_transport::{HttpMessage, LocalRequest, LocalResponse};
 use crate::Result;
+use crate::local_transport::{HttpMessage, LocalRequest, LocalResponse};
+use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
 use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -68,7 +69,7 @@ impl ExtensionHelperClient {
 
         for request in chunks {
             let message = serde_json::to_vec(&request)?;
-            self.stdin.send(message.into()).await?;
+            self.stdin.send(Bytes::from(message)).await?;
         }
 
         let mut chunks: Vec<LocalResponse> = Vec::new();

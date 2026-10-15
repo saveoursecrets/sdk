@@ -1,13 +1,13 @@
 use crate::{
-    helpers::{account::resolve_user, messages::success},
     Error, Result,
+    helpers::{account::resolve_user, messages::success},
 };
 use clap::Subcommand;
 use sos_account::Account;
 use sos_core::{
+    AccountRef, Origin,
     commit::{CommitState, CommitTree, Comparison},
     events::EventLog,
-    AccountRef, Origin,
 };
 use sos_net::NetworkAccount;
 use sos_protocol::{AccountSync, SyncOptions};

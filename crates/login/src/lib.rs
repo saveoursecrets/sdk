@@ -1,8 +1,8 @@
-#![deny(missing_docs)]
-#![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Identity folder protects delegated passwords and
 //! is used to authenticate an account.
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod delegated_access;
 pub mod device;

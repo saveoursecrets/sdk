@@ -1,14 +1,14 @@
 //! Local account storage and search index.
 use crate::{
-    convert::CipherComparison, Account, AccountBuilder, AccountChange,
-    AccountData, Error, FolderChange, FolderCreate, FolderDelete, Result,
-    SecretChange, SecretDelete, SecretInsert, SecretMove,
+    Account, AccountBuilder, AccountChange, AccountData, Error, FolderChange,
+    FolderCreate, FolderDelete, Result, SecretChange, SecretDelete,
+    SecretInsert, SecretMove, convert::CipherComparison,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use secrecy::SecretString;
 use sos_backend::{
-    compact::compact_folder, AccessPoint, BackendTarget, Folder, StorageError,
+    AccessPoint, BackendTarget, Folder, StorageError, compact::compact_folder,
 };
 use sos_client_storage::{
     AccessOptions, ClientAccountStorage, ClientBaseStorage,
@@ -16,28 +16,29 @@ use sos_client_storage::{
     ClientStorage, NewFolderOptions,
 };
 use sos_core::{
+    AccountId, AccountRef, AuthenticationError, FolderRef, Paths, Recipient,
+    SecretId, UtcDateTime, VaultCommit, VaultFlags, VaultId,
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode,
     device::{DevicePublicKey, TrustedDevice},
     encode,
     events::{
-        changes_feed, AccountEvent, DeviceEvent, Event, EventKind, EventLog,
-        EventRecord, LocalChangeEvent, ReadEvent, WriteEvent,
+        AccountEvent, DeviceEvent, Event, EventKind, EventLog, EventRecord,
+        LocalChangeEvent, ReadEvent, WriteEvent, changes_feed,
     },
-    AccountId, AccountRef, AuthenticationError, FolderRef, Paths, SecretId,
-    UtcDateTime, VaultCommit, VaultFlags, VaultId,
 };
 use sos_filesystem::write_exclusive;
 use sos_login::{
-    device::{DeviceManager, DeviceSigner},
     DelegatedAccess, FolderKeys, Identity, PublicIdentity,
+    device::{DeviceManager, DeviceSigner},
 };
 use sos_reducers::FolderReducer;
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{
+    BuilderCredentials, Header, SecretAccess, SharedAccess, Summary, Vault,
+    VaultBuilder,
     secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
-    BuilderCredentials, Header, SecretAccess, Summary, Vault, VaultBuilder,
 };
 use sos_vfs as vfs;
 use std::{
@@ -71,16 +72,16 @@ use crate::ContactImportProgress;
 
 #[cfg(feature = "migrate")]
 use sos_migrate::{
+    Convert,
     export::PublicExport,
     import::{
+        ImportFormat, ImportTarget,
         csv::{
             bitwarden::BitwardenCsv, chrome::ChromePasswordCsv,
             dashlane::DashlaneCsvZip, firefox::FirefoxPasswordCsv,
             macos::MacPasswordCsv, one_password::OnePasswordCsv,
         },
-        ImportFormat, ImportTarget,
     },
-    Convert,
 };
 
 #[cfg(feature = "clipboard")]
@@ -279,10 +280,10 @@ impl LocalAccount {
     ) -> Result<()> {
         // Bail early if the folder is already open
         {
-            if let Some(current) = self.storage.current_folder() {
-                if current.id() == folder_id {
-                    return Ok(());
-                }
+            if let Some(current) = self.storage.current_folder()
+                && current.id() == folder_id
+            {
+                return Ok(());
             }
         }
 
@@ -356,10 +357,10 @@ impl LocalAccount {
 
         self.open_folder(folder.id()).await?;
 
-        if let Secret::Pem { certificates, .. } = &secret {
-            if certificates.is_empty() {
-                return Err(Error::PemEncoding);
-            }
+        if let Secret::Pem { certificates, .. } = &secret
+            && certificates.is_empty()
+        {
+            return Err(Error::PemEncoding);
         }
 
         let id = SecretId::new_v4();
@@ -587,6 +588,70 @@ impl LocalAccount {
 
         Ok(result)
     }
+
+    /// Prepare a shared folder.
+    pub async fn prepare_shared_folder(
+        &self,
+        options: NewFolderOptions,
+        recipients: &[Recipient],
+        shared_access: Option<SharedAccess>,
+    ) -> Result<(Vault, AccessKey)> {
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
+        let shared_private_key =
+            authenticated_user.shared_private_access_key()?;
+        let shared_public_key =
+            authenticated_user.shared_public_access_key()?;
+
+        let shared_access = shared_access.unwrap_or_else(|| {
+            let owner_key = shared_public_key.to_string();
+            let mut public_keys = recipients
+                .iter()
+                .map(|r| r.public_key.to_string())
+                .collect::<Vec<_>>();
+            if !public_keys.contains(&owner_key) {
+                public_keys.push(owner_key);
+            }
+            SharedAccess::WriteAccess(public_keys)
+        });
+
+        let mut flags = options.flags.unwrap_or(VaultFlags::SHARED);
+        flags.set(VaultFlags::SHARED, true);
+        let builder = VaultBuilder::new()
+            .flags(flags)
+            .cipher(Cipher::X25519)
+            .kdf(options.kdf.unwrap_or_default())
+            .public_name(options.name);
+
+        let recipient_public_keys =
+            recipients.iter().map(|r| r.public_key.clone()).collect();
+        let read_only = matches!(shared_access, SharedAccess::ReadOnly(_));
+
+        match &shared_private_key {
+            AccessKey::Identity(id) => Ok((
+                builder
+                    .build(BuilderCredentials::Shared {
+                        owner: id,
+                        recipients: recipient_public_keys,
+                        read_only,
+                    })
+                    .await?,
+                shared_private_key,
+            )),
+            _ => unreachable!(),
+        }
+    }
+
+    #[doc(hidden)]
+    pub async fn shared_private_access_key(&self) -> Result<AccessKey> {
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
+        Ok(authenticated_user.shared_private_access_key()?)
+    }
 }
 
 impl From<&LocalAccount> for AccountRef {
@@ -624,6 +689,16 @@ impl Account for LocalAccount {
 
     async fn is_authenticated(&self) -> bool {
         self.storage.is_authenticated()
+    }
+
+    async fn shared_access_public_key(
+        &self,
+    ) -> Result<age::x25519::Recipient> {
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
+        Ok(authenticated_user.shared_public_access_key()?)
     }
 
     async fn device_signer(&self) -> Result<DeviceSigner> {
@@ -1173,13 +1248,11 @@ impl Account for LocalAccount {
             compact_folder(self.account_id(), identity.id(), &mut log_file)
                 .await?;
 
-            let vault = FolderReducer::new()
+            FolderReducer::new()
                 .reduce(&*log_file)
                 .await?
                 .build(true)
-                .await?;
-
-            vault
+                .await?
         };
 
         let event = {
@@ -1487,10 +1560,10 @@ impl Account for LocalAccount {
 
         self.open_folder(folder.id()).await?;
 
-        if let Some(Secret::Pem { certificates, .. }) = &secret {
-            if certificates.is_empty() {
-                return Err(Error::PemEncoding);
-            }
+        if let Some(Secret::Pem { certificates, .. }) = &secret
+            && certificates.is_empty()
+        {
+            return Err(Error::PemEncoding);
         }
 
         let result = self

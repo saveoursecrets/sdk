@@ -1,7 +1,8 @@
+//! Vault encrypted storage and access.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Vault encrypted storage and access.
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod access_point;
 mod builder;
 mod change_password;
@@ -21,7 +22,7 @@ pub use vault::{
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 pub(crate) use vault::Auth;
 
-use sos_core::{constants::VAULT_EXT, Paths, PublicIdentity};
+use sos_core::{Paths, PublicIdentity, constants::VAULT_EXT};
 use sos_vfs as vfs;
 use std::{
     path::{Path, PathBuf},
@@ -86,11 +87,11 @@ pub async fn list_local_folders(
     let mut vaults = Vec::new();
     let mut dir = vfs::read_dir(vaults_dir).await?;
     while let Some(entry) = dir.next_entry().await? {
-        if let Some(extension) = entry.path().extension() {
-            if extension == VAULT_EXT {
-                let summary = Header::read_summary_file(entry.path()).await?;
-                vaults.push((summary, entry.path().to_path_buf()));
-            }
+        if let Some(extension) = entry.path().extension()
+            && extension == VAULT_EXT
+        {
+            let summary = Header::read_summary_file(entry.path()).await?;
+            vaults.push((summary, entry.path().to_path_buf()));
         }
     }
     Ok(vaults)
