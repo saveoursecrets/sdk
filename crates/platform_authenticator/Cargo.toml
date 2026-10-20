@@ -21,7 +21,7 @@ http.workspace = true
 keyring.workspace = true
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
-robius-authentication = "0.1"
+robius-authentication = "0.3"
 
 [target.'cfg(target_os = "macos")'.dependencies.security-framework]
 version = "3.1"
