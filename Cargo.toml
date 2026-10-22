@@ -224,3 +224,6 @@ codegen-units = 1
 lto = true
 strip = true
 opt-level = "z"
+
+[patch.crates-io]
+tokio-rustls-acme = { git = "https://github.com/n0-computer/tokio-rustls-acme", branch = "main" }
