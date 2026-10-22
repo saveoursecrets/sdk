@@ -227,3 +227,4 @@ opt-level = "z"
 
 [patch.crates-io]
 tokio-rustls-acme = { git = "https://github.com/n0-computer/tokio-rustls-acme", branch = "main" }
+tokio-tungstenite = { git = "https://github.com/Vonr/tokio-tungstenite", branch = "chore/bump-webpki-roots" }
