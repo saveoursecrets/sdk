@@ -1,6 +1,7 @@
 use crate::{
+    Result, UtcDateTime,
     commit::{CommitHash, CommitTree},
-    decode, encode, Result, UtcDateTime,
+    decode, encode,
 };
 use binary_stream::futures::{Decodable, Encodable};
 

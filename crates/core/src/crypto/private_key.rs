@@ -6,8 +6,8 @@ use std::convert::AsRef;
 use std::fmt;
 
 use crate::{
-    crypto::{KeyDerivation, Seed},
     Result,
+    crypto::{KeyDerivation, Seed},
 };
 
 /// Access key used to unlock a vault.
@@ -103,7 +103,7 @@ impl DerivedPrivateKey {
     pub fn generate() -> Self {
         use crate::crypto::csprng;
         use rand::Rng;
-        let bytes: [u8; 32] = csprng().gen();
+        let bytes: [u8; 32] = csprng().r#gen();
         Self {
             inner: SecretBox::new(Box::new(bytes.to_vec())),
         }

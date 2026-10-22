@@ -1,8 +1,8 @@
 //! Types for release artifact meta data.
 use crate::Error;
 use serde::{
-    de::{self, Deserializer, Visitor},
     Deserialize, Serialize, Serializer,
+    de::{self, Deserializer, Visitor},
 };
 use std::{fmt, str::FromStr};
 use time::OffsetDateTime;

@@ -24,6 +24,7 @@ use sos_sync::SyncStorage;
 use sos_vault::Summary;
 use sos_vfs as vfs;
 use std::{
+    collections::HashMap,
     path::PathBuf,
     sync::Arc,
     time::{Duration, SystemTime},
@@ -199,8 +200,9 @@ pub async fn simulate_device_with_builder(
 
         // Sync the local account to create the account on remote
         let sync_result = owner.sync().await;
-        println!("{:#?}", sync_result.first_error_ref());
-        assert!(sync_result.first_error().is_none());
+        if let Some(err) = sync_result.first_error() {
+            panic!("initial sync failed with error: {:#?}", err);
+        }
 
         (origin, server.account_path(owner.account_id()))
     } else {
@@ -287,7 +289,10 @@ pub async fn assert_local_remote_vaults_eq<T: AsRef<Paths>>(
     let client =
         ClientStorage::new_unauthenticated(client_target, &account_id)
             .await?;
-    let server = ServerStorage::new(server_target, &account_id).await?;
+    let shared_folder_events = Arc::new(Mutex::new(HashMap::default()));
+    let server =
+        ServerStorage::new(server_target, &account_id, shared_folder_events)
+            .await?;
 
     // Compare vaults
     for summary in expected_summaries {

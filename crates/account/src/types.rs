@@ -1,6 +1,6 @@
 //! Account management types.
 use sos_backend::AccessPoint;
-use sos_core::{commit::CommitState, events::Event, SecretId};
+use sos_core::{SecretId, commit::CommitState, events::Event};
 use sos_login::PublicIdentity;
 use sos_vault::Summary;
 use std::sync::Arc;

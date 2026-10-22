@@ -7,8 +7,8 @@ use sos_core::{ErrorExt, SecretPath};
 use sos_sync::SyncStorage;
 
 use crate::web_service::{
-    internal_server_error, json, parse_account_id, parse_json_body, status,
-    Body, Incoming, WebAccounts,
+    Body, Incoming, WebAccounts, internal_server_error, json,
+    parse_account_id, parse_json_body, status,
 };
 
 #[derive(Deserialize)]

@@ -1,8 +1,8 @@
 use crate::{
-    folder_sync::{FolderMerge, FolderMergeOptions, IdentityFolderMerge},
-    traits::private::Internal,
     ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage, Error,
     Result,
+    folder_sync::{FolderMerge, FolderMergeOptions, IdentityFolderMerge},
+    traits::private::Internal,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -10,12 +10,11 @@ use sos_backend::{
     AccountEventLog, DeviceEventLog, FolderEventLog, StorageError,
 };
 use sos_core::{
-    decode,
+    AuthenticationError, VaultId, decode,
     events::{
-        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
         AccountEvent, EventLog, LogEvent, WriteEvent,
+        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
     },
-    AuthenticationError, VaultId,
 };
 use sos_login::DelegatedAccess;
 use sos_reducers::DeviceReducer;

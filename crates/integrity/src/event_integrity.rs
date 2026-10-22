@@ -1,11 +1,11 @@
 //! Run integrity checks on event logs.
 use crate::{Error, Result};
-use futures::{pin_mut, stream::BoxStream, StreamExt};
+use futures::{StreamExt, pin_mut, stream::BoxStream};
 use sos_backend::{BackendTarget, FolderEventLog};
 use sos_core::{
+    AccountId, VaultId,
     commit::{CommitHash, CommitTree},
     events::{EventLog, EventRecord},
-    AccountId, VaultId,
 };
 use tokio_stream::wrappers::ReceiverStream;
 

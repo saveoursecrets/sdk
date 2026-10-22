@@ -1,11 +1,11 @@
 use super::{AuthenticatorUrls, OTP_AUTH_URLS};
 use crate::{Error, Result};
 use async_zip::{
-    tokio::write::ZipFileWriter, Compression, ZipDateTimeBuilder,
-    ZipEntryBuilder,
+    Compression, ZipDateTimeBuilder, ZipEntryBuilder,
+    tokio::write::ZipFileWriter,
 };
 use sos_backend::AccessPoint;
-use sos_vault::{secret::Secret, SecretAccess};
+use sos_vault::{SecretAccess, secret::Secret};
 use sos_vfs as vfs;
 use std::{collections::HashMap, path::Path};
 use time::OffsetDateTime;

@@ -8,7 +8,9 @@ db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
 yanked = "warn"
 ignore = [
-    # we need "age" to update i18n-embed-fl to fix this 
+    # proc-macro-error is unmaintained. age 0.12 moved
+    # i18n-embed-fl onto proc-macro-error3; this remains via
+    # robius-authentication > polkit > glib > glib-macros.
     "RUSTSEC-2024-0370",
     # need an update to notify -> notify-types to remove 
     # the dependency in the unmaintained `instant` crate
@@ -148,7 +150,10 @@ unknown-git = "warn"
 # if not specified. If it is specified but empty, no registries are allowed.
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 # List of URLs for allowed Git repositories
-allow-git = []
+allow-git = [
+    "https://github.com/n0-computer/tokio-rustls-acme",
+    "https://github.com/Vonr/tokio-tungstenite",
+]
 
 [sources.allow-org]
 # 1 or more github.com organizations to allow git sources for

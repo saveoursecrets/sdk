@@ -6,11 +6,11 @@ use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
 use sos_core::{
-    events::{
-        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
-        WriteEvent,
-    },
     VaultId,
+    events::{
+        WriteEvent,
+        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
+    },
 };
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,

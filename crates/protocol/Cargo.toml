@@ -1,7 +1,7 @@
 [package]
 name = "sos-protocol"
-version = "0.17.5"
-edition = "2021"
+version = "0.18.0"
+edition = "2024"
 description = "Networking and sync protocol types for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
@@ -60,6 +60,7 @@ binary-stream.workspace = true
 typeshare.workspace = true
 sha2.workspace = true
 tokio = { version = "1", features = ["rt",  "macros"] }
+age.workspace = true
 
 # network-client
 tokio-tungstenite = { workspace = true, optional = true }
@@ -73,15 +74,14 @@ rustls-webpki = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.reqwest]
 workspace = true
-features = ["json", "rustls-tls", "stream"]
+features = ["json", "rustls", "stream", "query"]
 optional = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.reqwest]
 workspace = true
-features = ["json", "stream"]
+features = ["json", "stream", "query"]
 optional = true
 
 [build-dependencies]
-rustc_version.workspace = true
 prost-build.workspace = true
 protoc-bin-vendored.workspace = true

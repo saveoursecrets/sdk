@@ -46,7 +46,7 @@ mod supported {
         let policy: Policy = PolicyBuilder::new()
             .biometrics(Some(options.biometrics))
             .password(options.password)
-            .watch(true)
+            .companion(true)
             .build()
             .unwrap();
 
@@ -56,8 +56,20 @@ mod supported {
             windows: options.windows,
         };
 
+        // 0.3 reports the result through a callback, and on Apple,
+        // Windows, and Android that callback runs after this call
+        // returns. Block until it fires so callers still get a bool.
+        let (tx, rx) = std::sync::mpsc::channel();
         let context = Context::new(());
-        context.blocking_authenticate(text, &policy).is_ok()
+        if context
+            .authenticate(text, &policy, move |result| {
+                let _ = tx.send(result.is_ok());
+            })
+            .is_err()
+        {
+            return false;
+        }
+        rx.recv().unwrap_or(false)
     }
 
     /// Determine if local platform authentication is supported.

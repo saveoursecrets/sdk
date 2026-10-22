@@ -8,17 +8,17 @@ use http::StatusCode;
 use sos_core::{ExternalFile, Paths};
 use sos_protocol::NetworkError;
 use sos_protocol::{
+    Error, SyncClient,
     network_client::NetworkRetry,
     transfer::{CancelReason, FileSyncClient},
-    Error, SyncClient,
 };
 use sos_vfs as vfs;
 use std::{io::ErrorKind, sync::Arc};
 use tokio::sync::watch;
 
 use super::{
-    notify_listeners, InflightNotification, InflightTransfers,
-    ProgressChannel, TransferError, TransferResult,
+    InflightNotification, InflightTransfers, ProgressChannel, TransferError,
+    TransferResult, notify_listeners,
 };
 
 pub struct UploadOperation<C>

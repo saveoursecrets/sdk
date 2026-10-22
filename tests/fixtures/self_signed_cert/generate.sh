@@ -2,9 +2,11 @@
 
 set -e
 
+# macOS rejects certificates in the chain whose validity exceeds
+# 825 days (errSecCertificateValidityPeriodTooLong, -67901).
 openssl req -x509 -newkey rsa:2048 -nodes \
   -keyout root.key -out root.crt \
-  -days 36500 \
+  -days 825 \
   -config root.conf
 
 openssl req -new -nodes -newkey rsa:2048 \
@@ -16,5 +18,5 @@ openssl x509 -req \
   -in server.csr \
   -CA root.crt -CAkey root.key -CAcreateserial \
   -out server.crt \
-  -days 36500 \
+  -days 365 \
   -extfile server_ext.conf

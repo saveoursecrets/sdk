@@ -1,11 +1,11 @@
 use sos_account::AccountSwitcherOptions;
 use sos_backend::{BackendTarget, InferOptions};
-use sos_core::{events::changes_feed, Paths};
+use sos_core::{Paths, events::changes_feed};
 use sos_ipc::{
+    ServiceAppInfo,
     extension_helper::server::{
         ExtensionHelperOptions, ExtensionHelperServer,
     },
-    ServiceAppInfo,
 };
 use sos_net::{
     NetworkAccount, NetworkAccountOptions, NetworkAccountSwitcher,

@@ -8,11 +8,11 @@ use crate::Result;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use time::{
+    Date, Month, OffsetDateTime, Time, UtcOffset,
     format_description::{
         self,
         well_known::{Rfc2822, Rfc3339},
     },
-    Date, Month, OffsetDateTime, Time, UtcOffset,
 };
 use time_tz::{OffsetDateTimeExt, TimeZone};
 
@@ -57,7 +57,7 @@ impl UtcDateTime {
     /// Parse from a simple date format YYYY-MM-DD.
     pub fn parse_simple_date(s: &str) -> Result<Self> {
         let date_separator =
-            format_description::parse("[year]-[month]-[day]")?;
+            format_description::parse_borrowed::<1>("[year]-[month]-[day]")?;
         let date = Date::parse(s, &date_separator)?;
         let offset_date_time = OffsetDateTime::now_utc();
         let offset_date_time = offset_date_time.replace_date(date);
@@ -67,13 +67,14 @@ impl UtcDateTime {
 
     /// Format as a simple date YYYY-MM-DD.
     pub fn format_simple_date(&self) -> Result<String> {
-        let format = format_description::parse("[year]-[month]-[day]")?;
+        let format =
+            format_description::parse_borrowed::<1>("[year]-[month]-[day]")?;
         Ok(self.0.format(&format)?)
     }
 
     /// Format according to a format description.
     pub fn format(&self, description: &str) -> Result<String> {
-        let format = format_description::parse(description)?;
+        let format = format_description::parse_borrowed::<1>(description)?;
         Ok(self.0.format(&format)?)
     }
 
@@ -85,7 +86,7 @@ impl UtcDateTime {
     /// Convert to a short human-readable date and time without
     /// the timezone offset.
     pub fn to_date_time(&self) -> Result<String> {
-        let format = format_description::parse(
+        let format = format_description::parse_borrowed::<1>(
             "[day] [month repr:short] [year] [hour]:[minute]:[second]",
         )?;
         Ok(self.0.format(&format)?)

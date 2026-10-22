@@ -2,31 +2,30 @@
 use super::{DeviceEnrollment, Error, Result, ServerPairUrl};
 use crate::NetworkAccount;
 use futures::{
-    stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
+    stream::{SplitSink, SplitStream},
 };
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use sos_account::Account;
 use sos_backend::BackendTarget;
 use sos_core::{
+    AccountId, Origin,
     device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
     events::DeviceEvent,
-    AccountId, Origin,
 };
 use sos_protocol::{
-    network_client::{NetworkConfig, WebSocketRequest},
-    pairing_message,
-    tokio_tungstenite::{
-        connect_async,
-        tungstenite::{
-            protocol::{frame::coding::CloseCode, CloseFrame, Message},
-            Utf8Bytes,
-        },
-        MaybeTlsStream, WebSocketStream,
-    },
     AccountSync, PairingConfirm, PairingMessage, PairingReady,
     PairingRequest, ProtoMessage, RelayHeader, RelayPacket, RelayPayload,
     SyncOptions,
+    network_client::{NetworkConfig, WebSocketRequest},
+    pairing_message,
+    tokio_tungstenite::{
+        MaybeTlsStream, WebSocketStream, connect_async,
+        tungstenite::{
+            Utf8Bytes,
+            protocol::{CloseFrame, Message, frame::coding::CloseCode},
+        },
+    },
 };
 use std::collections::HashSet;
 use tokio::{net::TcpStream, sync::mpsc};

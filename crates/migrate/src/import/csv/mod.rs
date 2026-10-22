@@ -10,13 +10,13 @@ pub mod one_password;
 use crate::Convert;
 use async_trait::async_trait;
 use sos_backend::AccessPoint;
-use sos_core::{crypto::AccessKey, UtcDateTime};
+use sos_core::{UtcDateTime, crypto::AccessKey};
 use sos_search::SearchIndex;
 use sos_vault::{
+    SecretAccess, Vault,
     secret::{
         IdentityKind, Secret, SecretId, SecretMeta, SecretRow, UserData,
     },
-    SecretAccess, Vault,
 };
 use std::collections::{HashMap, HashSet};
 use url::Url;

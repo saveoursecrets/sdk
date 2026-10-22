@@ -5,10 +5,10 @@ use ed25519_dalek::SECRET_KEY_LENGTH;
 use pem::Pem;
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use serde::{
-    ser::{SerializeMap, SerializeSeq},
     Deserialize, Serialize, Serializer,
+    ser::{SerializeMap, SerializeSeq},
 };
-use sos_core::{basename, guess_mime, UtcDateTime};
+use sos_core::{UtcDateTime, basename, guess_mime};
 use sos_signer::{
     ecdsa::{self, BoxedEcdsaSigner},
     ed25519::{self, BoxedEd25519Signer},
@@ -65,7 +65,7 @@ where
     S: Serializer,
 {
     match secret {
-        Some(ref value) => ser.serialize_some(value.expose_secret()),
+        Some(value) => ser.serialize_some(value.expose_secret()),
         None => ser.serialize_none(),
     }
 }

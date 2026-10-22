@@ -1,23 +1,23 @@
 //! File manager to keep external files in sync
 //! as secrets are created, updated and moved.
-use crate::{files::FileStorage, Error, Result};
+use crate::{Error, Result, files::FileStorage};
 use hex;
 use sos_backend::FileEventLog;
 use sos_core::events::{EventLog, FileEvent};
 use sos_core::{
-    basename, ExternalFileName, Paths, SecretId, SecretPath, VaultId,
+    ExternalFileName, Paths, SecretId, SecretPath, VaultId, basename,
 };
 use sos_external_files::{
     EncryptedFile, FileMutationEvent, FileProgress, FileSource,
     FileStorageDiff, FileStorageResult,
 };
 use sos_vault::{
-    secret::{FileContent, Secret, SecretRow, UserData},
     Summary,
+    secret::{FileContent, Secret, SecretRow, UserData},
 };
 use sos_vfs as vfs;
 use std::{collections::HashMap, path::Path, sync::Arc};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 
 /// Manages external files.
 pub struct ExternalFileManager {
@@ -377,10 +377,10 @@ impl ExternalFileManager {
             file_name,
         );
 
-        if let Some(parent) = new_path.parent() {
-            if !vfs::try_exists(parent).await? {
-                vfs::create_dir_all(parent).await?;
-            }
+        if let Some(parent) = new_path.parent()
+            && !vfs::try_exists(parent).await?
+        {
+            vfs::create_dir_all(parent).await?;
         }
 
         vfs::rename(old_path, new_path).await?;
@@ -570,15 +570,14 @@ fn get_file_sources(secret: &Secret) -> Vec<FileSource> {
             content: FileContent::External { path, .. },
             ..
         } = secret
+            && path.is_some()
         {
-            if path.is_some() {
-                let name = basename(path.as_ref().unwrap());
-                files.push(FileSource {
-                    path: path.clone().unwrap(),
-                    name,
-                    field_index,
-                });
-            }
+            let name = basename(path.as_ref().unwrap());
+            files.push(FileSource {
+                path: path.clone().unwrap(),
+                name,
+                field_index,
+            });
         }
     }
 
@@ -623,10 +622,9 @@ fn get_file_secret_diff<'a>(
         content: FileContent::External { path, .. },
         ..
     } = new_secret
+        && path.is_none()
     {
-        if path.is_none() {
-            unchanged.push(new_secret);
-        }
+        unchanged.push(new_secret);
     }
 
     // Check if the top-level secret will be overwritten
@@ -635,10 +633,9 @@ fn get_file_secret_diff<'a>(
         content: FileContent::External { path, .. },
         ..
     } = new_secret
+        && path.is_some()
     {
-        if path.is_some() {
-            deleted.push(old_secret);
-        }
+        deleted.push(old_secret);
     }
 
     // Find attachments that are unchanged
@@ -647,10 +644,9 @@ fn get_file_secret_diff<'a>(
             content: FileContent::External { path, .. },
             ..
         } = field.secret()
+            && path.is_none()
         {
-            if path.is_none() {
-                unchanged.push(field.secret());
-            }
+            unchanged.push(field.secret());
         }
     }
 
@@ -660,20 +656,19 @@ fn get_file_secret_diff<'a>(
             content: FileContent::External { path, .. },
             ..
         } = field.secret()
+            && path.is_none()
         {
-            if path.is_none() {
-                let existing =
-                    new_secret.user_data().fields().iter().find(|other| {
-                        // Must compare on secret as the label can
-                        // be changed in a rename operation so comparing
-                        // the fields would result in deleting the file
-                        // when an attachment is renamed
-                        field.secret() == other.secret()
-                    });
+            let existing =
+                new_secret.user_data().fields().iter().find(|other| {
+                    // Must compare on secret as the label can
+                    // be changed in a rename operation so comparing
+                    // the fields would result in deleting the file
+                    // when an attachment is renamed
+                    field.secret() == other.secret()
+                });
 
-                if existing.is_none() {
-                    deleted.push(field.secret());
-                }
+            if existing.is_none() {
+                deleted.push(field.secret());
             }
         }
     }

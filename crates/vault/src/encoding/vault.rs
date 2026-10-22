@@ -6,11 +6,11 @@ use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
 use sos_core::{
+    SecretId, UtcDateTime, VaultCommit, VaultFlags,
     constants::VAULT_IDENTITY,
     crypto::{AeadPack, Seed},
     encoding::{decode_uuid, encoding_error},
     file_identity::FileIdentity,
-    SecretId, UtcDateTime, VaultCommit, VaultFlags,
 };
 use std::io::{Error, Result, SeekFrom};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};

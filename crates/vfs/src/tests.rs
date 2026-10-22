@@ -4,7 +4,7 @@ mod tests {
 
     use std::ffi::OsString;
     use std::io::SeekFrom;
-    use std::path::{PathBuf, MAIN_SEPARATOR};
+    use std::path::{MAIN_SEPARATOR, PathBuf};
 
     use crate::memory::{self as vfs, File, OpenOptions, Permissions};
     use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
