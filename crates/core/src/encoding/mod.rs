@@ -9,8 +9,8 @@ pub use v1::VERSION;
 
 use crate::Result;
 use binary_stream::{
-    futures::{BinaryReader, Decodable, Encodable},
     Endian, Options,
+    futures::{BinaryReader, Decodable, Encodable},
 };
 use tokio::io::{AsyncRead, AsyncSeek};
 

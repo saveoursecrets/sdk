@@ -1,10 +1,10 @@
 use crate::{
+    Error, Result,
     commands::{
         AccountCommand, EnvironmentCommand, FolderCommand, PreferenceCommand,
         SecretCommand, ServerCommand, SyncCommand, ToolsCommand,
     },
-    helpers::account::{cd_folder, switch, USER},
-    Error, Result,
+    helpers::account::{USER, cd_folder, switch},
 };
 use clap::{CommandFactory, Parser, Subcommand};
 use sos_account::Account;

@@ -1,7 +1,7 @@
-use crate::{helpers::messages::fail, Error, Result};
+use crate::{Error, Result, helpers::messages::fail};
 use rustyline::{
-    config::Configurer, error::ReadlineError, highlight::Highlighter,
-    history::MemHistory, ColorMode, Editor,
+    ColorMode, Editor, config::Configurer, error::ReadlineError,
+    highlight::Highlighter, history::MemHistory,
 };
 use rustyline_derive::{Completer, Helper, Hinter, Validator};
 use secrecy::{ExposeSecret, SecretString};

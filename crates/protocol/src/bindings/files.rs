@@ -5,9 +5,8 @@ include!(concat!(env!("OUT_DIR"), "/files.rs"));
 mod files {
     use super::*;
     use crate::{
-        decode_uuid, encode_uuid,
+        Error, ProtoBinding, Result, decode_uuid, encode_uuid,
         transfer::{FileSet, FileTransfersSet},
-        Error, ProtoBinding, Result,
     };
     use indexmap::IndexSet;
     use sos_core::{ExternalFile, ExternalFileName, SecretPath};

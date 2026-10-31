@@ -1,18 +1,17 @@
-use super::{types::ManifestVersion3, Error, Result};
+use super::{Error, Result, types::ManifestVersion3};
 use crate::entity::{
     AccountEntity, AccountRecord, AccountRow, EventEntity, EventRecordRow,
-    FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, SecretRow,
-    ServerEntity, ServerRow, SystemMessageEntity, SystemMessageRow,
+    FolderEntity, FolderRow, SecretRow, ServerEntity, ServerRow,
 };
 use async_sqlite::rusqlite::Connection;
 use sha2::{Digest, Sha256};
-use sos_archive::{sanitize_file_path, ZipReader};
+use sos_archive::{ZipReader, sanitize_file_path};
 use sos_core::{
+    AccountId, ExternalFile, ExternalFileName, Paths, SecretId, SecretPath,
+    VaultId,
     commit::CommitHash,
     constants::{BLOBS_DIR, DATABASE_FILE},
     events::EventLogType,
-    AccountId, ExternalFile, ExternalFileName, Paths, SecretId, SecretPath,
-    VaultId,
 };
 use sos_vfs as vfs;
 use std::{
@@ -22,6 +21,12 @@ use std::{
 };
 use tempfile::NamedTempFile;
 use tokio::io::BufReader;
+
+#[cfg(feature = "preferences")]
+use crate::entity::{PreferenceEntity, PreferenceRow};
+
+#[cfg(feature = "system-messages")]
+use crate::entity::{SystemMessageEntity, SystemMessageRow};
 
 struct HashingWriter<W: Write, H: Digest> {
     inner: W,
@@ -48,7 +53,9 @@ struct ImportDataSource {
     user_folders: Vec<(FolderRow, Vec<SecretRow>, Vec<EventRecordRow>)>,
     file_events: Vec<EventRecordRow>,
     servers: Vec<ServerRow>,
+    #[cfg(feature = "preferences")]
     account_preferences: Vec<PreferenceRow>,
+    #[cfg(feature = "system-messages")]
     system_messages: Vec<SystemMessageRow>,
 }
 
@@ -183,7 +190,11 @@ impl BackupImport {
         let folder_entity = FolderEntity::new(&self.source_db);
         let event_entity = EventEntity::new(&self.source_db);
         let server_entity = ServerEntity::new(&self.source_db);
+
+        #[cfg(feature = "preferences")]
         let preference_entity = PreferenceEntity::new(&self.source_db);
+
+        #[cfg(feature = "system-messages")]
         let system_messages_entity =
             SystemMessageEntity::new(&self.source_db);
 
@@ -242,8 +253,10 @@ impl BackupImport {
 
         // Servers, preferences and system messages
         let servers = server_entity.load_servers(account_id)?;
+        #[cfg(feature = "preferences")]
         let account_preferences =
             preference_entity.load_preferences(Some(account_id))?;
+        #[cfg(feature = "system-messages")]
         let system_messages =
             system_messages_entity.load_system_messages(account_id)?;
 
@@ -256,7 +269,9 @@ impl BackupImport {
             user_folders,
             file_events,
             servers,
+            #[cfg(feature = "preferences")]
             account_preferences,
+            #[cfg(feature = "system-messages")]
             system_messages,
         };
 
@@ -274,7 +289,9 @@ impl BackupImport {
         let folder_entity = FolderEntity::new(&tx);
         let event_entity = EventEntity::new(&tx);
         let server_entity = ServerEntity::new(&tx);
+        #[cfg(feature = "preferences")]
         let preference_entity = PreferenceEntity::new(&tx);
+        #[cfg(feature = "system-messages")]
         let system_messages_entity = SystemMessageEntity::new(&tx);
 
         // Insert the account
@@ -320,10 +337,13 @@ impl BackupImport {
 
         // Servers, preferences and system messages
         server_entity.insert_servers(account_id, &data.servers)?;
+
+        #[cfg(feature = "preferences")]
         preference_entity.insert_preferences(
             Some(account_id),
             &data.account_preferences,
         )?;
+        #[cfg(feature = "preferences")]
         system_messages_entity
             .insert_system_messages(account_id, &data.system_messages)?;
 
@@ -427,27 +447,21 @@ fn find_blobs(
                 Some(fourth),
                 Some(fifth),
             ) = (it.next(), it.next(), it.next(), it.next(), it.next())
+                && first == BLOBS_DIR
+                && let Ok(account_id) =
+                    second.to_string_lossy().parse::<AccountId>()
             {
-                if first == BLOBS_DIR {
-                    if let Ok(account_id) =
-                        second.to_string_lossy().parse::<AccountId>()
-                    {
-                        let files =
-                            out.entry(account_id).or_insert(Vec::new());
+                let files = out.entry(account_id).or_insert(Vec::new());
 
-                        if let (Ok(folder_id), Ok(secret_id), Ok(file_name)) = (
-                            third.to_string_lossy().parse::<VaultId>(),
-                            fourth.to_string_lossy().parse::<SecretId>(),
-                            fifth
-                                .to_string_lossy()
-                                .parse::<ExternalFileName>(),
-                        ) {
-                            files.push(ExternalFile::new(
-                                SecretPath(folder_id, secret_id),
-                                file_name,
-                            ));
-                        }
-                    }
+                if let (Ok(folder_id), Ok(secret_id), Ok(file_name)) = (
+                    third.to_string_lossy().parse::<VaultId>(),
+                    fourth.to_string_lossy().parse::<SecretId>(),
+                    fifth.to_string_lossy().parse::<ExternalFileName>(),
+                ) {
+                    files.push(ExternalFile::new(
+                        SecretPath(folder_id, secret_id),
+                        file_name,
+                    ));
                 }
             }
         }

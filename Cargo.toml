@@ -51,44 +51,44 @@ members = [
 ]
 
 [workspace.dependencies]
-sos-account = { version = "0.17", path = "crates/account" }
+sos-account = { version = "0.18", path = "crates/account" }
 sos-artifact = { version = "0.8", path = "crates/artifact" }
-sos-audit = { version = "0.17", path = "crates/audit" }
-sos-archive = { version = "0.17", path = "crates/archive" }
-sos-backend  = { version = "0.17", path = "crates/backend" }
+sos-audit = { version = "0.18", path = "crates/audit" }
+sos-archive = { version = "0.18", path = "crates/archive" }
+sos-backend  = { version = "0.18", path = "crates/backend" }
 sos-cli-helpers = { version = "0.1", path = "crates/cli_helpers" }
-sos-core = { version = "0.17", path = "crates/core" }
-sos-changes = { version = "0.17", path = "crates/changes" }
-sos-database = { version = "0.17", path = "crates/database" }
-sos-database-upgrader = { version = "0.17", path = "crates/database_upgrader" }
-sos-debug-snapshot = { version = "0.17", path = "crates/debug_snapshot" }
-sos-external-files = { version = "0.17.1", path = "crates/external_files" }
-sos-filesystem = { version = "0.17", path = "crates/filesystem" }
-sos-integrity = { version = "0.17", path = "crates/integrity" }
-sos-ipc = { version = "0.17", path = "crates/ipc" }
-sos-login = { version = "0.17", path = "crates/login" }
-sos-logs = { version = "0.17", path = "crates/logs" }
-sos-migrate = { version = "0.17", path = "crates/migrate" }
-sos-net = { version = "0.17.7", path = "crates/net" }
-sos-password = { version = "0.17", path = "crates/password" }
-sos-platform-authenticator = { version = "0.17", path = "crates/platform_authenticator" }
-sos-protocol = { version = "0.17", path = "crates/protocol" }
+sos-core = { version = "0.18", path = "crates/core" }
+sos-changes = { version = "0.18", path = "crates/changes" }
+sos-database = { version = "0.18", path = "crates/database" }
+sos-database-upgrader = { version = "0.18", path = "crates/database_upgrader" }
+sos-debug-snapshot = { version = "0.18", path = "crates/debug_snapshot" }
+sos-external-files = { version = "0.18", path = "crates/external_files" }
+sos-filesystem = { version = "0.18", path = "crates/filesystem" }
+sos-integrity = { version = "0.18", path = "crates/integrity" }
+sos-ipc = { version = "0.18", path = "crates/ipc" }
+sos-login = { version = "0.18", path = "crates/login" }
+sos-logs = { version = "0.18", path = "crates/logs" }
+sos-migrate = { version = "0.18", path = "crates/migrate" }
+sos-net = { version = "0.18", path = "crates/net" }
+sos-password = { version = "0.18", path = "crates/password" }
+sos-platform-authenticator = { version = "0.18", path = "crates/platform_authenticator" }
+sos-protocol = { version = "0.18", path = "crates/protocol" }
 # sos-recovery = { version = "0.16", path = "crates/recovery" }
-sos-reducers = { version = "0.17", path = "crates/reducers" }
-sos-remote-sync = { version = "0.17", path = "crates/remote_sync" }
-sos-search = { version = "0.17", path = "crates/search" }
-sos-server = { version = "0.17", path = "crates/server" }
-sos-security-report = { version = "0.17", path = "crates/security_report" }
-sos-system-messages = { version = "0.17", path = "crates/system_messages" }
-sos-client-storage = { version = "0.17", path = "crates/storage/client" }
-sos-server-storage = { version = "0.17", path = "crates/storage/server" }
-sos-preferences = { version = "0.17.3", path = "crates/preferences" }
-sos-signer = { version = "0.17", path = "crates/signer" }
-sos-sync = { version = "0.17", path = "crates/sync" }
-sos-sdk = { version = "0.17", path = "crates/sdk" }
+sos-reducers = { version = "0.18", path = "crates/reducers" }
+sos-remote-sync = { version = "0.18", path = "crates/remote_sync" }
+sos-search = { version = "0.18", path = "crates/search" }
+sos-server = { version = "0.18", path = "crates/server" }
+sos-security-report = { version = "0.18", path = "crates/security_report" }
+sos-system-messages = { version = "0.18", path = "crates/system_messages" }
+sos-client-storage = { version = "0.18", path = "crates/storage/client" }
+sos-server-storage = { version = "0.18", path = "crates/storage/server" }
+sos-preferences = { version = "0.18", path = "crates/preferences" }
+sos-signer = { version = "0.18", path = "crates/signer" }
+sos-sync = { version = "0.18", path = "crates/sync" }
+sos-sdk = { version = "0.18", path = "crates/sdk" }
 sos-vfs = { version = "0.3", path = "crates/vfs" }
-sos-web = { version = "0.17", path = "crates/web" }
-sos-vault = { version = "0.17", path = "crates/vault" }
+sos-web = { version = "0.18", path = "crates/web" }
+sos-vault = { version = "0.18", path = "crates/vault" }
 
 sos-test-utils = { path = "tests/utils" }
 
@@ -102,13 +102,13 @@ rs_merkle = "1.4.2"
 zxcvbn = { version = "3.0.1", features = ["ser"] }
 chbs = "0.1.1"
 
-reqwest = { version = "0.12.5", default-features = false }
-tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"]}
+reqwest = { version = "0.13", default-features = false }
+tokio-tungstenite = { version = "0.30", features = ["rustls-tls-webpki-roots"]}
 webpki-roots = "1"
 rustls-pemfile = "2"
-rustls-webpki = "0.103"
+rustls-webpki = { version = "0.103", default-features = false, features = ["std", "aws-lc-rs"] }
 
-age = { version = "0.11", features = ["async"] }
+age = { version = "0.12", features = ["async"] }
 argon2 = { version = "0.5", features = ["std"]}
 totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }
 aes-gcm = { version = "0.10.1", features = ["std"] }
@@ -182,9 +182,9 @@ vcard4 = { version = "0.7.1", features = ["serde"] }
 mime_guess = "2"
 etcetera = "0.11"
 
-axum-server = { version = "0.7", features = ["tls-rustls-no-provider"] }
-tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"] }
-rustls = { version = "0.23", default-features = false, features = ["ring"] }
+axum-server = { version = "0.8", features = ["tls-rustls"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["tls12", "aws-lc-rs"] }
+rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs"] }
 keyring = { version = "3.5", features = ["apple-native", "windows-native", "sync-secret-service"] }
 
 # logs
@@ -211,7 +211,6 @@ vsss-rs = "3"
 getrandom = "0.2"
 
 # build
-rustc_version = "0.4.1"
 prost-build = "0.14"
 protoc-bin-vendored = "3"
 
@@ -225,3 +224,7 @@ codegen-units = 1
 lto = true
 strip = true
 opt-level = "z"
+
+[patch.crates-io]
+tokio-rustls-acme = { git = "https://github.com/n0-computer/tokio-rustls-acme", branch = "main" }
+tokio-tungstenite = { git = "https://github.com/Vonr/tokio-tungstenite", branch = "chore/bump-webpki-roots" }

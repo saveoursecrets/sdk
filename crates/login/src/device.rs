@@ -2,19 +2,20 @@
 use crate::{Error, Result};
 use secrecy::ExposeSecret;
 use sos_backend::{
-    database::entity::{AccountEntity, FolderEntity, FolderRow},
     AccessPoint, BackendTarget,
+    database::entity::{AccountEntity, FolderEntity, FolderRow},
 };
 use sos_core::{
+    AccountId, SecretId, VaultFlags,
     crypto::AccessKey,
     device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
-    encode, AccountId, SecretId, VaultFlags,
+    encode,
 };
 use sos_filesystem::write_exclusive;
 use sos_signer::ed25519::{self, BoxedEd25519Signer, SingleParty};
 use sos_vault::{
-    secret::{Secret, SecretSigner},
     BuilderCredentials, SecretAccess, Vault, VaultBuilder,
+    secret::{Secret, SecretSigner},
 };
 use urn::Urn;
 
@@ -146,13 +147,11 @@ impl DeviceManager {
         for id in device_keeper.vault().keys() {
             if let Some((meta, secret, _)) =
                 device_keeper.read_secret(id).await?
+                && let Some(urn) = meta.urn()
+                && urn == &device_key_urn
             {
-                if let Some(urn) = meta.urn() {
-                    if urn == &device_key_urn {
-                        device_signer_secret = Some((*id, secret));
-                        break;
-                    }
-                }
+                device_signer_secret = Some((*id, secret));
+                break;
             }
         }
 

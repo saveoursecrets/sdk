@@ -1,8 +1,8 @@
 use crate::{
+    Error, Result,
     helpers::{
         account::resolve_user, messages::success, readline::read_flag,
     },
-    Error, Result,
 };
 use clap::Subcommand;
 use sos_account::{Account, FolderCreate};

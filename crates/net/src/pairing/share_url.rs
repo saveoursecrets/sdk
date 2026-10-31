@@ -1,7 +1,7 @@
 use super::{Error, Result};
 use hex;
 use rand::Rng;
-use sos_core::{csprng, AccountId};
+use sos_core::{AccountId, csprng};
 use std::str::FromStr;
 use url::Url;
 
@@ -37,7 +37,7 @@ impl ServerPairUrl {
         server: Url,
         public_key: Vec<u8>,
     ) -> Self {
-        let pre_shared_key: [u8; 32] = csprng().gen();
+        let pre_shared_key: [u8; 32] = csprng().r#gen();
         Self {
             account_id,
             server,
@@ -97,43 +97,23 @@ impl FromStr for ServerPairUrl {
 
         let mut pairs = url.query_pairs();
 
-        let account_id = pairs.find_map(|q| {
-            if q.0.as_ref() == AID {
-                Some(q.1)
-            } else {
-                None
-            }
-        });
+        let account_id = pairs
+            .find_map(|q| if q.0.as_ref() == AID { Some(q.1) } else { None });
         let account_id = account_id.ok_or(Error::InvalidShareUrl)?;
         let account_id: AccountId = account_id.as_ref().parse()?;
 
-        let server = pairs.find_map(|q| {
-            if q.0.as_ref() == URL {
-                Some(q.1)
-            } else {
-                None
-            }
-        });
+        let server = pairs
+            .find_map(|q| if q.0.as_ref() == URL { Some(q.1) } else { None });
         let server = server.ok_or(Error::InvalidShareUrl)?;
         let server: Url = server.as_ref().parse()?;
 
-        let key = pairs.find_map(|q| {
-            if q.0.as_ref() == KEY {
-                Some(q.1)
-            } else {
-                None
-            }
-        });
+        let key = pairs
+            .find_map(|q| if q.0.as_ref() == KEY { Some(q.1) } else { None });
         let key = key.ok_or(Error::InvalidShareUrl)?;
         let key = hex::decode(key.as_ref())?;
 
-        let psk = pairs.find_map(|q| {
-            if q.0.as_ref() == PSK {
-                Some(q.1)
-            } else {
-                None
-            }
-        });
+        let psk = pairs
+            .find_map(|q| if q.0.as_ref() == PSK { Some(q.1) } else { None });
         let psk = psk.ok_or(Error::InvalidShareUrl)?;
         let psk = hex::decode(psk.as_ref())?;
         let psk: [u8; 32] = psk.as_slice().try_into()?;

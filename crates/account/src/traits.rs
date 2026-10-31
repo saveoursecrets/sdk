@@ -1,28 +1,28 @@
 //! Account storage and search index.
-use crate::{convert::CipherComparison, Error};
 use crate::{
     AccountChange, AccountData, DetachedView, FolderChange, FolderCreate,
     FolderDelete, SecretChange, SecretDelete, SecretInsert, SecretMove,
 };
+use crate::{Error, convert::CipherComparison};
 use indexmap::IndexSet;
 use sos_backend::{BackendTarget, Folder};
 use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::{
+    AccountId, ErrorExt, FolderRef, Paths, SecretId, UtcDateTime,
+    VaultCommit, VaultFlags, VaultId,
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DevicePublicKey, TrustedDevice},
     events::{AccountEvent, DeviceEvent, EventRecord, ReadEvent, WriteEvent},
-    AccountId, ErrorExt, FolderRef, Paths, SecretId, UtcDateTime,
-    VaultCommit, VaultFlags, VaultId,
 };
 use sos_login::{
-    device::{DeviceManager, DeviceSigner},
     PublicIdentity,
+    device::{DeviceManager, DeviceSigner},
 };
 use sos_sync::CreateSet;
 use sos_vault::{
-    secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
     Summary, Vault,
+    secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
 };
 use std::{collections::HashMap, path::Path, sync::Arc};
 
@@ -69,6 +69,11 @@ pub trait Account {
 
     /// Determine if the account is authenticated.
     async fn is_authenticated(&self) -> bool;
+
+    /// Public key for shared access.
+    async fn shared_access_public_key(
+        &self,
+    ) -> Result<age::x25519::Recipient, Self::Error>;
 
     /// Import encrypted account events into the client storage.
     async fn import_account_events(

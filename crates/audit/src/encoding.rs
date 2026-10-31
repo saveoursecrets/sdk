@@ -4,8 +4,8 @@ use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
 use sos_core::{
-    encoding::{decode_uuid, encoding_error},
     UtcDateTime,
+    encoding::{decode_uuid, encoding_error},
 };
 use std::io::{Error, Result};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};

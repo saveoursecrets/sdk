@@ -1,10 +1,10 @@
 use crate::{BackendTarget, Error, Result};
 use async_trait::async_trait;
 use sos_core::{
+    SecretId, VaultCommit, VaultEntry, VaultFlags, VaultId,
     commit::CommitHash,
     crypto::AeadPack,
     events::{ReadEvent, WriteEvent},
-    SecretId, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
 use sos_database::VaultDatabaseWriter;
 use sos_filesystem::VaultFileWriter;

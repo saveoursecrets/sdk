@@ -1,6 +1,11 @@
 use crate::{
-    DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
-    ScanResponse, SyncOptions,
+    CreateSharedFolderRequest, CreateSharedFolderResponse,
+    DeleteSharedFolderRequest, DeleteSharedFolderResponse, DiffRequest,
+    DiffResponse, GetFolderInvitesRequest, GetFolderInvitesResponse,
+    GetRecipientRequest, GetRecipientResponse, PatchRequest, PatchResponse,
+    ScanRequest, ScanResponse, SearchRecipientsRequest,
+    SearchRecipientsResponse, SetRecipientRequest, SetRecipientResponse,
+    SyncOptions, UpdateFolderInviteRequest, UpdateFolderInviteResponse,
 };
 use async_trait::async_trait;
 use sos_core::Origin;
@@ -208,4 +213,52 @@ pub trait SyncClient {
         &self,
         request: PatchRequest,
     ) -> Result<PatchResponse, Self::Error>;
+
+    /// Set recipient information for the account.
+    async fn set_recipient(
+        &self,
+        request: SetRecipientRequest,
+    ) -> Result<SetRecipientResponse, Self::Error>;
+
+    /// Get recipient information for the account.
+    async fn get_recipient(
+        &self,
+        request: GetRecipientRequest,
+    ) -> Result<GetRecipientResponse, Self::Error>;
+
+    /// Create a shared folder.
+    async fn create_shared_folder(
+        &self,
+        request: CreateSharedFolderRequest,
+    ) -> Result<CreateSharedFolderResponse, Self::Error>;
+
+    /// List sent folder invites.
+    async fn sent_folder_invites(
+        &self,
+        request: GetFolderInvitesRequest,
+    ) -> Result<GetFolderInvitesResponse, Self::Error>;
+
+    /// List received folder invites.
+    async fn received_folder_invites(
+        &self,
+        request: GetFolderInvitesRequest,
+    ) -> Result<GetFolderInvitesResponse, Self::Error>;
+
+    /// Update a received folder invite.
+    async fn update_folder_invite(
+        &self,
+        request: UpdateFolderInviteRequest,
+    ) -> Result<UpdateFolderInviteResponse, Self::Error>;
+
+    /// Search for recipients.
+    async fn search_recipients(
+        &self,
+        request: SearchRecipientsRequest,
+    ) -> Result<SearchRecipientsResponse, Self::Error>;
+
+    /// Delete a shared folder.
+    async fn delete_shared_folder(
+        &self,
+        request: DeleteSharedFolderRequest,
+    ) -> Result<DeleteSharedFolderResponse, Self::Error>;
 }

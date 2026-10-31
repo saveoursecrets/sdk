@@ -1,10 +1,10 @@
 use crate::{
+    Error, Result,
     helpers::{
-        account::{cd_folder, resolve_folder, resolve_user, SHELL},
+        account::{SHELL, cd_folder, resolve_folder, resolve_user},
         messages::success,
         readline::read_flag,
     },
-    Error, Result,
 };
 use clap::Subcommand;
 use hex;
@@ -12,8 +12,8 @@ use sos_account::{Account, FolderCreate};
 use sos_backend::BackendTarget;
 use sos_client_storage::NewFolderOptions;
 use sos_core::{
-    events::{EventLog, LogEvent},
     AccountId, AccountRef, FolderRef,
+    events::{EventLog, LogEvent},
 };
 use sos_sync::StorageEventLogs;
 

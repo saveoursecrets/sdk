@@ -3,7 +3,7 @@ use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use sos_backend::BackendTarget;
 use sos_client_storage::ClientStorage;
-use sos_core::{constants::JSON_EXT, Paths, PublicIdentity};
+use sos_core::{Paths, PublicIdentity, constants::JSON_EXT};
 use sos_database::{
     async_sqlite::JournalMode, migrations::migrate_client,
     open_file_with_journal_mode, open_memory,
@@ -19,6 +19,7 @@ use std::{
     sync::Arc,
 };
 use tempfile::NamedTempFile;
+use tokio::sync::Mutex;
 use url::Url;
 
 mod db_import;
@@ -142,6 +143,7 @@ async fn import_accounts(
                 ServerStorage::new(
                     BackendTarget::FileSystem(account_paths.clone()),
                     account.account_id(),
+                    Arc::new(Mutex::new(Default::default())),
                 )
                 .await?,
             )
@@ -414,10 +416,10 @@ async fn copy_file_blobs(
                   dest = ?dest,
                   "upgrade_accounts::copy_file");
 
-                if let Some(parent) = dest.parent() {
-                    if !vfs::try_exists(parent).await? {
-                        vfs::create_dir_all(parent).await?;
-                    }
+                if let Some(parent) = dest.parent()
+                    && !vfs::try_exists(parent).await?
+                {
+                    vfs::create_dir_all(parent).await?;
                 }
 
                 let mut input = File::open(&source).await?;

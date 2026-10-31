@@ -1,6 +1,6 @@
 [package]
 name = "sos-server-storage"
-version = "0.17.4"
+version = "0.18.0"
 edition = "2021"
 description = "Server storage for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -45,6 +45,3 @@ sha2.workspace = true
 serde.workspace = true
 futures.workspace = true
 binary-stream.workspace = true
-
-[build-dependencies]
-rustc_version.workspace = true

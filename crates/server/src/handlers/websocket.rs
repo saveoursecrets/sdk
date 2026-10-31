@@ -1,22 +1,22 @@
 use super::{
-    authenticate_endpoint, parse_account_id, Caller, ConnectionQuery,
+    Caller, ConnectionQuery, authenticate_endpoint, parse_account_id,
 };
 use crate::{Result, ServerBackend, ServerState};
 use axum::{
     extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
         Extension, OriginalUri, Query,
+        ws::{Message, WebSocket, WebSocketUpgrade},
     },
     http::{HeaderMap, StatusCode},
     response::Response,
 };
 use axum_extra::{
-    headers::{authorization::Bearer, Authorization},
+    headers::{Authorization, authorization::Bearer},
     typed_header::TypedHeader,
 };
 use futures::{
-    stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
+    stream::{SplitSink, SplitStream},
 };
 use sos_core::AccountId;
 use std::{collections::HashMap, sync::Arc};
@@ -246,8 +246,8 @@ async fn write(
                 break;
             }
             event = outgoing.recv() => {
-                if let Ok(msg) = event {
-                    if sink.send(Message::Binary(msg.into())).await.is_err() {
+                if let Ok(msg) = event
+                    && sink.send(Message::Binary(msg.into())).await.is_err() {
                         tracing::trace!(
                             account_id = %account_id,
                             "ws_server::disconnect::send_error",
@@ -259,7 +259,6 @@ async fn write(
                         ).await;
                         break;
                     }
-                }
             },
         }
     }

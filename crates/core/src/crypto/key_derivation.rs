@@ -1,11 +1,11 @@
 //! Constants for supported key derivation functions.
 use crate::{
-    crypto::{csprng, DerivedPrivateKey},
     Error, Result,
+    crypto::{DerivedPrivateKey, csprng},
 };
 use argon2::{
-    password_hash::{PasswordHash, PasswordHasher, SaltString},
     Argon2,
+    password_hash::{PasswordHash, PasswordHasher, SaltString},
 };
 use balloon_hash::Balloon;
 use rand::Rng;
@@ -70,7 +70,7 @@ impl KeyDerivation {
     /// Generate new random seed entropy.
     #[deprecated]
     pub fn generate_seed() -> Seed {
-        let bytes: [u8; Seed::SIZE] = csprng().gen();
+        let bytes: [u8; Seed::SIZE] = csprng().r#gen();
         Seed(bytes)
     }
 }

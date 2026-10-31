@@ -1,5 +1,5 @@
-use crate::handlers::{account, files};
-use utoipa::{openapi::security::*, Modify, OpenApi};
+use crate::handlers::{account, files, sharing};
+use utoipa::{Modify, OpenApi, openapi::security::*};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -33,6 +33,8 @@ use utoipa::{openapi::security::*, Modify, OpenApi};
         files::send_file,
         files::move_file,
         files::delete_file,
+        sharing::set_recipient,
+        sharing::create_folder,
     ),
     components(
         schemas(),

@@ -36,7 +36,7 @@ fn init_server_logs(config: &LogConfig) -> Logger {
 }
 
 mod cli {
-    use crate::{init_default_subscriber, init_server_logs, Result};
+    use crate::{Result, init_default_subscriber, init_server_logs};
     use clap::{CommandFactory, Parser, Subcommand};
     use sos_cli_helpers::CommandTree;
     use sos_server::ServerConfig;

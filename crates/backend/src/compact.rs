@@ -1,17 +1,18 @@
 //! Compact folders.
 use crate::{BackendEventLog, Error, FolderEventLog, Result};
 use sos_core::{
-    events::{
-        patch::{FolderDiff, Patch},
-        EventLog, EventLogType, EventRecord,
-    },
     AccountId, VaultId,
+    events::{
+        EventLog, EventLogType, EventRecord,
+        patch::{FolderDiff, Patch},
+    },
 };
 use sos_database::{
+    EventLogOwner,
     entity::{
         AccountEntity, AccountRow, FolderEntity, FolderRecord, FolderRow,
     },
-    open_memory, EventLogOwner,
+    open_memory,
 };
 use sos_filesystem::FolderEventLog as FsFolderEventLog;
 use sos_reducers::FolderReducer;

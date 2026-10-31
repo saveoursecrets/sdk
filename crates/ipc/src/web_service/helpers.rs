@@ -1,6 +1,6 @@
 //! Helper routes for utility functions.
 
-use crate::web_service::{parse_query, status, Body, Incoming};
+use crate::web_service::{Body, Incoming, parse_query, status};
 use http::{Request, Response, StatusCode};
 
 /// Open a URL.

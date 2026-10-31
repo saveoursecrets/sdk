@@ -1,8 +1,8 @@
 //! Authentication helper functions for extracting an address
 //! from a signature given in bearer authorization data.
 use super::{Error, Result};
-use axum_extra::headers::{authorization::Bearer, Authorization};
-use sos_core::{decode, AccountId};
+use axum_extra::headers::{Authorization, authorization::Bearer};
+use sos_core::{AccountId, decode};
 use sos_signer::ed25519::{self, BinaryEd25519Signature};
 
 #[derive(Debug)]

@@ -80,3 +80,38 @@ message WireCheckedPatch {
   }
 }
 
+message WireRecipient {
+  // Name of the recipient.
+  string name = 1;
+  // Email of the recipient.
+  optional string email = 2;
+  // Recipient public key.
+  string public_key = 3;
+}
+
+/// Status of a folder invite.
+enum WireInviteStatus {
+  Pending = 0;
+  Accepted = 1;
+  Declined = 2;
+}
+
+/// Folder invite.
+message WireFolderInvite {
+  /// Created at date and time.
+  common.WireUtcDateTime created_at = 1;
+  /// Modified at date and time.
+  common.WireUtcDateTime modified_at = 2;
+  /// Invite status.
+  common.WireInviteStatus invite_status = 3;
+  /// Folder identifier.
+  string folder_id = 4;
+  /// Folder name.
+  string folder_name = 5;
+  /// Recipient name.
+  string recipient_name = 6;
+  /// Recipient email.
+  optional string recipient_email = 7;
+  /// Recipient public key.
+  string recipient_public_key = 8;
+}

@@ -16,7 +16,7 @@ use super::{
     GenericCsvConvert, GenericCsvEntry, GenericNoteRecord,
     GenericPasswordRecord, UNTITLED,
 };
-use crate::{import::read_csv_records, Convert, Result};
+use crate::{Convert, Result, import::read_csv_records};
 
 const TYPE_LOGIN: &str = "login";
 const TYPE_NOTE: &str = "note";

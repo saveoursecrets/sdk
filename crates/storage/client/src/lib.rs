@@ -1,11 +1,12 @@
+//! Client storage for a backend target.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Client storage for a backend target.
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 use sos_core::{
+    AccountId, VaultFlags, VaultId,
     crypto::{AccessKey, Cipher, KeyDerivation},
     events::WriteEvent,
-    AccountId, VaultFlags, VaultId,
 };
 use sos_vault::Vault;
 
@@ -54,10 +55,7 @@ impl NewFolderOptions {
     pub fn new(name: String) -> Self {
         Self {
             name,
-            flags: None,
-            key: None,
-            cipher: None,
-            kdf: None,
+            ..Default::default()
         }
     }
 }

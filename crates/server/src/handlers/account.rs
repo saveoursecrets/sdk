@@ -1,14 +1,14 @@
 use super::BODY_LIMIT;
-use super::{authenticate_endpoint, parse_account_id, Caller};
-use crate::{handlers::ConnectionQuery, ServerBackend, ServerState};
+use super::{Caller, authenticate_endpoint, parse_account_id};
+use crate::{ServerBackend, ServerState, handlers::ConnectionQuery};
 use axum::{
-    body::{to_bytes, Body},
+    body::{Body, to_bytes},
     extract::{Extension, OriginalUri, Query},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
 use axum_extra::{
-    headers::{authorization::Bearer, Authorization},
+    headers::{Authorization, authorization::Bearer},
     typed_header::TypedHeader,
 };
 use std::sync::Arc;
@@ -612,12 +612,12 @@ mod handlers {
     use crate::{Error, Result, ServerBackend, ServerState};
     use axum::body::Bytes;
     use http::{
-        header::{self, HeaderMap, HeaderValue},
         StatusCode,
+        header::{self, HeaderMap, HeaderValue},
     };
     use sos_protocol::{
-        constants::MIME_TYPE_PROTOBUF, DiffRequest, PatchRequest,
-        ScanRequest, WireEncodeDecode,
+        DiffRequest, PatchRequest, ScanRequest, WireEncodeDecode,
+        constants::MIME_TYPE_PROTOBUF,
     };
     use sos_server_storage::server_helpers;
     use sos_sync::{CreateSet, SyncPacket, SyncStorage, UpdateSet};
@@ -814,19 +814,19 @@ mod handlers {
         };
 
         #[cfg(feature = "listen")]
-        if outcome.changes > 0 {
-            if let Some(conn_id) = caller.connection_id() {
-                let reader = account.read().await;
-                let local_status = reader.sync_status().await?;
-                let notification = NetworkChangeEvent::new(
-                    caller.account_id(),
-                    conn_id.to_string(),
-                    local_status.root,
-                    outcome,
-                );
-                let reader = state.read().await;
-                send_notification(&reader, &caller, notification).await;
-            }
+        if outcome.changes > 0
+            && let Some(conn_id) = caller.connection_id()
+        {
+            let reader = account.read().await;
+            let local_status = reader.sync_status().await?;
+            let notification = NetworkChangeEvent::new(
+                caller.account_id(),
+                conn_id.to_string(),
+                local_status.root,
+                outcome,
+            );
+            let reader = state.read().await;
+            send_notification(&reader, &caller, notification).await;
         }
 
         let mut headers = HeaderMap::new();
@@ -866,17 +866,17 @@ mod handlers {
         };
 
         #[cfg(feature = "listen")]
-        if outcome.changes > 0 {
-            if let Some(conn_id) = caller.connection_id() {
-                let notification = NetworkChangeEvent::new(
-                    caller.account_id(),
-                    conn_id.to_string(),
-                    packet.status.root,
-                    outcome,
-                );
-                let reader = state.read().await;
-                send_notification(&reader, &caller, notification).await;
-            }
+        if outcome.changes > 0
+            && let Some(conn_id) = caller.connection_id()
+        {
+            let notification = NetworkChangeEvent::new(
+                caller.account_id(),
+                conn_id.to_string(),
+                packet.status.root,
+                outcome,
+            );
+            let reader = state.read().await;
+            send_notification(&reader, &caller, notification).await;
         }
 
         let mut headers = HeaderMap::new();

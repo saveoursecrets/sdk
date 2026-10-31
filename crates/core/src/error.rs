@@ -73,6 +73,10 @@ pub enum Error {
     #[error("event log create vault event must only be the first record")]
     CreateEventOnlyFirst,
 
+    /// Encountered an unknown folder invite status.
+    #[error("unknown folder invite status code: {0}")]
+    UnknownInviteStatus(i64),
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

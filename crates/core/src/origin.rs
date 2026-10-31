@@ -67,7 +67,7 @@ pub trait RemoteOrigins {
 
     /// Add a server origin to the backing storage.
     async fn add_server(&mut self, origin: Origin)
-        -> Result<(), Self::Error>;
+    -> Result<(), Self::Error>;
 
     /// Update a server origin in the backing storage.
     async fn replace_server(

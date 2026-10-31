@@ -1,13 +1,13 @@
 use crate::{
+    Error, Result,
     helpers::{
         account::{
-            list_accounts, new_account, resolve_account, resolve_user,
-            verify, Owner, SHELL, USER,
+            Owner, SHELL, USER, list_accounts, new_account, resolve_account,
+            resolve_user, verify,
         },
         messages::success,
         readline::read_flag,
     },
-    Error, Result,
 };
 use clap::Subcommand;
 use enum_iterator::all;

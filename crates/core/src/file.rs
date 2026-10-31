@@ -1,5 +1,5 @@
 use crate::{
-    commit::CommitHash, Error, Result, SecretId, SecretPath, VaultId,
+    Error, Result, SecretId, SecretPath, VaultId, commit::CommitHash,
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
@@ -91,12 +91,12 @@ impl ExternalFile {
 
     /// Vault identifier.
     pub fn vault_id(&self) -> &VaultId {
-        &self.0 .0
+        &self.0.0
     }
 
     /// Secret identifier.
     pub fn secret_id(&self) -> &SecretId {
-        &self.0 .1
+        &self.0.1
     }
 
     /// File name.

@@ -5,8 +5,9 @@ use std::task::Context;
 use std::task::Poll;
 
 use super::{
-    fs::{resolve, Fd, MemoryFd, PathTarget},
-    metadata, FileType, Metadata,
+    FileType, Metadata,
+    fs::{Fd, MemoryFd, PathTarget, resolve},
+    metadata,
 };
 
 /// Returns a stream over the entries within a directory.
