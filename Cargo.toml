@@ -208,7 +208,7 @@ plist = "1.7"
 vsss-rs = "3"
 
 # wasm
-getrandom = "0.2"
+getrandom = "0.4"
 
 # build
 prost-build = "0.14"
