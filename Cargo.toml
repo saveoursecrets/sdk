@@ -173,7 +173,6 @@ bytes = "1.8"
 serde_json_path = "0.7"
 base64 = "0.22"
 notify = { version = "7", features = ["serde"]}
-walkdir = "2"
 async_zip = { version = "0.0.17", default-features = false, features = ["deflate", "tokio"] }
 csv-async = { version = "1", features = ["tokio", "with_serde"] }
 futures-util = "0.3"
@@ -206,9 +205,6 @@ plist = "1.7"
 
 # recovery
 vsss-rs = "3"
-
-# wasm
-getrandom = "0.2"
 
 # build
 prost-build = "0.14"
